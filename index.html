@@ -4,8 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Mechanic's Best Friend</title>
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="assets/icons/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="48x48" href="assets/icons/favicon-48x48.png" />
+  
+  <!-- Apple Touch Icon -->
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+  
+  <!-- PWA Manifest -->
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#ffffff" />
+  
   <link rel="stylesheet" href="styles.css" />
 
     <style>
@@ -28,6 +40,29 @@
         display: flex;
         align-items: center;
         gap: 12px;
+      }
+      
+      .header-logo{
+        width: 80px;
+        max-height: 80px;
+        height: auto;
+        border-radius: 4px;
+        flex-shrink: 0;
+      }
+      
+      /* Responsive scaling for smaller screens */
+      @media (max-width: 768px) {
+        .header-logo{
+          width: 60px;
+          max-height: 60px;
+        }
+      }
+      
+      @media (max-width: 480px) {
+        .header-logo{
+          width: 48px;
+          max-height: 48px;
+        }
       }
       
       .container{padding: 16px}
@@ -296,7 +331,7 @@
       </div>
       <header id="appHeader" style="display:none">
         Mechanic's Best Friend
-        <img src="assets/icons/monkey.png" alt="Logo" style="width: 48px; height: auto; border-radius: 4px;">
+        <img src="assets/icons/monkey.png" alt="Logo" class="header-logo">
       </header>
       <div class="container" id="appMain" style="display:none">
         <div id="breadcrumbs"></div>
