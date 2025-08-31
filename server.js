@@ -85,6 +85,12 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// Serve uploaded files from local storage
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  dotfiles: 'ignore',
+  index: false
+}));
+
 // Login endpoint
 app.post('/auth/login', async (req, res) => {
   try {
@@ -167,71 +173,121 @@ app.post('/upload', requireAdmin, upload.array('files'), async (req, res) => {
       return res.status(400).json({ error: 'No files provided' });
     }
 
-    if (!octokit) {
-      return res.status(500).json({ 
-        error: 'GitHub integration not configured. Please set GITHUB_TOKEN.' 
-      });
-    }
-
     const results = [];
-    const owner = process.env.GITHUB_OWNER;
-    const repo = process.env.GITHUB_REPO;
-    const branch = process.env.GITHUB_BRANCH || 'main';
+    
+    // Try GitHub upload first if available, otherwise use fallback storage
+    if (octokit) {
+      const owner = process.env.GITHUB_OWNER;
+      const repo = process.env.GITHUB_REPO;
+      const branch = process.env.GITHUB_BRANCH || 'main';
 
-    for (const file of files) {
-      try {
-        let filename = file.originalname;
-        const cleanPath = targetPath.replace(/^\/+/, '').replace(/\/+$/, '');
-        let fullPath = `${cleanPath}/${filename}`;
+      for (const file of files) {
+        try {
+          let filename = file.originalname;
+          const cleanPath = targetPath.replace(/^\/+/, '').replace(/\/+$/, '');
+          let fullPath = `${cleanPath}/${filename}`;
 
-        // Check if file exists and handle collisions
-        let version = 1;
-        while (true) {
-          try {
-            await octokit.repos.getContent({
-              owner,
-              repo,
-              path: fullPath,
-              ref: branch
-            });
-            
-            // File exists, create versioned filename
-            version++;
-            const ext = path.extname(filename);
-            const base = path.basename(filename, ext);
-            const versionedName = `${base}-v${version}${ext}`;
-            fullPath = `${cleanPath}/${versionedName}`;
-            filename = versionedName;
-          } catch (error) {
-            // File doesn't exist, we can use this path
-            break;
+          // Check if file exists and handle collisions
+          let version = 1;
+          while (true) {
+            try {
+              await octokit.repos.getContent({
+                owner,
+                repo,
+                path: fullPath,
+                ref: branch
+              });
+              
+              // File exists, create versioned filename
+              version++;
+              const ext = path.extname(filename);
+              const base = path.basename(filename, ext);
+              const versionedName = `${base}-v${version}${ext}`;
+              fullPath = `${cleanPath}/${versionedName}`;
+              filename = versionedName;
+            } catch (error) {
+              // File doesn't exist, we can use this path
+              break;
+            }
           }
+
+          // Upload file to GitHub
+          const content = file.buffer.toString('base64');
+          const response = await octokit.repos.createOrUpdateFileContents({
+            owner,
+            repo,
+            path: fullPath,
+            message: `Upload ${filename} to ${targetPath} (by ${req.session.user.username})`,
+            content,
+            branch
+          });
+
+          results.push({
+            filename,
+            path: fullPath,
+            html_url: response.data.content.html_url,
+            download_url: response.data.content.download_url
+          });
+
+        } catch (fileError) {
+          console.error(`Error uploading ${file.originalname}:`, fileError);
+          results.push({
+            filename: file.originalname,
+            error: fileError.message || 'Upload failed'
+          });
         }
+      }
+    } else {
+      // Fallback: Use local file storage when GitHub is not available
+      console.log('GitHub integration disabled - using local file storage');
+      
+      for (const file of files) {
+        try {
+          let filename = file.originalname;
+          const cleanPath = targetPath.replace(/^\/+/, '').replace(/\/+$/, '');
+          
+          // Create directory structure
+          const uploadDir = path.join(__dirname, 'uploads', cleanPath);
+          await fs.mkdir(uploadDir, { recursive: true });
+          
+          // Handle file collisions
+          let version = 1;
+          let filePath = path.join(uploadDir, filename);
+          
+          while (true) {
+            try {
+              await fs.access(filePath);
+              // File exists, create versioned filename
+              version++;
+              const ext = path.extname(filename);
+              const base = path.basename(filename, ext);
+              const versionedName = `${base}-v${version}${ext}`;
+              filePath = path.join(uploadDir, versionedName);
+              filename = versionedName;
+            } catch (error) {
+              // File doesn't exist, we can use this path
+              break;
+            }
+          }
+          
+          // Write file to local storage
+          await fs.writeFile(filePath, file.buffer);
+          
+          results.push({
+            filename,
+            path: `${cleanPath}/${filename}`,
+            html_url: `#local-file-${filename}`,
+            download_url: `/uploads/${cleanPath}/${filename}`,
+            storage: 'local'
+          });
 
-        // Upload file to GitHub
-        const content = file.buffer.toString('base64');
-        const response = await octokit.repos.createOrUpdateFileContents({
-          owner,
-          repo,
-          path: fullPath,
-          message: `Upload ${filename} to ${targetPath} (by ${req.session.user.username})`,
-          content,
-          branch
-        });
-
-        results.push({
-          filename,
-          path: fullPath,
-          html_url: response.data.content.html_url,
-          download_url: response.data.content.download_url
-        });
-
-      } catch (fileError) {
-        console.error(`Error uploading ${file.originalname}:`, fileError);
-        results.push({
-          filename: file.originalname,
-          error: fileError.message || 'Upload failed'
-        });
+        } catch (fileError) {
+          console.error(`Error storing ${file.originalname} locally:`, fileError);
+          results.push({
+            filename: file.originalname,
+            error: fileError.message || 'Local storage failed'
+          });
+        }
       }
     }
 
@@ -247,6 +303,59 @@ app.post('/upload', requireAdmin, upload.array('files'), async (req, res) => {
       error: 'Upload failed', 
       details: error.message 
     });
+  }
+});
+
+// File listing endpoint for local storage
+app.get('/api/files/*', async (req, res) => {
+  try {
+    const requestPath = req.params[0]; // Get the path after /api/files/
+    const uploadPath = path.join(__dirname, 'uploads', requestPath);
+    
+    // Security check: ensure path is within uploads directory
+    const resolvedPath = path.resolve(uploadPath);
+    const uploadsDir = path.resolve(__dirname, 'uploads');
+    if (!resolvedPath.startsWith(uploadsDir)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    try {
+      const stats = await fs.stat(resolvedPath);
+      if (stats.isDirectory()) {
+        // List directory contents
+        const files = await fs.readdir(resolvedPath);
+        const fileList = [];
+        
+        for (const filename of files) {
+          const filePath = path.join(resolvedPath, filename);
+          const fileStats = await fs.stat(filePath);
+          
+          if (fileStats.isFile()) {
+            const downloadPath = path.posix.join('/uploads', requestPath, filename);
+            fileList.push({
+              name: filename,
+              type: 'file',
+              size: fileStats.size,
+              download_url: downloadPath,
+              storage: 'local'
+            });
+          }
+        }
+        
+        res.json(fileList);
+      } else {
+        res.status(400).json({ error: 'Path is not a directory' });
+      }
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        res.json([]); // Directory doesn't exist, return empty list
+      } else {
+        throw error;
+      }
+    }
+  } catch (error) {
+    console.error('File listing error:', error);
+    res.status(500).json({ error: 'Failed to list files' });
   }
 });
 

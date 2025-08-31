@@ -196,8 +196,11 @@ function render(){
           a.href='#'; 
           a.onclick=(e)=>{ 
             e.preventDefault(); 
-            const url = it.isLocalStorage ? `#fallback-upload-${it.name}` : rawUrl(repoPath+it.name); 
-            showFileActions(url, it.name, it.isLocalStorage || false); 
+            const url = it.isLocalStorage ? `#fallback-upload-${it.name}` : 
+                        it.storage === 'local' ? it.download_url : 
+                        rawUrl(repoPath+it.name);
+            const isLocal = it.isLocalStorage || it.storage === 'local';
+            showFileActions(url, it.name, isLocal); 
           }; 
           a.textContent=prettyName(it.name); 
           list.appendChild(a); 
@@ -230,6 +233,22 @@ async function listFiles(path){
     const items=await res.json(); 
     return Array.isArray(items)?items:[];
   } catch (error) {
+    console.log('GitHub API failed, trying server local storage...');
+    
+    // Try server local storage next
+    try {
+      const serverRes = await fetch(`/api/files${path}`);
+      if (serverRes.ok) {
+        const serverFiles = await serverRes.json();
+        if (serverFiles.length > 0) {
+          console.log(`Found ${serverFiles.length} files in server storage for path: ${path}`);
+          return serverFiles;
+        }
+      }
+    } catch (serverError) {
+      console.log('Server storage check failed:', serverError);
+    }
+    
     // Check localStorage for uploaded files in fallback mode
     const storageKey = `mbf_files_${path.replace(/[^a-zA-Z0-9]/g, '_')}`;
     let storedFiles = [];
@@ -478,7 +497,8 @@ function openFile(url, name){
   `;
   backToActionsBtn.onclick = () => {
     const isLocalStorage = url.startsWith('#fallback-upload-') || url.startsWith('#large-file-');
-    showFileActions(url, name, isLocalStorage);
+    const isServerStorage = url.startsWith('/uploads/');
+    showFileActions(url, name, isLocalStorage || isServerStorage);
   };
   $c.appendChild(backToActionsBtn);
   
