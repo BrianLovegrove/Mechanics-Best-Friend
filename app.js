@@ -6,6 +6,10 @@ const BRANCH='Base';
 // User session state
 let currentUser = null;
 
+// GitHub API token management
+let githubToken = null;
+let githubUserInfo = null;
+
 let tree=null;
 const stack=[];
 const $overlay=document.getElementById('loginOverlay');
@@ -20,6 +24,198 @@ const $main=document.getElementById('appMain');
 const $c=document.getElementById('content');
 const $bc=document.getElementById('breadcrumbs');
 const $back=document.getElementById('backBtn');
+
+// GitHub token management functions
+function getGitHubToken() {
+  if (!githubToken) {
+    githubToken = localStorage.getItem('mbf.githubToken');
+  }
+  return githubToken;
+}
+
+function setGitHubToken(token) {
+  githubToken = token;
+  if (token) {
+    localStorage.setItem('mbf.githubToken', token);
+  } else {
+    localStorage.removeItem('mbf.githubToken');
+    githubUserInfo = null;
+  }
+}
+
+async function validateGitHubToken(token) {
+  try {
+    const response = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github+json'
+      }
+    });
+    
+    if (response.ok) {
+      const userResponse = await fetch('https://api.github.com/user', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github+json'
+        }
+      });
+      
+      if (userResponse.ok) {
+        githubUserInfo = await userResponse.json();
+        return true;
+      }
+    }
+    return false;
+  } catch (error) {
+    console.error('GitHub token validation failed:', error);
+    return false;
+  }
+}
+
+function isGitHubConnected() {
+  return !!(getGitHubToken() && githubUserInfo);
+}
+
+// Admin settings panel
+function createAdminSettingsPanel() {
+  const panel = document.createElement('div');
+  panel.className = 'admin-settings-panel';
+  panel.style.cssText = `
+    margin: 16px 0;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: #f8f9fa;
+  `;
+
+  const title = document.createElement('h3');
+  title.textContent = '⚙️ Admin Settings';
+  title.style.cssText = 'margin: 0 0 16px 0; font-size: 18px; color: #333;';
+  panel.appendChild(title);
+
+  // GitHub connection status
+  const statusDiv = document.createElement('div');
+  statusDiv.style.cssText = 'margin-bottom: 16px;';
+  updateGitHubStatus(statusDiv);
+  panel.appendChild(statusDiv);
+
+  // Token input (only show if not connected)
+  if (!isGitHubConnected()) {
+    const tokenSection = document.createElement('div');
+    tokenSection.style.cssText = 'margin-bottom: 16px;';
+
+    const tokenLabel = document.createElement('label');
+    tokenLabel.textContent = 'GitHub Personal Access Token:';
+    tokenLabel.style.cssText = 'display: block; margin-bottom: 8px; font-weight: 600;';
+    tokenSection.appendChild(tokenLabel);
+
+    const tokenInput = document.createElement('input');
+    tokenInput.type = 'password';
+    tokenInput.placeholder = 'ghp_xxxxxxxxxxxxxxxxxxxx';
+    tokenInput.style.cssText = `
+      width: 300px;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-family: monospace;
+      margin-right: 8px;
+    `;
+    tokenSection.appendChild(tokenInput);
+
+    const connectBtn = document.createElement('button');
+    connectBtn.textContent = 'Connect';
+    connectBtn.className = 'btn';
+    connectBtn.style.cssText = `
+      padding: 8px 16px;
+      border: 1px solid #007bff;
+      background: #007bff;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+    `;
+    connectBtn.onclick = () => connectGitHub(tokenInput.value, statusDiv);
+    tokenSection.appendChild(connectBtn);
+
+    const helpText = document.createElement('div');
+    helpText.innerHTML = `
+      <small style="color: #666;">
+        Create a fine-grained personal access token at 
+        <a href="https://github.com/settings/personal-access-tokens/new" target="_blank">GitHub Settings</a>
+        with Contents: write permission for this repository.
+      </small>
+    `;
+    helpText.style.cssText = 'margin-top: 8px;';
+    tokenSection.appendChild(helpText);
+
+    panel.appendChild(tokenSection);
+  } else {
+    // Sign out button
+    const signOutBtn = document.createElement('button');
+    signOutBtn.textContent = 'Sign Out';
+    signOutBtn.className = 'btn';
+    signOutBtn.style.cssText = `
+      padding: 8px 16px;
+      border: 1px solid #dc3545;
+      background: #dc3545;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+    `;
+    signOutBtn.onclick = () => {
+      setGitHubToken(null);
+      render(); // Refresh the panel
+    };
+    panel.appendChild(signOutBtn);
+  }
+
+  return panel;
+}
+
+function updateGitHubStatus(statusDiv) {
+  if (isGitHubConnected()) {
+    statusDiv.innerHTML = `
+      <div style="color: #28a745; font-weight: 600;">
+        ✅ Connected to GitHub as <strong>${githubUserInfo.login}</strong>
+      </div>
+      <div style="font-size: 14px; color: #666; margin-top: 4px;">
+        Repository: ${OWNER}/${REPO} • Branch: ${BRANCH}
+      </div>
+    `;
+  } else {
+    statusDiv.innerHTML = `
+      <div style="color: #dc3545; font-weight: 600;">
+        ❌ Not connected to GitHub
+      </div>
+      <div style="font-size: 14px; color: #666; margin-top: 4px;">
+        Configure your Personal Access Token to enable file uploads
+      </div>
+    `;
+  }
+}
+
+async function connectGitHub(token, statusDiv) {
+  if (!token) {
+    alert('Please enter a GitHub Personal Access Token');
+    return;
+  }
+
+  statusDiv.innerHTML = '<div style="color: #007bff;">🔄 Validating token...</div>';
+
+  const isValid = await validateGitHubToken(token);
+  if (isValid) {
+    setGitHubToken(token);
+    render(); // Refresh the entire UI
+  } else {
+    statusDiv.innerHTML = `
+      <div style="color: #dc3545; font-weight: 600;">
+        ❌ Invalid token or insufficient permissions
+      </div>
+      <div style="font-size: 14px; color: #666; margin-top: 4px;">
+        Make sure the token has Contents: write permission for ${OWNER}/${REPO}
+      </div>
+    `;
+  }
+}
 
 // Authentication functions
 async function checkAuth() {
@@ -131,6 +327,12 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function initApp(){
+  // Initialize GitHub token if available
+  const token = getGitHubToken();
+  if (token && currentUser && currentUser.role === 'admin') {
+    await validateGitHubToken(token);
+  }
+
   try{
     const res=await fetch('data/tree.json?v='+(Date.now()%1e7));
     if(!res.ok) throw new Error('tree.json missing');
@@ -150,6 +352,12 @@ function nodeRepoPath(){
 function render(){
   renderBack(); renderCrumbs();
   const n=current(); $c.innerHTML='';
+
+  // Admin settings panel (only at root level for admin users)
+  if (currentUser && currentUser.role === 'admin' && stack.length === 0) {
+    const adminPanel = createAdminSettingsPanel();
+    $c.appendChild(adminPanel);
+  }
 
   if(n.children && n.children.length){
     const list=document.createElement('div'); list.className='list';
@@ -172,10 +380,25 @@ function render(){
   if(repoPath && !(n.children && n.children.length)){
     const title=document.createElement('div'); title.className='sectionTitle'; title.textContent='Files'; $c.appendChild(title);
     
-    // Add upload controls for admin users
-    if (currentUser && currentUser.role === 'admin') {
+    // Add upload controls for admin users with GitHub token
+    if (currentUser && currentUser.role === 'admin' && isGitHubConnected()) {
       const uploadSection = createUploadSection(repoPath);
       $c.appendChild(uploadSection);
+    } else if (currentUser && currentUser.role === 'admin' && !isGitHubConnected()) {
+      const noTokenMsg = document.createElement('div');
+      noTokenMsg.style.cssText = `
+        margin: 16px 0;
+        padding: 16px;
+        border: 1px solid #ffc107;
+        border-radius: 4px;
+        background: #fff3cd;
+        color: #856404;
+      `;
+      noTokenMsg.innerHTML = `
+        <strong>⚠️ Upload Disabled</strong><br>
+        Configure your GitHub Personal Access Token in Admin Settings to enable file uploads.
+      `;
+      $c.appendChild(noTokenMsg);
     }
     
     const list=document.createElement('div'); list.className='list'; $c.appendChild(list);
@@ -833,95 +1056,216 @@ function formatFileSize(bytes) {
 async function uploadFiles(files, targetPath, statusDiv) {
   statusDiv.innerHTML = '';
   
-  const formData = new FormData();
-  formData.append('targetPath', targetPath);
+  // Validate GitHub connection
+  if (!isGitHubConnected()) {
+    statusDiv.innerHTML = `
+      <div style="color: #cc0000; font-weight: 600; margin: 8px 0;">
+        ❌ GitHub connection required
+      </div>
+      <div style="font-size: 12px; color: #666;">
+        Configure your GitHub Personal Access Token in Admin Settings
+      </div>
+    `;
+    return;
+  }
+
+  const token = getGitHubToken();
   
+  // Validate files
   for (const file of files) {
-    formData.append('files', file);
+    if (file.size > 100 * 1024 * 1024) { // 100MB limit
+      statusDiv.innerHTML = `
+        <div style="color: #cc0000; font-weight: 600; margin: 8px 0;">
+          ❌ File too large: ${file.name}
+        </div>
+        <div style="font-size: 12px; color: #666;">
+          Maximum file size is 100MB. Use Git LFS for larger files.
+        </div>
+      `;
+      return;
+    }
+  }
+
+  // Sanitize target path
+  const cleanPath = targetPath.replace(/^\/+/, '').replace(/\/+$/, '');
+  if (cleanPath.includes('..') || cleanPath.includes('\\')) {
+    statusDiv.innerHTML = `
+      <div style="color: #cc0000; font-weight: 600; margin: 8px 0;">
+        ❌ Invalid path
+      </div>
+      <div style="font-size: 12px; color: #666;">
+        Path contains illegal characters
+      </div>
+    `;
+    return;
   }
 
   // Show progress
   statusDiv.innerHTML = `
     <div style="margin: 8px 0;">
-      <div style="color: #000; font-weight: 600;">Uploading ${files.length} file${files.length > 1 ? 's' : ''}...</div>
+      <div style="color: #000; font-weight: 600;">Uploading ${files.length} file${files.length > 1 ? 's' : ''} to GitHub...</div>
       <div style="margin: 8px 0; background: #e0e0e0; border-radius: 4px; height: 6px; overflow: hidden;">
         <div style="background: #000; height: 100%; width: 0%; transition: width 0.3s ease;" class="progress-bar"></div>
       </div>
+      <div style="font-size: 12px; color: #666; margin-top: 4px;" class="progress-text">Preparing...</div>
     </div>
   `;
 
   const progressBar = statusDiv.querySelector('.progress-bar');
+  const progressText = statusDiv.querySelector('.progress-text');
   
-  // Simulate progress (since we can't track real upload progress easily)
-  let progress = 0;
-  const progressInterval = setInterval(() => {
-    progress += Math.random() * 20;
-    if (progress > 90) progress = 90;
-    progressBar.style.width = progress + '%';
-  }, 200);
-
   try {
-    const response = await fetch('/upload', {
-      method: 'POST',
-      body: formData
-    });
-
-    clearInterval(progressInterval);
-    progressBar.style.width = '100%';
-
-    const result = await response.json();
-
-    if (response.ok) {
-      let message = `<div style="color: #008000; font-weight: 600; margin: 8px 0;">✅ Upload successful!</div>`;
+    const results = [];
+    const errors = [];
+    
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const progress = ((i / files.length) * 100);
+      progressBar.style.width = progress + '%';
+      progressText.textContent = `Uploading ${file.name}...`;
       
-      if (result.committed && result.committed.length > 0) {
-        message += '<div style="margin: 8px 0;"><strong>Uploaded files:</strong></div>';
-        result.committed.forEach(file => {
-          message += `
-            <div style="margin: 4px 0; padding: 8px; background: #f0f8f0; border-radius: 4px; font-size: 13px;">
-              • ${file.filename}
-              <br><a href="${file.html_url}" target="_blank" style="color: #0066cc; text-decoration: none;">View in GitHub</a>
-            </div>
-          `;
-        });
+      try {
+        const result = await uploadFileToGitHub(file, cleanPath, token);
+        results.push(result);
+      } catch (error) {
+        console.error(`Failed to upload ${file.name}:`, error);
+        errors.push({ filename: file.name, error: error.message });
       }
-
-      if (result.errors && result.errors.length > 0) {
-        message += '<div style="margin: 8px 0;"><strong>Errors:</strong></div>';
-        result.errors.forEach(error => {
-          message += `
-            <div style="margin: 4px 0; padding: 8px; background: #fff0f0; border-radius: 4px; font-size: 13px; color: #cc0000;">
-              • ${error.filename}: ${error.error}
-            </div>
-          `;
-        });
-      }
-
-      statusDiv.innerHTML = message;
-
-      // Refresh the file list
-      setTimeout(() => {
-        render();
-      }, 1000);
-      
-    } else {
-      statusDiv.innerHTML = `
-        <div style="color: #cc0000; font-weight: 600; margin: 8px 0;">
-          ❌ Upload failed: ${result.error}
-        </div>
-        ${result.details ? `<div style="font-size: 12px; color: #666;">${result.details}</div>` : ''}
-      `;
     }
+    
+    progressBar.style.width = '100%';
+    progressText.textContent = 'Complete!';
+    
+    // Show results
+    let message = '';
+    
+    if (results.length > 0) {
+      message += `<div style="color: #28a745; font-weight: 600; margin: 8px 0;">✅ Successfully uploaded ${results.length} file${results.length > 1 ? 's' : ''}!</div>`;
+      message += '<div style="margin: 8px 0;"><strong>Uploaded files:</strong></div>';
+      
+      results.forEach(result => {
+        message += `
+          <div style="margin: 4px 0; padding: 8px; background: #f0f8f0; border-radius: 4px; font-size: 13px;">
+            • ${result.filename}
+            <br><a href="${result.html_url}" target="_blank" style="color: #0066cc; text-decoration: none;">View in GitHub</a>
+            <span style="color: #666; margin-left: 8px;">| ${result.commit_sha.substring(0, 7)}</span>
+          </div>
+        `;
+      });
+    }
+    
+    if (errors.length > 0) {
+      message += '<div style="margin: 8px 0;"><strong>Errors:</strong></div>';
+      errors.forEach(error => {
+        message += `
+          <div style="margin: 4px 0; padding: 8px; background: #fff0f0; border-radius: 4px; font-size: 13px; color: #cc0000;">
+            • ${error.filename}: ${error.error}
+          </div>
+        `;
+      });
+    }
+
+    if (results.length === 0 && errors.length > 0) {
+      message = `<div style="color: #cc0000; font-weight: 600; margin: 8px 0;">❌ All uploads failed</div>` + message;
+    }
+
+    statusDiv.innerHTML = message;
+    
+    // Refresh file listing after successful uploads
+    if (results.length > 0) {
+      setTimeout(() => {
+        render(); // Refresh the current view
+      }, 1000);
+    }
+
   } catch (error) {
-    clearInterval(progressInterval);
     console.error('Upload error:', error);
     statusDiv.innerHTML = `
       <div style="color: #cc0000; font-weight: 600; margin: 8px 0;">
         ❌ Upload failed: ${error.message}
       </div>
       <div style="font-size: 12px; color: #666;">
-        Check your connection and try again. For large files, ensure they are under 50MB.
+        Check your GitHub token permissions and try again.
       </div>
     `;
   }
+}
+
+async function uploadFileToGitHub(file, targetPath, token) {
+  // Convert file to base64
+  const arrayBuffer = await file.arrayBuffer();
+  const uint8Array = new Uint8Array(arrayBuffer);
+  const content = btoa(String.fromCharCode.apply(null, uint8Array));
+  
+  // Sanitize filename
+  let filename = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  
+  const repoPath = `${targetPath}/${filename}`;
+  
+  // Check if file exists first
+  let existingSha = null;
+  try {
+    const checkResponse = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${repoPath}?ref=${BRANCH}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github+json'
+      }
+    });
+    
+    if (checkResponse.ok) {
+      const existingFile = await checkResponse.json();
+      existingSha = existingFile.sha;
+      
+      // If file exists, create a versioned filename
+      const timestamp = Date.now();
+      const nameParts = filename.split('.');
+      if (nameParts.length > 1) {
+        const extension = nameParts.pop();
+        const basename = nameParts.join('.');
+        filename = `${basename}_${timestamp}.${extension}`;
+      } else {
+        filename = `${filename}_${timestamp}`;
+      }
+    }
+  } catch (error) {
+    // File doesn't exist, continue with original filename
+  }
+  
+  const finalPath = `${targetPath}/${filename}`;
+  
+  // Upload file
+  const uploadData = {
+    message: `feat(upload): ${filename} uploaded by ADMIN via app`,
+    content: content,
+    branch: BRANCH
+  };
+  
+  if (existingSha) {
+    uploadData.sha = existingSha;
+  }
+  
+  const response = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${finalPath}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/vnd.github+json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(uploadData)
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(`GitHub API error (${response.status}): ${errorData.message || 'Upload failed'}`);
+  }
+  
+  const result = await response.json();
+  
+  return {
+    filename: filename,
+    path: finalPath,
+    html_url: result.content.html_url,
+    download_url: result.content.download_url,
+    commit_sha: result.commit.sha
+  };
 }
