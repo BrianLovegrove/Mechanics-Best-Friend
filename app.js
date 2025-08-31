@@ -708,6 +708,366 @@ async function deleteFile(url, name, isLocalStorage = false) {
   alert('GitHub file deletion will be implemented when server mode is available.');
 }
 
+// Custom file viewer that handles various file types without external dependencies
+function renderCustomFileViewer(url, name, ext) {
+  // Create a loading message
+  const loadingDiv = document.createElement('div');
+  loadingDiv.style.cssText = 'text-align: center; padding: 20px; color: #666;';
+  loadingDiv.textContent = 'Preparing file preview...';
+  $c.appendChild(loadingDiv);
+
+  // Use different viewing strategies based on file type
+  if (['doc', 'docx'].includes(ext)) {
+    renderWordDocument(url, name, loadingDiv);
+  } else if (['ppt', 'pptx'].includes(ext)) {
+    renderPowerPointDocument(url, name, loadingDiv);
+  } else if (['xls', 'xlsx'].includes(ext)) {
+    renderExcelDocument(url, name, loadingDiv);
+  } else if (ext === 'pdf') {
+    renderPDFDocument(url, name, loadingDiv);
+  } else {
+    // Fallback for other file types
+    renderGenericDocument(url, name, loadingDiv, ext);
+  }
+}
+
+// Render Word documents with enhanced presentation
+function renderWordDocument(url, name, loadingDiv) {
+  if (loadingDiv.parentNode) {
+    loadingDiv.remove();
+  }
+  
+  const docInfo = document.createElement('div');
+  docInfo.style.cssText = `
+    background: linear-gradient(135deg, #2B579A20, #2B579A10);
+    border: 2px solid #2B579A;
+    border-radius: 12px;
+    padding: 30px;
+    margin: 16px 0;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(43, 87, 154, 0.1);
+  `;
+  
+  docInfo.innerHTML = `
+    <div style="font-size: 64px; margin-bottom: 20px;">📝</div>
+    <h3 style="margin: 0 0 12px 0; color: #2B579A; font-size: 24px;">Microsoft Word Document</h3>
+    <p style="margin: 0 0 8px 0; font-size: 16px; color: #333; font-weight: 500;">${name}</p>
+    <p style="margin: 0 0 24px 0; color: #666; line-height: 1.5;">
+      This Word document is ready to view. Click below to open it directly in your browser or download it to your device.
+    </p>
+    <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+      <button onclick="tryViewInBrowser('${url}', '${name}')" style="
+        padding: 14px 28px;
+        background: #2B579A;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 16px;
+        transition: all 0.2s ease;
+      " onmouseover="this.style.background='#1e3d6f'" onmouseout="this.style.background='#2B579A'">
+        📖 View in Browser
+      </button>
+      <a href="${url}" download="${name}" style="
+        display: inline-block;
+        padding: 14px 28px;
+        background: #0F4C8A;
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 16px;
+        transition: all 0.2s ease;
+      " onmouseover="this.style.background='#0d3f6f'" onmouseout="this.style.background='#0F4C8A'">
+        💾 Download File
+      </a>
+    </div>
+  `;
+  
+  $c.appendChild(docInfo);
+}
+
+// Render PowerPoint documents
+function renderPowerPointDocument(url, name, loadingDiv) {
+  if (loadingDiv.parentNode) {
+    loadingDiv.remove();
+  }
+  
+  const pptInfo = document.createElement('div');
+  pptInfo.style.cssText = `
+    background: linear-gradient(135deg, #D04423A0, #D0442320);
+    border: 2px solid #D04423;
+    border-radius: 12px;
+    padding: 30px;
+    margin: 16px 0;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(208, 68, 35, 0.1);
+  `;
+  
+  pptInfo.innerHTML = `
+    <div style="font-size: 64px; margin-bottom: 20px;">📊</div>
+    <h3 style="margin: 0 0 12px 0; color: #D04423; font-size: 24px;">PowerPoint Presentation</h3>
+    <p style="margin: 0 0 8px 0; font-size: 16px; color: #333; font-weight: 500;">${name}</p>
+    <p style="margin: 0 0 24px 0; color: #666; line-height: 1.5;">
+      This PowerPoint presentation contains slides with important information. Open it to view the content and navigate through the slides.
+    </p>
+    <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+      <button onclick="tryViewInBrowser('${url}', '${name}')" style="
+        padding: 14px 28px;
+        background: #D04423;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 16px;
+        transition: all 0.2s ease;
+      " onmouseover="this.style.background='#b73a1e'" onmouseout="this.style.background='#D04423'">
+        📖 View Slides
+      </button>
+      <a href="${url}" download="${name}" style="
+        display: inline-block;
+        padding: 14px 28px;
+        background: #B8321A;
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 16px;
+        transition: all 0.2s ease;
+      " onmouseover="this.style.background='#a02c17'" onmouseout="this.style.background='#B8321A'">
+        💾 Download File
+      </a>
+    </div>
+  `;
+  
+  $c.appendChild(pptInfo);
+}
+
+// Render Excel documents
+function renderExcelDocument(url, name, loadingDiv) {
+  if (loadingDiv.parentNode) {
+    loadingDiv.remove();
+  }
+  
+  const xlsInfo = document.createElement('div');
+  xlsInfo.style.cssText = `
+    background: linear-gradient(135deg, #1D6F4220, #1D6F4210);
+    border: 2px solid #1D6F42;
+    border-radius: 12px;
+    padding: 30px;
+    margin: 16px 0;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(29, 111, 66, 0.1);
+  `;
+  
+  xlsInfo.innerHTML = `
+    <div style="font-size: 64px; margin-bottom: 20px;">📈</div>
+    <h3 style="margin: 0 0 12px 0; color: #1D6F42; font-size: 24px;">Excel Spreadsheet</h3>
+    <p style="margin: 0 0 8px 0; font-size: 16px; color: #333; font-weight: 500;">${name}</p>
+    <p style="margin: 0 0 24px 0; color: #666; line-height: 1.5;">
+      This Excel spreadsheet contains data, calculations, and charts. Open it to analyze the information and work with the data.
+    </p>
+    <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+      <button onclick="tryViewInBrowser('${url}', '${name}')" style="
+        padding: 14px 28px;
+        background: #1D6F42;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 16px;
+        transition: all 0.2s ease;
+      " onmouseover="this.style.background='#155a35'" onmouseout="this.style.background='#1D6F42'">
+        📊 View Data
+      </button>
+      <a href="${url}" download="${name}" style="
+        display: inline-block;
+        padding: 14px 28px;
+        background: #0F5A2E;
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 16px;
+        transition: all 0.2s ease;
+      " onmouseover="this.style.background='#0c4825'" onmouseout="this.style.background='#0F5A2E'">
+        💾 Download File
+      </a>
+    </div>
+  `;
+  
+  $c.appendChild(xlsInfo);
+}
+
+// Render PDF documents with improved fallback
+function renderPDFDocument(url, name, loadingDiv) {
+  if (loadingDiv.parentNode) {
+    loadingDiv.remove();
+  }
+  
+  // Try to embed the PDF first
+  const pdfContainer = document.createElement('div');
+  pdfContainer.style.cssText = 'margin: 16px 0;';
+  
+  const embed = document.createElement('embed');
+  embed.type = 'application/pdf';
+  embed.src = url;
+  embed.style.cssText = 'width: 100%; height: 70vh; border: 2px solid #007cba; border-radius: 8px;';
+  
+  // Add error handling for PDF embed
+  embed.onerror = () => {
+    pdfContainer.innerHTML = `
+      <div style="
+        background: linear-gradient(135deg, #DC354520, #DC354510);
+        border: 2px solid #DC3545;
+        border-radius: 12px;
+        padding: 30px;
+        text-align: center;
+      ">
+        <div style="font-size: 64px; margin-bottom: 20px;">📄</div>
+        <h3 style="margin: 0 0 12px 0; color: #DC3545; font-size: 24px;">PDF Document</h3>
+        <p style="margin: 0 0 8px 0; font-size: 16px; color: #333; font-weight: 500;">${name}</p>
+        <p style="margin: 0 0 24px 0; color: #666; line-height: 1.5;">
+          This PDF document couldn't be displayed in the browser. Download it to view with your preferred PDF reader.
+        </p>
+        <a href="${url}" download="${name}" style="
+          display: inline-block;
+          padding: 14px 28px;
+          background: #DC3545;
+          color: white;
+          text-decoration: none;
+          border-radius: 6px;
+          font-weight: 600;
+          font-size: 16px;
+        ">💾 Download PDF</a>
+      </div>
+    `;
+  };
+  
+  pdfContainer.appendChild(embed);
+  $c.appendChild(pdfContainer);
+}
+
+// Generic document viewer for unsupported types
+function renderGenericDocument(url, name, loadingDiv, ext) {
+  if (loadingDiv.parentNode) {
+    loadingDiv.remove();
+  }
+  
+  const genericInfo = document.createElement('div');
+  genericInfo.style.cssText = `
+    background: linear-gradient(135deg, #6c757d20, #6c757d10);
+    border: 2px dashed #6c757d;
+    border-radius: 12px;
+    padding: 30px;
+    margin: 16px 0;
+    text-align: center;
+  `;
+  
+  genericInfo.innerHTML = `
+    <div style="font-size: 64px; margin-bottom: 20px;">📎</div>
+    <h3 style="margin: 0 0 12px 0; color: #495057; font-size: 24px;">File Ready for Download</h3>
+    <p style="margin: 0 0 8px 0; font-size: 16px; color: #333; font-weight: 500;">${name}</p>
+    <p style="margin: 0 0 24px 0; color: #666; line-height: 1.5;">
+      This file is available for download. Click below to save it to your device and open it with the appropriate application.
+    </p>
+    <a href="${url}" download="${name}" style="
+      display: inline-block;
+      padding: 14px 28px;
+      background: #6c757d;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 16px;
+    ">💾 Download File</a>
+  `;
+  
+  $c.appendChild(genericInfo);
+}
+
+// Function to try viewing files in browser using multiple methods
+function tryViewInBrowser(url, name) {
+  const viewerWindow = window.open('', '_blank');
+  if (viewerWindow) {
+    viewerWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Viewing: ${name}</title>
+        <style>
+          body { margin: 0; padding: 20px; font-family: Arial, sans-serif; background: #f5f5f5; }
+          .container { max-width: 1200px; margin: 0 auto; }
+          .header { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+          .viewer { background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+          iframe { width: 100%; height: 80vh; border: none; }
+          .fallback { padding: 40px; text-align: center; }
+          .download-btn { 
+            display: inline-block; 
+            padding: 12px 24px; 
+            background: #007cba; 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 6px; 
+            font-weight: 600; 
+            margin: 10px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>📄 ${name}</h1>
+            <p>Attempting to display file content. If the file doesn't load, you can download it directly.</p>
+            <a href="${url}" download="${name}" class="download-btn">💾 Download Original File</a>
+          </div>
+          <div class="viewer">
+            <iframe src="${url}" onload="console.log('File loaded')" onerror="showFallback()"></iframe>
+          </div>
+        </div>
+        
+        <script>
+          function showFallback() {
+            document.querySelector('.viewer').innerHTML = \`
+              <div class="fallback">
+                <h3>Unable to display file in browser</h3>
+                <p>This file type may not be supported for inline viewing.</p>
+                <a href="${url}" download="${name}" class="download-btn">💾 Download to View</a>
+              </div>
+            \`;
+          }
+          
+          // Check if iframe loaded successfully after a delay
+          setTimeout(() => {
+            const iframe = document.querySelector('iframe');
+            try {
+              if (!iframe.contentDocument && !iframe.contentWindow) {
+                showFallback();
+              }
+            } catch (e) {
+              // Cross-origin error is expected and means file is loading
+              console.log('Cross-origin detected, file likely loaded');
+            }
+          }, 5000);
+        </script>
+      </body>
+      </html>
+    `);
+    viewerWindow.document.close();
+  } else {
+    // Popup blocked, fall back to direct download
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+}
+
 function openFile(url, name, isLocalStorage = false){
   const ext = (name.split('.').pop()||'').toLowerCase();
   $c.innerHTML='';
@@ -896,99 +1256,9 @@ function openFile(url, name, isLocalStorage = false){
       downloadBtn.onmouseout = () => downloadBtn.style.background = '#007cba';
       $c.appendChild(downloadBtn);
     } else {
-      // For GitHub-hosted files, try Google Docs viewer with enhanced error handling
-      console.log('Using Google Docs viewer for:', url);
-      
-      // Create a loading message
-      const loadingDiv = document.createElement('div');
-      loadingDiv.style.cssText = 'text-align: center; padding: 20px; color: #666;';
-      loadingDiv.textContent = 'Loading document preview...';
-      $c.appendChild(loadingDiv);
-      
-      const iframe = document.createElement('iframe'); 
-      iframe.src = 'https://docs.google.com/gview?embedded=1&url=' + encodeURIComponent(url); 
-      iframe.style.cssText = 'width: 100%; height: 80vh; border: 1px solid #ddd; border-radius: 4px;';
-      iframe.loading = 'lazy';
-      
-      // Better error handling for Google Docs viewer
-      let errorShown = false;
-      let loadTimeout;
-      
-      const showPreviewError = () => {
-        if (errorShown) return;
-        errorShown = true;
-        
-        // Remove loading message
-        if (loadingDiv.parentNode) {
-          loadingDiv.remove();
-        }
-        
-        iframe.style.display = 'none';
-        const errorDiv = document.createElement('div');
-        errorDiv.style.cssText = 'padding: 16px; background: #ffebee; border: 1px solid #f44336; border-radius: 4px; color: #c62828; margin: 16px 0;';
-        errorDiv.innerHTML = `
-          <strong>Document Preview Unavailable</strong><br>
-          Unable to preview this document. This may happen due to:
-          <ul style="margin: 8px 0; padding-left: 20px;">
-            <li>File is not publicly accessible</li>
-            <li>File format is not supported by the preview service</li>
-            <li>Network connectivity issues</li>
-            <li>CORS restrictions</li>
-          </ul>
-          Please download the file to view it locally.
-        `;
-        $c.appendChild(errorDiv);
-        
-        const downloadBtn = document.createElement('a');
-        downloadBtn.href = url;
-        downloadBtn.download = name;
-        downloadBtn.textContent = `Download ${name}`;
-        downloadBtn.style.cssText = `
-          display: inline-block;
-          padding: 12px 24px;
-          background: #007cba;
-          color: white;
-          text-decoration: none;
-          border-radius: 4px;
-          font-weight: 600;
-          margin: 8px 0;
-        `;
-        downloadBtn.onmouseover = () => downloadBtn.style.background = '#005a87';
-        downloadBtn.onmouseout = () => downloadBtn.style.background = '#007cba';
-        $c.appendChild(downloadBtn);
-      };
-      
-      // Set a timeout for loading
-      loadTimeout = setTimeout(() => {
-        console.log('Document preview timed out');
-        showPreviewError();
-      }, 15000); // 15 second timeout
-      
-      iframe.onload = () => {
-        console.log('Document preview loaded successfully');
-        clearTimeout(loadTimeout);
-        // Remove loading message
-        if (loadingDiv.parentNode) {
-          loadingDiv.remove();
-        }
-        
-        // Check if iframe actually loaded content
-        try {
-          // This will fail due to CORS, but that's expected
-          iframe.contentDocument;
-        } catch (e) {
-          // Cross-origin restrictions prevent access, assume it's loading
-          console.log('Cross-origin restriction detected, assuming content loaded');
-        }
-      };
-      
-      iframe.onerror = () => {
-        console.log('Document preview failed to load');
-        clearTimeout(loadTimeout);
-        showPreviewError();
-      };
-      
-      $c.appendChild(iframe);
+      // Use custom file viewer instead of Google Docs viewer
+      console.log('Using custom file viewer for:', url);
+      renderCustomFileViewer(url, name, ext);
     }
   } else {
     // Check for unsupported file types (PLC programs, etc.)
