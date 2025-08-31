@@ -89,7 +89,7 @@ function createAdminSettingsPanel() {
   `;
 
   const title = document.createElement('h3');
-  title.textContent = '⚙️ Admin Settings';
+  title.textContent = 'Admin Settings';
   title.style.cssText = 'margin: 0 0 16px 0; font-size: 18px; color: #333;';
   panel.appendChild(title);
 
@@ -717,12 +717,18 @@ function renderCustomFileViewer(url, name, ext) {
   $c.appendChild(loadingDiv);
 
   // Use different viewing strategies based on file type
-  if (['doc', 'docx'].includes(ext)) {
+  if (['docx'].includes(ext)) {
     renderWordDocument(url, name, loadingDiv);
-  } else if (['ppt', 'pptx'].includes(ext)) {
+  } else if (['pptx'].includes(ext)) {
     renderPowerPointDocument(url, name, loadingDiv);
-  } else if (['xls', 'xlsx'].includes(ext)) {
+  } else if (['xlsx'].includes(ext)) {
     renderExcelDocument(url, name, loadingDiv);
+  } else if (['doc'].includes(ext)) {
+    renderLegacyDocument(url, name, loadingDiv, 'Word');
+  } else if (['ppt'].includes(ext)) {
+    renderLegacyDocument(url, name, loadingDiv, 'PowerPoint');
+  } else if (['xls'].includes(ext)) {
+    renderLegacyDocument(url, name, loadingDiv, 'Excel');
   } else if (ext === 'pdf') {
     renderPDFDocument(url, name, loadingDiv);
   } else {
@@ -731,175 +737,215 @@ function renderCustomFileViewer(url, name, ext) {
   }
 }
 
-// Render Word documents with enhanced presentation
+// Render Word documents with Microsoft Office Web Viewer
 function renderWordDocument(url, name, loadingDiv) {
   if (loadingDiv.parentNode) {
     loadingDiv.remove();
   }
   
-  const docInfo = document.createElement('div');
-  docInfo.style.cssText = `
-    background: linear-gradient(135deg, #2B579A20, #2B579A10);
-    border: 2px solid #2B579A;
-    border-radius: 12px;
-    padding: 30px;
-    margin: 16px 0;
-    text-align: center;
-    box-shadow: 0 4px 6px rgba(43, 87, 154, 0.1);
+  // Build raw GitHub URL for the file
+  const rawUrl = `https://raw.githubusercontent.com/BrianLovegrove/Mechanics-Best-Friend/Base/${url.replace(/^\//, '')}`;
+  
+  // Generate Microsoft Office Viewer URL
+  const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(rawUrl)}`;
+  
+  // Create header with filename and download link
+  const header = document.createElement('div');
+  header.style.cssText = `
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px 6px 0 0;
+    padding: 12px 16px;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
   `;
   
-  docInfo.innerHTML = `
-    <div style="font-size: 64px; margin-bottom: 20px;">📝</div>
-    <h3 style="margin: 0 0 12px 0; color: #2B579A; font-size: 24px;">Microsoft Word Document</h3>
-    <p style="margin: 0 0 8px 0; font-size: 16px; color: #333; font-weight: 500;">${name}</p>
-    <p style="margin: 0 0 24px 0; color: #666; line-height: 1.5;">
-      This Word document is ready to view. Click below to open it directly in your browser or download it to your device.
-    </p>
-    <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
-      <button onclick="tryViewInBrowser('${url}', '${name}')" style="
-        padding: 14px 28px;
-        background: #2B579A;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        font-weight: 600;
-        cursor: pointer;
-        font-size: 16px;
-        transition: all 0.2s ease;
-      " onmouseover="this.style.background='#1e3d6f'" onmouseout="this.style.background='#2B579A'">
-        📖 View in Browser
-      </button>
-      <a href="${url}" download="${name}" style="
-        display: inline-block;
-        padding: 14px 28px;
-        background: #0F4C8A;
-        color: white;
-        text-decoration: none;
-        border-radius: 6px;
-        font-weight: 600;
-        font-size: 16px;
-        transition: all 0.2s ease;
-      " onmouseover="this.style.background='#0d3f6f'" onmouseout="this.style.background='#0F4C8A'">
-        💾 Download File
-      </a>
-    </div>
+  header.innerHTML = `
+    <h3 style="margin: 0; color: #2B579A; font-size: 16px;">${name}</h3>
+    <a href="${rawUrl}" download="${name}" style="
+      padding: 8px 16px;
+      background: #2B579A;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 14px;
+    ">Download</a>
   `;
   
-  $c.appendChild(docInfo);
+  // Create iframe for Office viewer
+  const iframe = document.createElement('iframe');
+  iframe.src = officeViewerUrl;
+  iframe.style.cssText = `
+    width: 100%;
+    height: calc(100vh - 200px);
+    border: 1px solid #dee2e6;
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+  `;
+  
+  const container = document.createElement('div');
+  container.style.cssText = 'margin: 16px 0;';
+  container.appendChild(header);
+  container.appendChild(iframe);
+  
+  $c.appendChild(container);
 }
 
-// Render PowerPoint documents
+// Render PowerPoint documents with Microsoft Office Web Viewer
 function renderPowerPointDocument(url, name, loadingDiv) {
   if (loadingDiv.parentNode) {
     loadingDiv.remove();
   }
   
-  const pptInfo = document.createElement('div');
-  pptInfo.style.cssText = `
-    background: linear-gradient(135deg, #D04423A0, #D0442320);
-    border: 2px solid #D04423;
-    border-radius: 12px;
-    padding: 30px;
-    margin: 16px 0;
-    text-align: center;
-    box-shadow: 0 4px 6px rgba(208, 68, 35, 0.1);
+  // Build raw GitHub URL for the file
+  const rawUrl = `https://raw.githubusercontent.com/BrianLovegrove/Mechanics-Best-Friend/Base/${url.replace(/^\//, '')}`;
+  
+  // Generate Microsoft Office Viewer URL
+  const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(rawUrl)}`;
+  
+  // Create header with filename and download link
+  const header = document.createElement('div');
+  header.style.cssText = `
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px 6px 0 0;
+    padding: 12px 16px;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
   `;
   
-  pptInfo.innerHTML = `
-    <div style="font-size: 64px; margin-bottom: 20px;">📊</div>
-    <h3 style="margin: 0 0 12px 0; color: #D04423; font-size: 24px;">PowerPoint Presentation</h3>
-    <p style="margin: 0 0 8px 0; font-size: 16px; color: #333; font-weight: 500;">${name}</p>
-    <p style="margin: 0 0 24px 0; color: #666; line-height: 1.5;">
-      This PowerPoint presentation contains slides with important information. Open it to view the content and navigate through the slides.
-    </p>
-    <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
-      <button onclick="tryViewInBrowser('${url}', '${name}')" style="
-        padding: 14px 28px;
-        background: #D04423;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        font-weight: 600;
-        cursor: pointer;
-        font-size: 16px;
-        transition: all 0.2s ease;
-      " onmouseover="this.style.background='#b73a1e'" onmouseout="this.style.background='#D04423'">
-        📖 View Slides
-      </button>
-      <a href="${url}" download="${name}" style="
-        display: inline-block;
-        padding: 14px 28px;
-        background: #B8321A;
-        color: white;
-        text-decoration: none;
-        border-radius: 6px;
-        font-weight: 600;
-        font-size: 16px;
-        transition: all 0.2s ease;
-      " onmouseover="this.style.background='#a02c17'" onmouseout="this.style.background='#B8321A'">
-        💾 Download File
-      </a>
-    </div>
+  header.innerHTML = `
+    <h3 style="margin: 0; color: #D04423; font-size: 16px;">${name}</h3>
+    <a href="${rawUrl}" download="${name}" style="
+      padding: 8px 16px;
+      background: #D04423;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 14px;
+    ">Download</a>
   `;
   
-  $c.appendChild(pptInfo);
+  // Create iframe for Office viewer
+  const iframe = document.createElement('iframe');
+  iframe.src = officeViewerUrl;
+  iframe.style.cssText = `
+    width: 100%;
+    height: calc(100vh - 200px);
+    border: 1px solid #dee2e6;
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+  `;
+  
+  const container = document.createElement('div');
+  container.style.cssText = 'margin: 16px 0;';
+  container.appendChild(header);
+  container.appendChild(iframe);
+  
+  $c.appendChild(container);
 }
 
-// Render Excel documents
+// Render Excel documents with Microsoft Office Web Viewer
 function renderExcelDocument(url, name, loadingDiv) {
   if (loadingDiv.parentNode) {
     loadingDiv.remove();
   }
   
-  const xlsInfo = document.createElement('div');
-  xlsInfo.style.cssText = `
-    background: linear-gradient(135deg, #1D6F4220, #1D6F4210);
-    border: 2px solid #1D6F42;
-    border-radius: 12px;
-    padding: 30px;
+  // Build raw GitHub URL for the file
+  const rawUrl = `https://raw.githubusercontent.com/BrianLovegrove/Mechanics-Best-Friend/Base/${url.replace(/^\//, '')}`;
+  
+  // Generate Microsoft Office Viewer URL
+  const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(rawUrl)}`;
+  
+  // Create header with filename and download link
+  const header = document.createElement('div');
+  header.style.cssText = `
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px 6px 0 0;
+    padding: 12px 16px;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  `;
+  
+  header.innerHTML = `
+    <h3 style="margin: 0; color: #1D6F42; font-size: 16px;">${name}</h3>
+    <a href="${rawUrl}" download="${name}" style="
+      padding: 8px 16px;
+      background: #1D6F42;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 14px;
+    ">Download</a>
+  `;
+  
+  // Create iframe for Office viewer
+  const iframe = document.createElement('iframe');
+  iframe.src = officeViewerUrl;
+  iframe.style.cssText = `
+    width: 100%;
+    height: calc(100vh - 200px);
+    border: 1px solid #dee2e6;
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+  `;
+  
+  const container = document.createElement('div');
+  container.style.cssText = 'margin: 16px 0;';
+  container.appendChild(header);
+  container.appendChild(iframe);
+  
+  $c.appendChild(container);
+}
+
+// Render legacy Office documents (.doc, .ppt, .xls) that aren't supported by Office Web Viewer
+function renderLegacyDocument(url, name, loadingDiv, docType) {
+  if (loadingDiv.parentNode) {
+    loadingDiv.remove();
+  }
+  
+  // Build raw GitHub URL for the file
+  const rawUrl = `https://raw.githubusercontent.com/BrianLovegrove/Mechanics-Best-Friend/Base/${url.replace(/^\//, '')}`;
+  
+  const legacyInfo = document.createElement('div');
+  legacyInfo.style.cssText = `
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 24px;
     margin: 16px 0;
     text-align: center;
-    box-shadow: 0 4px 6px rgba(29, 111, 66, 0.1);
   `;
   
-  xlsInfo.innerHTML = `
-    <div style="font-size: 64px; margin-bottom: 20px;">📈</div>
-    <h3 style="margin: 0 0 12px 0; color: #1D6F42; font-size: 24px;">Excel Spreadsheet</h3>
+  legacyInfo.innerHTML = `
+    <h3 style="margin: 0 0 12px 0; color: #6c757d; font-size: 20px;">Legacy ${docType} Document</h3>
     <p style="margin: 0 0 8px 0; font-size: 16px; color: #333; font-weight: 500;">${name}</p>
-    <p style="margin: 0 0 24px 0; color: #666; line-height: 1.5;">
-      This Excel spreadsheet contains data, calculations, and charts. Open it to analyze the information and work with the data.
+    <p style="margin: 0 0 20px 0; color: #666; line-height: 1.5;">
+      Preview not available. Use Download.
     </p>
-    <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
-      <button onclick="tryViewInBrowser('${url}', '${name}')" style="
-        padding: 14px 28px;
-        background: #1D6F42;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        font-weight: 600;
-        cursor: pointer;
-        font-size: 16px;
-        transition: all 0.2s ease;
-      " onmouseover="this.style.background='#155a35'" onmouseout="this.style.background='#1D6F42'">
-        📊 View Data
-      </button>
-      <a href="${url}" download="${name}" style="
-        display: inline-block;
-        padding: 14px 28px;
-        background: #0F5A2E;
-        color: white;
-        text-decoration: none;
-        border-radius: 6px;
-        font-weight: 600;
-        font-size: 16px;
-        transition: all 0.2s ease;
-      " onmouseover="this.style.background='#0c4825'" onmouseout="this.style.background='#0F5A2E'">
-        💾 Download File
-      </a>
-    </div>
+    <a href="${rawUrl}" download="${name}" style="
+      display: inline-block;
+      padding: 12px 24px;
+      background: #6c757d;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 16px;
+    ">Download</a>
   `;
   
-  $c.appendChild(xlsInfo);
+  $c.appendChild(legacyInfo);
 }
 
 // Render PDF documents with improved fallback
@@ -927,7 +973,6 @@ function renderPDFDocument(url, name, loadingDiv) {
         padding: 30px;
         text-align: center;
       ">
-        <div style="font-size: 64px; margin-bottom: 20px;">📄</div>
         <h3 style="margin: 0 0 12px 0; color: #DC3545; font-size: 24px;">PDF Document</h3>
         <p style="margin: 0 0 8px 0; font-size: 16px; color: #333; font-weight: 500;">${name}</p>
         <p style="margin: 0 0 24px 0; color: #666; line-height: 1.5;">
@@ -942,7 +987,7 @@ function renderPDFDocument(url, name, loadingDiv) {
           border-radius: 6px;
           font-weight: 600;
           font-size: 16px;
-        ">💾 Download PDF</a>
+        ">Download PDF</a>
       </div>
     `;
   };
@@ -983,7 +1028,7 @@ function renderGenericDocument(url, name, loadingDiv, ext) {
       border-radius: 6px;
       font-weight: 600;
       font-size: 16px;
-    ">💾 Download File</a>
+    ">Download File</a>
   `;
   
   $c.appendChild(genericInfo);
@@ -1020,9 +1065,9 @@ function tryViewInBrowser(url, name) {
       <body>
         <div class="container">
           <div class="header">
-            <h1>📄 ${name}</h1>
+            <h1>${name}</h1>
             <p>Attempting to display file content. If the file doesn't load, you can download it directly.</p>
-            <a href="${url}" download="${name}" class="download-btn">💾 Download Original File</a>
+            <a href="${url}" download="${name}" class="download-btn">Download Original File</a>
           </div>
           <div class="viewer">
             <iframe src="${url}" onload="console.log('File loaded')" onerror="showFallback()"></iframe>
@@ -1035,7 +1080,7 @@ function tryViewInBrowser(url, name) {
               <div class="fallback">
                 <h3>Unable to display file in browser</h3>
                 <p>This file type may not be supported for inline viewing.</p>
-                <a href="${url}" download="${name}" class="download-btn">💾 Download to View</a>
+                <a href="${url}" download="${name}" class="download-btn">Download to View</a>
               </div>
             \`;
           }
