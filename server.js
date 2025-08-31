@@ -5,6 +5,8 @@ const bcrypt = require('bcrypt');
 const path = require('path');
 const fs = require('fs').promises;
 const { Octokit } = require('@octokit/rest');
+const simpleGit = require('simple-git');
+const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
 const app = express();
@@ -76,6 +78,275 @@ if (process.env.GITHUB_TOKEN && process.env.GITHUB_TOKEN !== 'development_mode_n
   octokit = new Octokit({
     auth: process.env.GITHUB_TOKEN
   });
+}
+
+// Git SSH configuration for file uploads
+const GIT_CONFIG = {
+  repo: process.env.GIT_REPO,
+  branch: process.env.GIT_BRANCH || 'main',
+  authorName: process.env.GIT_AUTHOR_NAME || 'MBF Upload Bot',
+  authorEmail: process.env.GIT_AUTHOR_EMAIL || 'uploads@mechanicsbestfriend.app',
+  sshKeyPath: process.env.GIT_SSH_PRIVATE_KEY_PATH
+};
+
+// Upload concurrency control - prevent overlapping Git operations
+const uploadLocks = new Map();
+
+// Git utilities
+async function createWorkingDirectory() {
+  const workDir = path.join(__dirname, '.tmp-git-uploads', uuidv4());
+  await fs.mkdir(workDir, { recursive: true });
+  return workDir;
+}
+
+async function cleanupWorkingDirectory(workDir) {
+  try {
+    if (workDir && workDir.includes('.tmp-git-uploads')) {
+      await fs.rm(workDir, { recursive: true, force: true });
+    }
+  } catch (error) {
+    console.warn('Failed to cleanup working directory:', error.message);
+  }
+}
+
+// Sanitize and validate repository paths
+function sanitizeRepoPath(targetPath) {
+  // Remove leading/trailing slashes and normalize
+  let cleanPath = targetPath.replace(/^\/+/, '').replace(/\/+$/, '');
+  
+  // Security validation
+  if (cleanPath.includes('..') || 
+      cleanPath.includes('\\') || 
+      cleanPath.match(/[<>:"|?*\x00-\x1f]/) ||
+      path.isAbsolute(cleanPath)) {
+    throw new Error('Invalid path: contains illegal characters or path traversal');
+  }
+  
+  // Ensure path starts with allowed roots
+  const allowedRoots = ['library', 'docs', 'assets'];
+  const pathRoot = cleanPath.split('/')[0];
+  if (!allowedRoots.includes(pathRoot)) {
+    throw new Error(`Invalid path: must start with one of: ${allowedRoots.join(', ')}`);
+  }
+  
+  return cleanPath;
+}
+
+// Configure Git with SSH key
+function configureGitSSH(git, workDir) {
+  if (!GIT_CONFIG.sshKeyPath) {
+    throw new Error('GIT_SSH_PRIVATE_KEY_PATH environment variable not configured');
+  }
+  
+  // Set up SSH command to use the deploy key
+  const sshCommand = `ssh -i "${GIT_CONFIG.sshKeyPath}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null`;
+  
+  return git.env({
+    ...process.env,
+    GIT_SSH_COMMAND: sshCommand
+  });
+}
+
+// Git upload workflow
+async function uploadFilesWithGit(files, targetPath, username) {
+  const lockKey = `upload-${targetPath}`;
+  
+  // Check for concurrent uploads to same path
+  if (uploadLocks.has(lockKey)) {
+    throw new Error('Another upload is in progress for this path. Please wait and try again.');
+  }
+  
+  uploadLocks.set(lockKey, true);
+  let workDir = null;
+  
+  try {
+    // Validate Git configuration
+    if (!GIT_CONFIG.repo || !GIT_CONFIG.sshKeyPath) {
+      throw new Error('Git SSH configuration incomplete. Check GIT_REPO and GIT_SSH_PRIVATE_KEY_PATH environment variables.');
+    }
+    
+    // Create working directory
+    workDir = await createWorkingDirectory();
+    console.log(`Git upload: Using working directory ${workDir}`);
+    
+    // Initialize Git and configure SSH
+    const git = configureGitSSH(simpleGit(workDir), workDir);
+    
+    // Clone repository
+    console.log(`Git upload: Cloning ${GIT_CONFIG.repo}`);
+    await git.clone(GIT_CONFIG.repo, '.');
+    
+    // Configure git user
+    await git.addConfig('user.name', GIT_CONFIG.authorName);
+    await git.addConfig('user.email', GIT_CONFIG.authorEmail);
+    
+    // Pull latest changes to avoid conflicts
+    console.log(`Git upload: Pulling latest changes from ${GIT_CONFIG.branch}`);
+    await git.pull('origin', GIT_CONFIG.branch);
+    
+    // Sanitize target path
+    const cleanPath = sanitizeRepoPath(targetPath);
+    const targetDir = path.join(workDir, cleanPath);
+    
+    // Create target directory if it doesn't exist
+    await fs.mkdir(targetDir, { recursive: true });
+    
+    const results = [];
+    const commitFiles = [];
+    
+    // Process each file
+    for (const file of files) {
+      try {
+        // Validate file size (GitHub limit is 100MB)
+        if (file.size > 100 * 1024 * 1024) {
+          results.push({
+            filename: file.originalname,
+            error: 'File too large. Maximum size is 100MB. Consider using Git LFS for large files.'
+          });
+          continue;
+        }
+        
+        // Handle filename collisions
+        let filename = file.originalname;
+        let filePath = path.join(targetDir, filename);
+        let version = 1;
+        
+        while (true) {
+          try {
+            await fs.access(filePath);
+            // File exists, create versioned filename
+            version++;
+            const ext = path.extname(filename);
+            const base = path.basename(filename, ext);
+            const versionedName = `${base}-v${version}${ext}`;
+            filePath = path.join(targetDir, versionedName);
+            filename = versionedName;
+          } catch (error) {
+            // File doesn't exist, we can use this path
+            break;
+          }
+        }
+        
+        // Write file to working directory
+        await fs.writeFile(filePath, file.buffer);
+        
+        // Add to git
+        const repoFilePath = path.posix.join(cleanPath, filename);
+        await git.add(repoFilePath);
+        commitFiles.push(repoFilePath);
+        
+        console.log(`Git upload: Added file ${repoFilePath}`);
+        
+        results.push({
+          filename,
+          path: repoFilePath,
+          size: file.size
+        });
+        
+      } catch (fileError) {
+        console.error(`Error processing file ${file.originalname}:`, fileError);
+        results.push({
+          filename: file.originalname,
+          error: fileError.message || 'Failed to process file'
+        });
+      }
+    }
+    
+    // Check if we have files to commit
+    if (commitFiles.length === 0) {
+      throw new Error('No files were successfully processed for upload');
+    }
+    
+    // Create commit
+    const fileList = commitFiles.length === 1 ? commitFiles[0] : `${commitFiles.length} files`;
+    const commitMessage = `feat(upload): ${fileList} uploaded by ${username} via app
+
+Files uploaded:
+${commitFiles.map(f => `- ${f}`).join('\n')}
+
+Uploaded by: ${username}
+Upload time: ${new Date().toISOString()}`;
+    
+    console.log(`Git upload: Creating commit with ${commitFiles.length} files`);
+    await git.commit(commitMessage);
+    
+    // Get commit info
+    const log = await git.log(['-1']);
+    const commitSha = log.latest.hash;
+    
+    // Try to push to main branch
+    try {
+      console.log(`Git upload: Pushing to ${GIT_CONFIG.branch}`);
+      await git.push('origin', GIT_CONFIG.branch);
+      
+      // Update results with GitHub URLs
+      for (const result of results) {
+        if (!result.error) {
+          const owner = GIT_CONFIG.repo.split(':')[1].split('/')[0];
+          const repo = GIT_CONFIG.repo.split('/')[1].replace('.git', '');
+          result.html_url = `https://github.com/${owner}/${repo}/blob/${GIT_CONFIG.branch}/${result.path}`;
+          result.download_url = `https://raw.githubusercontent.com/${owner}/${repo}/${GIT_CONFIG.branch}/${result.path}`;
+          result.commit_sha = commitSha;
+          result.branch = GIT_CONFIG.branch;
+        }
+      }
+      
+      console.log(`Git upload: Successfully pushed commit ${commitSha} to ${GIT_CONFIG.branch}`);
+      
+      return {
+        success: true,
+        message: `Successfully uploaded ${commitFiles.length} file(s) to ${GIT_CONFIG.branch}`,
+        committed: results.filter(r => !r.error),
+        errors: results.filter(r => r.error),
+        commit_sha: commitSha,
+        branch: GIT_CONFIG.branch
+      };
+      
+    } catch (pushError) {
+      console.warn('Git upload: Failed to push to main branch, trying fallback branch:', pushError.message);
+      
+      // Create fallback branch for branch protection
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0];
+      const timeStr = now.getTime().toString();
+      const fallbackBranch = `uploads/${dateStr}/${timeStr}`;
+      
+      // Create and push to fallback branch
+      await git.checkoutLocalBranch(fallbackBranch);
+      await git.push('origin', fallbackBranch);
+      
+      // Update results with fallback branch info
+      for (const result of results) {
+        if (!result.error) {
+          const owner = GIT_CONFIG.repo.split(':')[1].split('/')[0];
+          const repo = GIT_CONFIG.repo.split('/')[1].replace('.git', '');
+          result.html_url = `https://github.com/${owner}/${repo}/blob/${fallbackBranch}/${result.path}`;
+          result.download_url = `https://raw.githubusercontent.com/${owner}/${repo}/${fallbackBranch}/${result.path}`;
+          result.commit_sha = commitSha;
+          result.branch = fallbackBranch;
+        }
+      }
+      
+      console.log(`Git upload: Successfully pushed commit ${commitSha} to fallback branch ${fallbackBranch}`);
+      
+      return {
+        success: true,
+        message: `Successfully uploaded ${commitFiles.length} file(s) to fallback branch (requires review)`,
+        committed: results.filter(r => !r.error),
+        errors: results.filter(r => r.error),
+        commit_sha: commitSha,
+        branch: fallbackBranch,
+        fallback_branch: true,
+        fallback_reason: 'Branch protection prevents direct push to main'
+      };
+    }
+    
+  } finally {
+    uploadLocks.delete(lockKey);
+    if (workDir) {
+      await cleanupWorkingDirectory(workDir);
+    }
+  }
 }
 
 // Routes
@@ -156,16 +427,9 @@ app.post('/upload', requireAdmin, upload.array('files'), async (req, res) => {
     const files = req.files;
 
     // Validation
-    if (!targetPath || !targetPath.startsWith('/library/')) {
+    if (!targetPath) {
       return res.status(400).json({ 
-        error: 'Invalid target path. Must start with /library/' 
-      });
-    }
-
-    // Check for path traversal
-    if (targetPath.includes('..')) {
-      return res.status(400).json({ 
-        error: 'Invalid path. Path traversal not allowed.' 
+        error: 'Target path is required' 
       });
     }
 
@@ -173,13 +437,55 @@ app.post('/upload', requireAdmin, upload.array('files'), async (req, res) => {
       return res.status(400).json({ error: 'No files provided' });
     }
 
+    if (files.length > 10) {
+      return res.status(400).json({ 
+        error: 'Too many files. Maximum is 10 files per upload.' 
+      });
+    }
+
+    // Log the upload attempt
+    console.log(`Upload attempt by ${req.session.user.username}: ${files.length} file(s) to ${targetPath}`);
+    
+    // Try Git SSH upload first if configured, otherwise fallback to other methods
+    if (GIT_CONFIG.repo && GIT_CONFIG.sshKeyPath) {
+      try {
+        const result = await uploadFilesWithGit(files, targetPath, req.session.user.username);
+        
+        // Log successful upload
+        console.log(`Git upload successful: ${result.committed.length} files committed to ${result.branch}`);
+        
+        res.json(result);
+        return;
+        
+      } catch (gitError) {
+        console.error('Git upload failed:', gitError);
+        // Log the error but continue to fallback methods
+        console.log('Falling back to GitHub API or local storage...');
+      }
+    }
+
+    // Fallback to GitHub API if Git SSH fails
     const results = [];
     
-    // Try GitHub upload first if available, otherwise use fallback storage
     if (octokit) {
+      console.log('Using GitHub API fallback for upload');
       const owner = process.env.GITHUB_OWNER;
       const repo = process.env.GITHUB_REPO;
       const branch = process.env.GITHUB_BRANCH || 'main';
+
+      // Validate target path for GitHub API
+      if (!targetPath.startsWith('/library/')) {
+        return res.status(400).json({ 
+          error: 'Invalid target path. Must start with /library/' 
+        });
+      }
+
+      // Check for path traversal
+      if (targetPath.includes('..')) {
+        return res.status(400).json({ 
+          error: 'Invalid path. Path traversal not allowed.' 
+        });
+      }
 
       for (const file of files) {
         try {
@@ -238,8 +544,8 @@ app.post('/upload', requireAdmin, upload.array('files'), async (req, res) => {
         }
       }
     } else {
-      // Fallback: Use local file storage when GitHub is not available
-      console.log('GitHub integration disabled - using local file storage');
+      // Final fallback: Use local file storage when Git and GitHub API are not available
+      console.log('Using local file storage fallback for upload');
       
       for (const file of files) {
         try {
@@ -293,6 +599,7 @@ app.post('/upload', requireAdmin, upload.array('files'), async (req, res) => {
 
     res.json({
       success: true,
+      message: `Successfully uploaded ${results.filter(r => !r.error).length} file(s) using fallback method`,
       committed: results.filter(r => !r.error),
       errors: results.filter(r => r.error)
     });
@@ -392,10 +699,24 @@ async function startServer() {
     console.log(`Mechanic's Best Friend server running on port ${PORT}`);
     console.log(`Open http://localhost:${PORT} to access the application`);
     
-    if (!octokit) {
-      console.warn('⚠️  GitHub integration disabled. Set GITHUB_TOKEN to enable file uploads.');
+    // Check Git SSH configuration
+    if (GIT_CONFIG.repo && GIT_CONFIG.sshKeyPath) {
+      console.log('✅ Git SSH upload enabled');
+      console.log(`   Repository: ${GIT_CONFIG.repo}`);
+      console.log(`   Branch: ${GIT_CONFIG.branch}`);
+      console.log(`   Author: ${GIT_CONFIG.authorName} <${GIT_CONFIG.authorEmail}>`);
     } else {
-      console.log('✅ GitHub integration enabled');
+      console.warn('⚠️  Git SSH upload disabled. Set GIT_REPO and GIT_SSH_PRIVATE_KEY_PATH to enable.');
+    }
+    
+    if (!octokit) {
+      console.warn('⚠️  GitHub API integration disabled. Set GITHUB_TOKEN to enable fallback uploads.');
+    } else {
+      console.log('✅ GitHub API fallback enabled');
+    }
+    
+    if (!GIT_CONFIG.repo && !octokit) {
+      console.warn('⚠️  No upload methods configured. Files will only be stored locally.');
     }
   });
 }

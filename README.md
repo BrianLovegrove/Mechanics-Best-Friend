@@ -115,7 +115,36 @@ If Node.js is installed, this automatically configures everything and starts the
 4. **Monitor progress** with real-time progress bar
 5. **View results** with direct GitHub commit links
 
-*Everything is pre-configured - no GitHub tokens or environment setup needed!*
+### 🔐 Upload Methods (Automatic Fallback)
+
+The system automatically uses the best available upload method:
+
+1. **SSH Git Upload** (Primary) - Direct Git commits with SSH deploy keys
+2. **GitHub API** (Fallback) - Uses GitHub tokens when Git SSH unavailable
+3. **Local Storage** (Final Fallback) - Local file storage when no remote methods available
+
+*Everything is pre-configured - no manual configuration needed!*
+
+### ⚙️ Advanced Git SSH Configuration (Optional)
+
+For organizations wanting direct Git commits, configure these environment variables:
+
+```bash
+# Git SSH Configuration
+GIT_REPO=git@github.com:OWNER/REPO.git
+GIT_BRANCH=main
+GIT_AUTHOR_NAME=MBF Upload Bot
+GIT_AUTHOR_EMAIL=uploads@mechanicsbestfriend.app
+GIT_SSH_PRIVATE_KEY_PATH=/path/to/ssh/key
+```
+
+**Features:**
+- ✅ Direct Git commits with proper authorship
+- ✅ Automatic branch protection handling (creates upload branches)
+- ✅ File versioning and conflict resolution
+- ✅ Comprehensive audit logging
+- ✅ Concurrency control for safe uploads
+- ✅ 100MB file size limits (GitHub standard)
 
 ## 🗂️ File Organization
 
