@@ -95,7 +95,7 @@ if (!octokit && process.env.GITHUB_ACTIONS && process.env.GITHUB_TOKEN) {
 // Git SSH configuration for file uploads
 const GIT_CONFIG = {
   repo: process.env.GIT_REPO,
-  branch: process.env.GIT_BRANCH || 'main',
+  branch: process.env.GIT_BRANCH || 'Base',
   authorName: process.env.GIT_AUTHOR_NAME || 'MBF Upload Bot',
   authorEmail: process.env.GIT_AUTHOR_EMAIL || 'uploads@mechanicsbestfriend.app',
   sshKeyPath: process.env.GIT_SSH_PRIVATE_KEY_PATH

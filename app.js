@@ -1,7 +1,7 @@
 // Mechanic's Best Friend - full login gate + auto file listing
 const OWNER='BrianLovegrove';
-const REPO='Refresco-Tempe';
-const BRANCH='main';
+const REPO='Mechanics-Best-Friend';
+const BRANCH='Base';
 
 // User session state
 let currentUser = null;
@@ -59,8 +59,8 @@ async function showLoadingAnimation() {
   $overlay.style.display='none';
   $loadingOverlay.style.display='flex';
   
-  // Simple "Thinking..." for 1 second
-  await showLoadingPhase('Thinking', 1000);
+  // Simple "Thinking..." for 3 seconds
+  await showLoadingPhase('Thinking', 3000);
   
   // Show main app
   showApp();

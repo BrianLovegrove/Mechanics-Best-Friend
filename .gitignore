@@ -63,4 +63,4 @@ Thumbs.db
 uploads/
 
 # Git upload working directories
-.tmp-git-uploads/
+.tmp-git-uploads/*.txt
