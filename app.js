@@ -448,6 +448,12 @@ function rawUrl(path){
   }
   return `https://raw.githubusercontent.com/${OWNER}/${REPO}/${encodeURIComponent(BRANCH)}/${clean}`; 
 }
+
+// Always return the public GitHub raw URL for external services like Office Web Viewer
+function getPublicRawUrl(path) {
+  const clean = path.replace(/^\/+/, ''); 
+  return `https://raw.githubusercontent.com/${OWNER}/${REPO}/${encodeURIComponent(BRANCH)}/${clean}`;
+}
 async function listFiles(path){ 
   try {
     // Try GitHub API first
@@ -743,8 +749,14 @@ function renderWordDocument(url, name, loadingDiv) {
     loadingDiv.remove();
   }
   
-  // Build raw URL for the file using the proper rawUrl function
-  const fileRawUrl = rawUrl(url);
+  // Build raw URL for the file - always use GitHub URL for Office Web Viewer
+  const fileRawUrl = getPublicRawUrl(url);
+  
+  console.log('Word document viewing:', {
+    originalUrl: url,
+    fileName: name,
+    publicRawUrl: fileRawUrl
+  });
   
   // Generate Microsoft Office Viewer URL
   const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(fileRawUrl)}`;
@@ -764,7 +776,7 @@ function renderWordDocument(url, name, loadingDiv) {
   
   header.innerHTML = `
     <h3 style="margin: 0; color: #2B579A; font-size: 16px;">${name}</h3>
-    <a href="${fileRawUrl}" download="${name}" style="
+    <a href="${rawUrl(url)}" download="${name}" style="
       padding: 8px 16px;
       background: #2B579A;
       color: white;
@@ -791,23 +803,53 @@ function renderWordDocument(url, name, loadingDiv) {
   container.appendChild(header);
   container.appendChild(iframe);
   
+  // Enhanced error detection
+  let hasLoaded = false;
+  let fallbackTriggered = false;
+  
+  const triggerFallback = (reason) => {
+    if (fallbackTriggered) return;
+    fallbackTriggered = true;
+    console.log('Office Web Viewer failed:', reason);
+    showOfficeViewerFallback(container, name, rawUrl(url), 'Word', fileRawUrl, reason);
+  };
+  
   // Add error handling for failed loads
   iframe.onerror = () => {
-    showOfficeViewerFallback(container, name, fileRawUrl, 'Word');
+    triggerFallback('Iframe failed to load');
+  };
+  
+  // Listen for iframe load event
+  iframe.onload = () => {
+    hasLoaded = true;
+    console.log('Office viewer iframe loaded successfully');
   };
   
   // Check for load issues after timeout
   setTimeout(() => {
-    try {
-      // If iframe hasn't loaded properly, show fallback
-      if (!iframe.contentWindow && iframe.src.includes('view.officeapps.live.com')) {
-        showOfficeViewerFallback(container, name, fileRawUrl, 'Word');
-      }
-    } catch (e) {
-      // Cross-origin errors are expected when working properly
-      console.log('Office viewer iframe loading (cross-origin blocked check is normal)');
+    if (!hasLoaded && !fallbackTriggered) {
+      triggerFallback('Iframe did not load within timeout');
     }
-  }, 8000);
+  }, 10000);
+  
+  // Additional check for Office Web Viewer specific errors
+  setTimeout(() => {
+    if (!fallbackTriggered) {
+      try {
+        // Check if iframe content is accessible (may throw cross-origin error)
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+        if (iframeDoc && iframeDoc.body) {
+          const bodyText = iframeDoc.body.textContent || '';
+          if (bodyText.includes('not found') || bodyText.includes('not accessible') || bodyText.includes('error')) {
+            triggerFallback('Office Web Viewer reported an error');
+          }
+        }
+      } catch (e) {
+        // Cross-origin errors are expected when Office viewer loads successfully
+        console.log('Cross-origin check (normal when working):', e.message);
+      }
+    }
+  }, 15000);
   
   $c.appendChild(container);
 }
@@ -818,8 +860,14 @@ function renderPowerPointDocument(url, name, loadingDiv) {
     loadingDiv.remove();
   }
   
-  // Build raw URL for the file using the proper rawUrl function
-  const fileRawUrl = rawUrl(url);
+  // Build raw URL for the file - always use GitHub URL for Office Web Viewer
+  const fileRawUrl = getPublicRawUrl(url);
+  
+  console.log('PowerPoint document viewing:', {
+    originalUrl: url,
+    fileName: name,
+    publicRawUrl: fileRawUrl
+  });
   
   // Generate Microsoft Office Viewer URL
   const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(fileRawUrl)}`;
@@ -839,7 +887,7 @@ function renderPowerPointDocument(url, name, loadingDiv) {
   
   header.innerHTML = `
     <h3 style="margin: 0; color: #D04423; font-size: 16px;">${name}</h3>
-    <a href="${fileRawUrl}" download="${name}" style="
+    <a href="${rawUrl(url)}" download="${name}" style="
       padding: 8px 16px;
       background: #D04423;
       color: white;
@@ -866,23 +914,34 @@ function renderPowerPointDocument(url, name, loadingDiv) {
   container.appendChild(header);
   container.appendChild(iframe);
   
+  // Enhanced error detection
+  let hasLoaded = false;
+  let fallbackTriggered = false;
+  
+  const triggerFallback = (reason) => {
+    if (fallbackTriggered) return;
+    fallbackTriggered = true;
+    console.log('Office Web Viewer failed:', reason);
+    showOfficeViewerFallback(container, name, rawUrl(url), 'PowerPoint', fileRawUrl, reason);
+  };
+  
   // Add error handling for failed loads
   iframe.onerror = () => {
-    showOfficeViewerFallback(container, name, fileRawUrl, 'PowerPoint');
+    triggerFallback('Iframe failed to load');
+  };
+  
+  // Listen for iframe load event
+  iframe.onload = () => {
+    hasLoaded = true;
+    console.log('Office viewer iframe loaded successfully');
   };
   
   // Check for load issues after timeout
   setTimeout(() => {
-    try {
-      // If iframe hasn't loaded properly, show fallback
-      if (!iframe.contentWindow && iframe.src.includes('view.officeapps.live.com')) {
-        showOfficeViewerFallback(container, name, fileRawUrl, 'PowerPoint');
-      }
-    } catch (e) {
-      // Cross-origin errors are expected when working properly
-      console.log('Office viewer iframe loading (cross-origin blocked check is normal)');
+    if (!hasLoaded && !fallbackTriggered) {
+      triggerFallback('Iframe did not load within timeout');
     }
-  }, 8000);
+  }, 10000);
   
   $c.appendChild(container);
 }
@@ -893,8 +952,14 @@ function renderExcelDocument(url, name, loadingDiv) {
     loadingDiv.remove();
   }
   
-  // Build raw URL for the file using the proper rawUrl function
-  const fileRawUrl = rawUrl(url);
+  // Build raw URL for the file - always use GitHub URL for Office Web Viewer
+  const fileRawUrl = getPublicRawUrl(url);
+  
+  console.log('Excel document viewing:', {
+    originalUrl: url,
+    fileName: name,
+    publicRawUrl: fileRawUrl
+  });
   
   // Generate Microsoft Office Viewer URL
   const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(fileRawUrl)}`;
@@ -914,7 +979,7 @@ function renderExcelDocument(url, name, loadingDiv) {
   
   header.innerHTML = `
     <h3 style="margin: 0; color: #1D6F42; font-size: 16px;">${name}</h3>
-    <a href="${fileRawUrl}" download="${name}" style="
+    <a href="${rawUrl(url)}" download="${name}" style="
       padding: 8px 16px;
       background: #1D6F42;
       color: white;
@@ -941,23 +1006,34 @@ function renderExcelDocument(url, name, loadingDiv) {
   container.appendChild(header);
   container.appendChild(iframe);
   
+  // Enhanced error detection
+  let hasLoaded = false;
+  let fallbackTriggered = false;
+  
+  const triggerFallback = (reason) => {
+    if (fallbackTriggered) return;
+    fallbackTriggered = true;
+    console.log('Office Web Viewer failed:', reason);
+    showOfficeViewerFallback(container, name, rawUrl(url), 'Excel', fileRawUrl, reason);
+  };
+  
   // Add error handling for failed loads
   iframe.onerror = () => {
-    showOfficeViewerFallback(container, name, fileRawUrl, 'Excel');
+    triggerFallback('Iframe failed to load');
+  };
+  
+  // Listen for iframe load event
+  iframe.onload = () => {
+    hasLoaded = true;
+    console.log('Office viewer iframe loaded successfully');
   };
   
   // Check for load issues after timeout
   setTimeout(() => {
-    try {
-      // If iframe hasn't loaded properly, show fallback
-      if (!iframe.contentWindow && iframe.src.includes('view.officeapps.live.com')) {
-        showOfficeViewerFallback(container, name, fileRawUrl, 'Excel');
-      }
-    } catch (e) {
-      // Cross-origin errors are expected when working properly
-      console.log('Office viewer iframe loading (cross-origin blocked check is normal)');
+    if (!hasLoaded && !fallbackTriggered) {
+      triggerFallback('Iframe did not load within timeout');
     }
-  }, 8000);
+  }, 10000);
   
   $c.appendChild(container);
 }
@@ -1371,11 +1447,11 @@ function openFile(url, name, isLocalStorage = false){
 }
 
 // Fallback function for when Office viewers fail to load
-function showOfficeViewerFallback(container, name, fileUrl, docType) {
+function showOfficeViewerFallback(container, name, fileUrl, docType, publicUrl = null, errorReason = 'unknown') {
   // Clear the container
   container.innerHTML = '';
   
-  // Create error message
+  // Create error message with specific details
   const errorDiv = document.createElement('div');
   errorDiv.style.cssText = `
     padding: 16px;
@@ -1385,16 +1461,56 @@ function showOfficeViewerFallback(container, name, fileUrl, docType) {
     color: #856404;
     margin: 16px 0;
   `;
-  errorDiv.innerHTML = `
-    <strong>Document Viewer Not Available</strong><br>
-    The Microsoft Office Web Viewer could not load this ${docType} document. This might be due to:
-    <ul style="margin: 8px 0; padding-left: 20px;">
-      <li>File not being publicly accessible</li>
+  
+  let errorDetails = '';
+  if (errorReason.includes('timeout')) {
+    errorDetails = `
+      <li>Microsoft Office Web Viewer is taking too long to respond</li>
+      <li>The file may be too large or the service may be busy</li>
+    `;
+  } else if (errorReason.includes('failed to load')) {
+    errorDetails = `
+      <li>The Office Web Viewer service blocked the request</li>
+      <li>The file may not be in a supported format</li>
+    `;
+  } else {
+    errorDetails = `
+      <li>File not being publicly accessible to Microsoft's servers</li>
       <li>Network connectivity issues</li>
       <li>Microsoft Office Web Viewer service unavailable</li>
+    `;
+  }
+  
+  errorDiv.innerHTML = `
+    <strong>Document Viewer Not Available</strong><br>
+    The Microsoft Office Web Viewer could not load this ${docType} document.<br>
+    <strong>Error:</strong> ${errorReason}<br><br>
+    This might be due to:
+    <ul style="margin: 8px 0; padding-left: 20px;">
+      ${errorDetails}
     </ul>
-    Please download the file to view it locally.
+    <strong>Solutions:</strong>
+    <ul style="margin: 8px 0; padding-left: 20px;">
+      <li>Download the file to view it locally in Microsoft Office</li>
+      <li>Try opening the file directly in a new browser tab</li>
+      <li>Check if the file exists and is accessible</li>
+    </ul>
   `;
+  
+  // Add debugging information for developers
+  if (publicUrl && publicUrl !== fileUrl) {
+    const debugDiv = document.createElement('details');
+    debugDiv.style.cssText = 'margin: 8px 0; font-size: 12px; color: #666;';
+    debugDiv.innerHTML = `
+      <summary style="cursor: pointer;">Show technical details</summary>
+      <div style="margin: 8px 0; font-family: monospace; background: #f8f9fa; padding: 8px; border-radius: 4px;">
+        <strong>Local URL:</strong> ${fileUrl}<br>
+        <strong>Public URL:</strong> ${publicUrl}<br>
+        <strong>Office Viewer URL:</strong> https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(publicUrl)}
+      </div>
+    `;
+    errorDiv.appendChild(debugDiv);
+  }
   
   // Create download button
   const downloadBtn = document.createElement('a');
@@ -1434,8 +1550,32 @@ function showOfficeViewerFallback(container, name, fileUrl, docType) {
   tryViewBtn.onmouseover = () => tryViewBtn.style.background = '#545b62';
   tryViewBtn.onmouseout = () => tryViewBtn.style.background = '#6c757d';
   
+  // Add a button to test the public URL directly
+  let testUrlBtn = null;
+  if (publicUrl && publicUrl !== fileUrl) {
+    testUrlBtn = document.createElement('button');
+    testUrlBtn.textContent = 'Test Public URL';
+    testUrlBtn.style.cssText = `
+      display: inline-block;
+      padding: 12px 24px;
+      background: #28a745;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-weight: 600;
+      margin: 8px 8px 8px 0;
+      cursor: pointer;
+    `;
+    testUrlBtn.onclick = () => {
+      window.open(publicUrl, '_blank');
+    };
+    testUrlBtn.onmouseover = () => testUrlBtn.style.background = '#218838';
+    testUrlBtn.onmouseout = () => testUrlBtn.style.background = '#28a745';
+  }
+  
   const buttonContainer = document.createElement('div');
   buttonContainer.appendChild(tryViewBtn);
+  if (testUrlBtn) buttonContainer.appendChild(testUrlBtn);
   buttonContainer.appendChild(downloadBtn);
   
   container.appendChild(errorDiv);
