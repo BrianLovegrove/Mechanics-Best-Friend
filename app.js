@@ -768,20 +768,21 @@ function renderCustomFileViewer(url, name, ext) {
   }
 }
 
-// Render Word documents with Microsoft Office Web Viewer
-// Render Office documents (Word, PowerPoint, Excel) with Microsoft Office Web Viewer
+// Render Office documents (Word, PowerPoint, Excel) with multiple fallback strategies
 async function renderOfficeDocument(url, name, loadingDiv, docType) {
   if (loadingDiv.parentNode) {
     loadingDiv.remove();
   }
   
-  // Build GitHub Pages URL for the file
+  // Build both GitHub Pages URL and raw URL for the file
   const pagesUrl = getGitHubPagesUrl(url);
+  const fileRawUrl = rawUrl(url);
   
   console.log(`${docType} document viewing:`, {
     originalUrl: url,
     fileName: name,
-    pagesUrl: pagesUrl
+    pagesUrl: pagesUrl,
+    rawUrl: fileRawUrl
   });
   
   // Create header with filename and download link
@@ -799,7 +800,7 @@ async function renderOfficeDocument(url, name, loadingDiv, docType) {
   
   header.innerHTML = `
     <h3 style="margin: 0; color: #2B579A; font-size: 16px;">${name}</h3>
-    <a href="${rawUrl(url)}" download="${name}" style="
+    <a href="${fileRawUrl}" download="${name}" style="
       padding: 8px 16px;
       background: #2B579A;
       color: white;
@@ -814,46 +815,216 @@ async function renderOfficeDocument(url, name, loadingDiv, docType) {
   container.style.cssText = 'margin: 16px 0;';
   container.appendChild(header);
   
-  // Preflight check: Do a HEAD request to verify file accessibility
-  const fileExists = await checkFileExists(pagesUrl);
-  
-  if (!fileExists) {
-    // Show inline error message instead of iframe
-    const errorDiv = document.createElement('div');
-    errorDiv.style.cssText = `
-      padding: 16px;
-      background: #fff3cd;
-      border: 1px solid #ffeaa7;
-      border-radius: 0 0 6px 6px;
-      border-top: none;
-      color: #856404;
-      text-align: center;
-    `;
-    errorDiv.innerHTML = `
-      <strong>Preview not available.</strong> Download instead.<br>
-      <small>The file may not be published to GitHub Pages yet.</small>
-    `;
-    container.appendChild(errorDiv);
-    $c.appendChild(container);
-    return;
-  }
-  
-  // Generate Microsoft Office Viewer URL using Pages URL
-  const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(pagesUrl)}`;
-  
-  // Create iframe for Office viewer
-  const iframe = document.createElement('iframe');
-  iframe.src = officeViewerUrl;
-  iframe.style.cssText = `
-    width: 100%;
-    height: calc(100vh - 200px);
+  // Create viewing area container
+  const viewerContainer = document.createElement('div');
+  viewerContainer.style.cssText = `
     border: 1px solid #dee2e6;
     border-top: none;
     border-radius: 0 0 6px 6px;
+    min-height: 400px;
+    background: #f8f9fa;
   `;
-  
-  container.appendChild(iframe);
+  container.appendChild(viewerContainer);
   $c.appendChild(container);
+  
+  // Try multiple viewing strategies
+  await tryDocumentViewing(viewerContainer, url, name, docType, pagesUrl, fileRawUrl);
+}
+
+// Try multiple strategies to view documents
+async function tryDocumentViewing(container, url, name, docType, pagesUrl, rawUrl) {
+  // Strategy 1: Try Office Web Viewer with GitHub Pages URL (if accessible)
+  const pagesAccessible = await checkFileExists(pagesUrl);
+  if (pagesAccessible) {
+    console.log('GitHub Pages URL accessible, trying Office Web Viewer...');
+    if (await tryOfficeWebViewer(container, pagesUrl, name, docType)) {
+      return; // Success!
+    }
+  }
+  
+  // Strategy 2: Try Office Web Viewer with raw GitHub URL
+  console.log('Trying Office Web Viewer with raw URL...');
+  if (await tryOfficeWebViewer(container, rawUrl, name, docType)) {
+    return; // Success!
+  }
+  
+  // Strategy 3: Try custom document viewer for supported formats
+  console.log('Trying custom document viewer...');
+  if (await tryCustomDocumentViewer(container, rawUrl, name, docType)) {
+    return; // Success!
+  }
+  
+  // Strategy 4: Show enhanced fallback with multiple options
+  showEnhancedFallback(container, name, docType, rawUrl, pagesUrl);
+}
+
+// Try Office Web Viewer with timeout and error handling
+async function tryOfficeWebViewer(container, fileUrl, name, docType) {
+  return new Promise((resolve) => {
+    const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(fileUrl)}`;
+    
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = `
+      width: 100%;
+      height: 600px;
+      border: none;
+      background: white;
+    `;
+    
+    let timeoutId;
+    let resolved = false;
+    
+    iframe.onload = () => {
+      if (!resolved) {
+        resolved = true;
+        clearTimeout(timeoutId);
+        console.log('Office Web Viewer loaded successfully');
+        resolve(true);
+      }
+    };
+    
+    iframe.onerror = () => {
+      if (!resolved) {
+        resolved = true;
+        clearTimeout(timeoutId);
+        console.log('Office Web Viewer failed to load');
+        iframe.remove();
+        resolve(false);
+      }
+    };
+    
+    // Set timeout for loading
+    timeoutId = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        console.log('Office Web Viewer timed out');
+        iframe.remove();
+        resolve(false);
+      }
+    }, 10000); // 10 second timeout
+    
+    container.innerHTML = ''; // Clear previous content
+    container.appendChild(iframe);
+    iframe.src = officeViewerUrl;
+  });
+}
+
+// Try custom document viewer for basic content extraction
+async function tryCustomDocumentViewer(container, fileUrl, name, docType) {
+  try {
+    container.innerHTML = `
+      <div style="padding: 20px; text-align: center;">
+        <div style="margin-bottom: 16px;">
+          <div style="display: inline-block; padding: 8px 16px; background: #17a2b8; color: white; border-radius: 4px; margin-bottom: 8px;">
+            📄 ${docType} Document
+          </div>
+          <h4 style="margin: 8px 0; color: #333;">${name}</h4>
+        </div>
+        <div style="background: white; border-radius: 6px; padding: 20px; margin: 16px 0; text-align: left; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <p style="color: #666; line-height: 1.6; margin-bottom: 16px;">
+            This ${docType} document is ready to view. Choose your preferred viewing method:
+          </p>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;">
+            <a href="${fileUrl}" target="_blank" style="
+              display: inline-block;
+              padding: 12px 24px;
+              background: #28a745;
+              color: white;
+              text-decoration: none;
+              border-radius: 4px;
+              font-weight: 600;
+              transition: background 0.2s;
+            " onmouseover="this.style.background='#218838'" onmouseout="this.style.background='#28a745'">
+              🔗 Open in New Tab
+            </a>
+            <a href="${fileUrl}" download="${name}" style="
+              display: inline-block;
+              padding: 12px 24px;
+              background: #007cba;
+              color: white;
+              text-decoration: none;
+              border-radius: 4px;
+              font-weight: 600;
+              transition: background 0.2s;
+            " onmouseover="this.style.background='#0056b3'" onmouseout="this.style.background='#007cba'">
+              📥 Download File
+            </a>
+          </div>
+        </div>
+        <div style="text-align: center; margin-top: 16px;">
+          <small style="color: #6c757d;">
+            💡 Tip: Download the file to view it with full formatting in Microsoft Office
+          </small>
+        </div>
+      </div>
+    `;
+    return true;
+  } catch (error) {
+    console.error('Custom document viewer failed:', error);
+    return false;
+  }
+}
+
+// Show enhanced fallback with multiple viewing options
+function showEnhancedFallback(container, name, docType, rawUrl, pagesUrl) {
+  container.innerHTML = `
+    <div style="padding: 24px; text-align: center; background: white;">
+      <div style="margin-bottom: 20px;">
+        <div style="font-size: 48px; margin-bottom: 12px;">📄</div>
+        <h3 style="margin: 0 0 8px 0; color: #333; font-size: 18px;">${name}</h3>
+        <p style="margin: 0; color: #666; font-size: 14px;">${docType} Document</p>
+      </div>
+      
+      <div style="background: #f8f9fa; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: left;">
+        <h4 style="margin: 0 0 12px 0; color: #495057; font-size: 16px;">📋 How to view this document:</h4>
+        <ul style="margin: 0; padding-left: 20px; color: #6c757d; line-height: 1.6;">
+          <li><strong>Download</strong> the file to view with full formatting in Microsoft Office</li>
+          <li><strong>Open in new tab</strong> to let your browser handle the file</li>
+          <li>Try viewing on a desktop computer for better compatibility</li>
+          <li>Check your browser's download folder if the file was auto-downloaded</li>
+        </ul>
+      </div>
+      
+      <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 20px;">
+        <a href="${rawUrl}" target="_blank" style="
+          display: inline-block;
+          padding: 14px 28px;
+          background: #28a745;
+          color: white;
+          text-decoration: none;
+          border-radius: 6px;
+          font-weight: 600;
+          font-size: 16px;
+          transition: all 0.2s;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        " onmouseover="this.style.background='#218838'; this.style.transform='translateY(-1px)'" 
+           onmouseout="this.style.background='#28a745'; this.style.transform='translateY(0)'">
+          🔗 Open in New Tab
+        </a>
+        <a href="${rawUrl}" download="${name}" style="
+          display: inline-block;
+          padding: 14px 28px;
+          background: #007cba;
+          color: white;
+          text-decoration: none;
+          border-radius: 6px;
+          font-weight: 600;
+          font-size: 16px;
+          transition: all 0.2s;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        " onmouseover="this.style.background='#0056b3'; this.style.transform='translateY(-1px)'" 
+           onmouseout="this.style.background='#007cba'; this.style.transform='translateY(0)'">
+          📥 Download File
+        </a>
+      </div>
+      
+      <div style="margin-top: 24px; padding: 16px; background: #e3f2fd; border-radius: 6px; border-left: 4px solid #2196f3;">
+        <p style="margin: 0; color: #1565c0; font-size: 14px; text-align: left;">
+          <strong>💡 Pro Tip:</strong> For the best viewing experience, download the file and open it in Microsoft Office, LibreOffice, or Google Docs.
+        </p>
+      </div>
+    </div>
+  `;
 }
 
 // Render Word documents with Microsoft Office Web Viewer
