@@ -125,7 +125,8 @@ PORT=3000`;
       const fallbackAuth = window.fallbackAuth;
       if (fallbackAuth.passwords[username] === password) {
         const user = fallbackAuth.users[username];
-        sessionStorage.setItem('mbf_fallback_user', JSON.stringify(user));
+        // Store user temporarily in memory only - no persistence
+        window.currentSessionUser = user;
         
         return new Response(JSON.stringify({
           success: true,
@@ -154,9 +155,9 @@ PORT=3000`;
 
   // Handle auth check in fallback mode
   async handleFallbackAuthCheck() {
-    const userJson = sessionStorage.getItem('mbf_fallback_user');
-    if (userJson) {
-      const user = JSON.parse(userJson);
+    // Check for temporary session user (no persistence)
+    if (window.currentSessionUser) {
+      const user = window.currentSessionUser;
       
       // Ensure app is properly initialized after successful auth
       setTimeout(() => {
@@ -384,14 +385,12 @@ PORT=3000`;
       
       if (success) {
         status.textContent = '✅ Setup complete! Redirecting...';
-        localStorage.setItem('mbf_setup_choice', 'completed');
         await new Promise(resolve => setTimeout(resolve, 1000));
         overlay.remove();
         // Don't reload the page - just remove the popup
         // window.location.reload();
       } else {
         status.textContent = '⚠️ Server setup failed - using offline mode';
-        localStorage.setItem('mbf_setup_choice', 'skipped');
         await new Promise(resolve => setTimeout(resolve, 1500));
         overlay.remove();
       }
@@ -399,7 +398,6 @@ PORT=3000`;
 
     document.getElementById('skipSetupBtn').onclick = () => {
       console.log('Skip button clicked - enabling fallback mode');
-      localStorage.setItem('mbf_setup_choice', 'skipped');
       this.enableFallbackMode();
       overlay.remove();
     };
@@ -409,22 +407,14 @@ PORT=3000`;
 
   // Initialize auto-setup
   async initialize() {
-    // Check if user has already made a setup choice
-    const setupChoice = localStorage.getItem('mbf_setup_choice');
-    if (setupChoice === 'completed' || setupChoice === 'skipped') {
-      console.log('Setup already handled - choice:', setupChoice);
-      // Enable fallback mode for both completed and skipped states
-      // since we're in a static environment
-      this.enableFallbackMode();
-      return;
-    }
+    // Always run setup - no persistence of setup choice
+    console.log('Running setup for new session');
 
     // First check if server is already running
     const serverRunning = await this.checkServerStatus();
     
     if (serverRunning) {
       console.log('Server is already running - no setup needed');
-      localStorage.setItem('mbf_setup_choice', 'completed');
       return;
     }
 
@@ -437,7 +427,6 @@ PORT=3000`;
     } else {
       // Enable fallback mode immediately
       this.enableFallbackMode();
-      localStorage.setItem('mbf_setup_choice', 'skipped');
     }
   }
 }

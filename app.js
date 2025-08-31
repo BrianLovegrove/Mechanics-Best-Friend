@@ -189,7 +189,20 @@ function render(){
         $c.appendChild(p); 
         return; 
       }
-      items.forEach(it=>{ if(it.type==='file'){ const a=document.createElement('a'); a.className='item'; a.href='#'; a.onclick=(e)=>{ e.preventDefault(); const url = it.isLocalStorage ? `#fallback-upload-${it.name}` : rawUrl(repoPath+it.name); openFile(url, it.name); }; a.textContent=prettyName(it.name); list.appendChild(a); } });
+      items.forEach(it=>{ 
+        if(it.type==='file'){ 
+          const a=document.createElement('a'); 
+          a.className='item'; 
+          a.href='#'; 
+          a.onclick=(e)=>{ 
+            e.preventDefault(); 
+            const url = it.isLocalStorage ? `#fallback-upload-${it.name}` : rawUrl(repoPath+it.name); 
+            showFileActions(url, it.name, it.isLocalStorage || false); 
+          }; 
+          a.textContent=prettyName(it.name); 
+          list.appendChild(a); 
+        } 
+      });
     }).catch(err=>{ const p=document.createElement('p'); p.className='empty'; p.textContent='Folder not found yet: '+repoPath; $c.appendChild(p); console.error(err); });
   }
 }
@@ -268,10 +281,206 @@ async function listFiles(path){
 function prettyName(filename){ const noExt=filename.replace(/\.[^.]+$/,''); return noExt.replace(/[_-]+/g,' ').replace(/\s+/g,' ').replace(/\b\w/g,c=>c.toUpperCase()); }
 
 
+function showFileActions(url, name, isLocalStorage = false) {
+  const ext = (name.split('.').pop()||'').toLowerCase();
+  $c.innerHTML='';
+  
+  const title=document.createElement('div'); 
+  title.className='sectionTitle'; 
+  title.textContent=name; 
+  $c.appendChild(title);
+  
+  // File action buttons container
+  const actionsContainer = document.createElement('div');
+  actionsContainer.style.cssText = `
+    margin: 20px 0;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: #f9f9f9;
+    text-align: center;
+  `;
+  
+  // View button
+  const viewBtn = document.createElement('button');
+  viewBtn.textContent = '👁️ View File';
+  viewBtn.className = 'action-btn';
+  viewBtn.style.cssText = `
+    display: inline-block;
+    margin: 8px;
+    padding: 12px 24px;
+    border: 1px solid #000;
+    border-radius: 4px;
+    background: #fff;
+    color: #000;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  `;
+  viewBtn.onmouseover = () => {
+    viewBtn.style.background = '#000';
+    viewBtn.style.color = '#fff';
+  };
+  viewBtn.onmouseout = () => {
+    viewBtn.style.background = '#fff';
+    viewBtn.style.color = '#000';
+  };
+  viewBtn.onclick = () => viewFile(url, name);
+  
+  // Download button
+  const downloadBtn = document.createElement('button');
+  downloadBtn.textContent = '⬇️ Download File';
+  downloadBtn.className = 'action-btn';
+  downloadBtn.style.cssText = viewBtn.style.cssText;
+  downloadBtn.onmouseover = () => {
+    downloadBtn.style.background = '#000';
+    downloadBtn.style.color = '#fff';
+  };
+  downloadBtn.onmouseout = () => {
+    downloadBtn.style.background = '#fff';
+    downloadBtn.style.color = '#000';
+  };
+  downloadBtn.onclick = () => downloadFile(url, name, isLocalStorage);
+  
+  actionsContainer.appendChild(viewBtn);
+  actionsContainer.appendChild(downloadBtn);
+  
+  // Delete button for admin users only
+  if (currentUser && currentUser.role === 'admin') {
+    const deleteBtn = document.createElement('button');
+    deleteBtn.textContent = '🗑️ Delete File';
+    deleteBtn.className = 'action-btn delete-btn';
+    deleteBtn.style.cssText = `
+      display: inline-block;
+      margin: 8px;
+      padding: 12px 24px;
+      border: 1px solid #d32f2f;
+      border-radius: 4px;
+      background: #fff;
+      color: #d32f2f;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    `;
+    deleteBtn.onmouseover = () => {
+      deleteBtn.style.background = '#d32f2f';
+      deleteBtn.style.color = '#fff';
+    };
+    deleteBtn.onmouseout = () => {
+      deleteBtn.style.background = '#fff';
+      deleteBtn.style.color = '#d32f2f';
+    };
+    deleteBtn.onclick = () => deleteFile(url, name, isLocalStorage);
+    
+    actionsContainer.appendChild(deleteBtn);
+  }
+  
+  $c.appendChild(actionsContainer);
+  
+  // File info
+  const infoDiv = document.createElement('div');
+  infoDiv.style.cssText = 'margin: 16px 0; font-size: 14px; color: #666;';
+  infoDiv.innerHTML = `
+    <strong>File:</strong> ${name}<br>
+    <strong>Type:</strong> ${ext.toUpperCase() || 'Unknown'}<br>
+    <strong>Source:</strong> ${isLocalStorage ? 'Local Storage' : 'GitHub Repository'}
+  `;
+  $c.appendChild(infoDiv);
+}
+
+function viewFile(url, name) {
+  openFile(url, name);
+}
+
+function downloadFile(url, name, isLocalStorage = false) {
+  if (isLocalStorage) {
+    // Handle localStorage file download
+    const currentPath = nodeRepoPath();
+    const storageKey = `mbf_files_${currentPath.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    try {
+      const storedFiles = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      const file = storedFiles.find(f => f.filename === name);
+      
+      if (file && file.data) {
+        // Create download link for data URL
+        const a = document.createElement('a');
+        a.href = file.data;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        return;
+      }
+    } catch (e) {
+      console.error('Error accessing stored file:', e);
+    }
+    
+    alert('File not available for download in fallback mode.');
+    return;
+  }
+  
+  // Handle regular file download
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.target = '_blank';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+async function deleteFile(url, name, isLocalStorage = false) {
+  if (!confirm(`Are you sure you want to delete "${name}"?`)) {
+    return;
+  }
+  
+  if (isLocalStorage) {
+    // Handle localStorage file deletion
+    const currentPath = nodeRepoPath();
+    const storageKey = `mbf_files_${currentPath.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    try {
+      const storedFiles = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      const filteredFiles = storedFiles.filter(f => f.filename !== name);
+      localStorage.setItem(storageKey, JSON.stringify(filteredFiles));
+      
+      alert(`File "${name}" has been deleted.`);
+      render(); // Refresh the file list
+      return;
+    } catch (e) {
+      console.error('Error deleting stored file:', e);
+      alert('Error deleting file.');
+      return;
+    }
+  }
+  
+  // For GitHub files, we would need to implement GitHub API deletion
+  // For now, just show a message
+  alert('GitHub file deletion will be implemented when server mode is available.');
+}
+
 function openFile(url, name){
   const ext = (name.split('.').pop()||'').toLowerCase();
   $c.innerHTML='';
   const title=document.createElement('div'); title.className='sectionTitle'; title.textContent=name; $c.appendChild(title);
+  
+  // Add back button to return to file actions
+  const backToActionsBtn = document.createElement('button');
+  backToActionsBtn.textContent = '← Back to File Options';
+  backToActionsBtn.style.cssText = `
+    margin: 10px 0;
+    padding: 8px 16px;
+    border: 1px solid #666;
+    border-radius: 4px;
+    background: #f5f5f5;
+    color: #333;
+    cursor: pointer;
+    font-size: 14px;
+  `;
+  backToActionsBtn.onclick = () => {
+    const isLocalStorage = url.startsWith('#fallback-upload-') || url.startsWith('#large-file-');
+    showFileActions(url, name, isLocalStorage);
+  };
+  $c.appendChild(backToActionsBtn);
   
   // Check if this is a localStorage file
   if (url.startsWith('#fallback-upload-') || url.startsWith('#large-file-')) {
@@ -291,9 +500,24 @@ function openFile(url, name){
           const base64Data = file.data.split(',')[1];
           const text = atob(base64Data);
           const pre=document.createElement('pre'); pre.textContent=text; pre.style.whiteSpace='pre-wrap'; pre.style.wordBreak='break-word'; $c.appendChild(pre);
+        } else if(ext==='pdf'){
+          const emb=document.createElement('embed'); emb.type='application/pdf'; emb.src=file.data; emb.style.width='100%'; emb.style.height='80vh'; $c.appendChild(emb);
+        } else if(['doc','docx','ppt','pptx','xls','xlsx'].includes(ext)){
+          const iframe=document.createElement('iframe'); iframe.src='https://docs.google.com/gview?embedded=1&url='+encodeURIComponent(file.data); iframe.style.width='100%'; iframe.style.height='80vh'; iframe.loading='lazy'; $c.appendChild(iframe);
         } else {
-          // Offer download
-          const p=document.createElement('p'); p.textContent=`File uploaded: ${name} (${formatFileSize(file.size)})`; $c.appendChild(p);
+          // Check for unsupported file types (PLC programs, etc.)
+          if(['plc','rslogix','l5x','l5k','acd','rss','s7p','awl','scl','fbd','ladder'].includes(ext) || 
+             name.toLowerCase().includes('plc') || 
+             name.toLowerCase().includes('hmi') ||
+             name.toLowerCase().includes('scada')) {
+            const p=document.createElement('p'); 
+            p.textContent='⚠️ File type not supported for preview. This appears to be a PLC program or specialized industrial file. Please download and use with the appropriate software (RSLogix, TIA Portal, etc.).'; 
+            p.style.cssText = 'padding: 16px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; color: #856404;';
+            $c.appendChild(p);
+          } else {
+            // Offer download for other unsupported types
+            const p=document.createElement('p'); p.textContent='Preview not supported for this file type.'; $c.appendChild(p);
+          }
           const a=document.createElement('a'); a.href=file.data; a.textContent='Download '+name; a.className='item'; a.download=name; $c.appendChild(a);
         }
         return;
@@ -321,7 +545,18 @@ function openFile(url, name){
   } else if(['doc','docx','ppt','pptx','xls','xlsx'].includes(ext)){
     const iframe=document.createElement('iframe'); iframe.src='https://docs.google.com/gview?embedded=1&url='+encodeURIComponent(url); iframe.style.width='100%'; iframe.style.height='80vh'; iframe.loading='lazy'; $c.appendChild(iframe);
   } else {
-    const p=document.createElement('p'); p.textContent='Preview not supported. Download the file below:'; $c.appendChild(p);
+    // Check for unsupported file types (PLC programs, etc.)
+    if(['plc','rslogix','l5x','l5k','acd','rss','s7p','awl','scl','fbd','ladder'].includes(ext) || 
+       name.toLowerCase().includes('plc') || 
+       name.toLowerCase().includes('hmi') ||
+       name.toLowerCase().includes('scada')) {
+      const p=document.createElement('p'); 
+      p.textContent='⚠️ File type not supported for preview. This appears to be a PLC program or specialized industrial file. Please download and use with the appropriate software (RSLogix, TIA Portal, etc.).'; 
+      p.style.cssText = 'padding: 16px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; color: #856404;';
+      $c.appendChild(p);
+    } else {
+      const p=document.createElement('p'); p.textContent='Preview not supported. Download the file below:'; $c.appendChild(p);
+    }
     const a=document.createElement('a'); a.href=url; a.textContent='Download '+name; a.className='item'; a.download=name; $c.appendChild(a);
   }
 }
