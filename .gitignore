@@ -61,3 +61,6 @@ Thumbs.db
 
 # Local file uploads (when GitHub integration is disabled)
 uploads/
+
+# Git upload working directories
+.tmp-git-uploads/
