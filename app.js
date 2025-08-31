@@ -1,7 +1,7 @@
 // Mechanic's Best Friend - full login gate + auto file listing
 const OWNER='BrianLovegrove';
-const REPO='Refresco-Tempe';
-const BRANCH='main';
+const REPO='Mechanics-Best-Friend';
+const BRANCH='Base';
 
 // User session state
 let currentUser = null;
