@@ -746,15 +746,56 @@ function openFile(url, name, isLocalStorage = false){
         // File has data stored
         if(['png','jpg','jpeg','gif','webp','svg'].includes(ext)){
           const img=new Image(); img.src=file.data; img.style.maxWidth='100%'; img.style.height='auto'; $c.appendChild(img);
-        } else if(['txt','log','json','md','csv','ini','cfg'].includes(ext)){
+        } else if(['txt','log','json','md','csv','ini','cfg','xml','html','htm','js','css','py','java','c','cpp','h','hpp'].includes(ext)){
           // Extract text content from data URL
           const base64Data = file.data.split(',')[1];
           const text = atob(base64Data);
-          const pre=document.createElement('pre'); pre.textContent=text; pre.style.whiteSpace='pre-wrap'; pre.style.wordBreak='break-word'; $c.appendChild(pre);
+          const pre=document.createElement('pre'); 
+          pre.textContent=text; 
+          pre.style.cssText = 'white-space: pre-wrap; word-break: break-word; background: #f5f5f5; padding: 16px; border-radius: 4px; border: 1px solid #ddd; overflow-x: auto; font-family: monospace; font-size: 14px;';
+          $c.appendChild(pre);
         } else if(ext==='pdf'){
           const emb=document.createElement('embed'); emb.type='application/pdf'; emb.src=file.data; emb.style.width='100%'; emb.style.height='80vh'; $c.appendChild(emb);
+        } else if(['mp4','webm','ogg','avi','mov'].includes(ext)){
+          const video=document.createElement('video'); 
+          video.src=file.data; 
+          video.controls=true; 
+          video.style.cssText='max-width: 100%; height: auto;'; 
+          $c.appendChild(video);
+        } else if(['mp3','wav','ogg','m4a','flac'].includes(ext)){
+          const audio=document.createElement('audio'); 
+          audio.src=file.data; 
+          audio.controls=true; 
+          audio.style.cssText='width: 100%; margin: 16px 0;'; 
+          $c.appendChild(audio);
         } else if(['doc','docx','ppt','pptx','xls','xlsx'].includes(ext)){
-          const iframe=document.createElement('iframe'); iframe.src='https://docs.google.com/gview?embedded=1&url='+encodeURIComponent(file.data); iframe.style.width='100%'; iframe.style.height='80vh'; iframe.loading='lazy'; $c.appendChild(iframe);
+          // For locally stored Office documents, Google Docs viewer cannot access data URLs
+          // Provide download option with explanation
+          const warning = document.createElement('div');
+          warning.style.cssText = 'padding: 16px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; color: #856404; margin: 16px 0;';
+          warning.innerHTML = `
+            <strong>Office Document Preview</strong><br>
+            Preview is not available for locally stored Office documents. Google Docs viewer cannot access files stored in your browser's local storage. Please download the file to view it in Microsoft Office, LibreOffice, or another compatible application.
+          `;
+          $c.appendChild(warning);
+          
+          const downloadBtn = document.createElement('a');
+          downloadBtn.href = file.data;
+          downloadBtn.download = name;
+          downloadBtn.textContent = `Download ${name}`;
+          downloadBtn.style.cssText = `
+            display: inline-block;
+            padding: 12px 24px;
+            background: #007cba;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: 600;
+            margin: 8px 0;
+          `;
+          downloadBtn.onmouseover = () => downloadBtn.style.background = '#005a87';
+          downloadBtn.onmouseout = () => downloadBtn.style.background = '#007cba';
+          $c.appendChild(downloadBtn);
         } else {
           // Check for unsupported file types (PLC programs, etc.)
           if(['plc','rslogix','l5x','l5k','acd','rss','s7p','awl','scl','fbd','ladder'].includes(ext) || 
@@ -791,23 +832,49 @@ function openFile(url, name, isLocalStorage = false){
     const img=new Image(); img.src=url; img.style.maxWidth='100%'; img.style.height='auto'; $c.appendChild(img);
   } else if(ext==='pdf'){
     const emb=document.createElement('embed'); emb.type='application/pdf'; emb.src=url; emb.style.width='100%'; emb.style.height='80vh'; $c.appendChild(emb);
-  } else if(['txt','log','json','md','csv','ini','cfg'].includes(ext)){
-    fetch(url).then(r=>r.text()).then(t=>{ const pre=document.createElement('pre'); pre.textContent=t; pre.style.whiteSpace='pre-wrap'; pre.style.wordBreak='break-word'; $c.appendChild(pre); });
+  } else if(['mp4','webm','ogg','avi','mov'].includes(ext)){
+    const video=document.createElement('video'); 
+    video.src=url; 
+    video.controls=true; 
+    video.style.cssText='max-width: 100%; height: auto;'; 
+    $c.appendChild(video);
+  } else if(['mp3','wav','ogg','m4a','flac'].includes(ext)){
+    const audio=document.createElement('audio'); 
+    audio.src=url; 
+    audio.controls=true; 
+    audio.style.cssText='width: 100%; margin: 16px 0;'; 
+    $c.appendChild(audio);
+  } else if(['txt','log','json','md','csv','ini','cfg','xml','html','htm','js','css','py','java','c','cpp','h','hpp'].includes(ext)){
+    fetch(url).then(r=>r.text()).then(t=>{ 
+      const pre=document.createElement('pre'); 
+      pre.textContent=t; 
+      pre.style.cssText = 'white-space: pre-wrap; word-break: break-word; background: #f5f5f5; padding: 16px; border-radius: 4px; border: 1px solid #ddd; overflow-x: auto; font-family: monospace; font-size: 14px;';
+      $c.appendChild(pre); 
+    }).catch(e => {
+      const errorP = document.createElement('p');
+      errorP.textContent = 'Failed to load text file: ' + e.message;
+      errorP.style.cssText = 'color: #d32f2f; padding: 16px; background: #ffebee; border-radius: 4px;';
+      $c.appendChild(errorP);
+    });
   } else if(['doc','docx','ppt','pptx','xls','xlsx'].includes(ext)){
     console.log('Opening Word document:', name, 'URL:', url);
     
     // Check if this is a local server file or localStorage file
     if (url.startsWith('/uploads/') || 
         url.startsWith('http://localhost') || 
+        url.startsWith('http://127.0.0.1') ||
+        url.startsWith('file://') ||
+        url.startsWith('data:') ||
         url.startsWith('#fallback-upload-') ||
         url.startsWith('#large-file-') ||
-        isLocalStorage) {
+        isLocalStorage ||
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
       // For local files, offer download instead of Google Docs viewer since it won't work with localhost URLs
       const warning = document.createElement('div');
       warning.style.cssText = 'padding: 16px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; color: #856404; margin: 16px 0;';
       warning.innerHTML = `
         <strong>Office Document Preview</strong><br>
-        Preview is not available for locally stored Office documents. Please download the file to view it in Microsoft Office, LibreOffice, or another compatible application.
+        Preview is not available for locally served Office documents. Google Docs viewer cannot access local files due to security restrictions. Please download the file to view it in Microsoft Office, LibreOffice, or another compatible application.
       `;
       $c.appendChild(warning);
       
