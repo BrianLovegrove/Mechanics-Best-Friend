@@ -80,6 +80,18 @@ if (process.env.GITHUB_TOKEN && process.env.GITHUB_TOKEN !== 'development_mode_n
   });
 }
 
+// For admin users, try to configure GitHub API with repository context if in GitHub Actions
+if (!octokit && process.env.GITHUB_ACTIONS && process.env.GITHUB_TOKEN) {
+  try {
+    octokit = new Octokit({
+      auth: process.env.GITHUB_TOKEN
+    });
+    console.log('✅ GitHub API configured from GitHub Actions environment');
+  } catch (error) {
+    console.warn('Failed to configure GitHub API from Actions environment:', error.message);
+  }
+}
+
 // Git SSH configuration for file uploads
 const GIT_CONFIG = {
   repo: process.env.GIT_REPO,
@@ -446,6 +458,12 @@ app.post('/upload', requireAdmin, upload.array('files'), async (req, res) => {
     // Log the upload attempt
     console.log(`Upload attempt by ${req.session.user.username}: ${files.length} file(s) to ${targetPath}`);
     
+    // For admin users, prioritize GitHub repository uploads over local storage
+    if (req.session.user.role === 'admin' && !octokit) {
+      console.warn('Admin user attempting upload but GitHub API not configured. Files will be stored locally.');
+      console.warn('To enable GitHub uploads, set GITHUB_TOKEN environment variable.');
+    }
+
     // Try Git SSH upload first if configured, otherwise fallback to other methods
     if (GIT_CONFIG.repo && GIT_CONFIG.sshKeyPath) {
       try {
@@ -469,9 +487,9 @@ app.post('/upload', requireAdmin, upload.array('files'), async (req, res) => {
     
     if (octokit) {
       console.log('Using GitHub API fallback for upload');
-      const owner = process.env.GITHUB_OWNER;
-      const repo = process.env.GITHUB_REPO;
-      const branch = process.env.GITHUB_BRANCH || 'main';
+      const owner = process.env.GITHUB_OWNER || process.env.GITHUB_REPOSITORY_OWNER || 'BrianLovegrove';
+      const repo = process.env.GITHUB_REPO || 'Mechanics-Best-Friend';
+      const branch = process.env.GITHUB_BRANCH || process.env.GITHUB_REF_NAME || 'main';
 
       // Validate target path for GitHub API
       if (!targetPath.startsWith('/library/')) {

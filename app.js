@@ -399,10 +399,18 @@ function showFileActions(url, name, isLocalStorage = false) {
   // File info
   const infoDiv = document.createElement('div');
   infoDiv.style.cssText = 'margin: 16px 0; font-size: 14px; color: #666;';
+  
+  let sourceText = 'GitHub Repository';
+  if (url.startsWith('#fallback-upload-') || url.startsWith('#large-file-')) {
+    sourceText = 'Browser Local Storage';
+  } else if (url.startsWith('/uploads/') || url.startsWith('http://localhost')) {
+    sourceText = 'Server Local Storage';
+  }
+  
   infoDiv.innerHTML = `
     <strong>File:</strong> ${name}<br>
     <strong>Type:</strong> ${ext.toUpperCase() || 'Unknown'}<br>
-    <strong>Source:</strong> ${isLocalStorage ? 'Local Storage' : 'GitHub Repository'}
+    <strong>Source:</strong> ${sourceText}
   `;
   $c.appendChild(infoDiv);
 }
@@ -563,7 +571,72 @@ function openFile(url, name){
   } else if(['txt','log','json','md','csv','ini','cfg'].includes(ext)){
     fetch(url).then(r=>r.text()).then(t=>{ const pre=document.createElement('pre'); pre.textContent=t; pre.style.whiteSpace='pre-wrap'; pre.style.wordBreak='break-word'; $c.appendChild(pre); });
   } else if(['doc','docx','ppt','pptx','xls','xlsx'].includes(ext)){
-    const iframe=document.createElement('iframe'); iframe.src='https://docs.google.com/gview?embedded=1&url='+encodeURIComponent(url); iframe.style.width='100%'; iframe.style.height='80vh'; iframe.loading='lazy'; $c.appendChild(iframe);
+    // Check if this is a local server file
+    if (url.startsWith('/uploads/') || url.startsWith('http://localhost')) {
+      // For local files, offer download instead of Google Docs viewer since it won't work with localhost URLs
+      const warning = document.createElement('div');
+      warning.style.cssText = 'padding: 16px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; color: #856404; margin: 16px 0;';
+      warning.innerHTML = `
+        <strong>📄 Office Document Preview</strong><br>
+        Preview is not available for locally stored Office documents. Please download the file to view it in Microsoft Office, LibreOffice, or another compatible application.
+      `;
+      $c.appendChild(warning);
+      
+      const downloadBtn = document.createElement('a');
+      downloadBtn.href = url;
+      downloadBtn.download = name;
+      downloadBtn.textContent = `📥 Download ${name}`;
+      downloadBtn.style.cssText = `
+        display: inline-block;
+        padding: 12px 24px;
+        background: #007cba;
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+        font-weight: 600;
+        margin: 8px 0;
+      `;
+      downloadBtn.onmouseover = () => downloadBtn.style.background = '#005a87';
+      downloadBtn.onmouseout = () => downloadBtn.style.background = '#007cba';
+      $c.appendChild(downloadBtn);
+    } else {
+      // For GitHub-hosted files, try Google Docs viewer
+      const iframe=document.createElement('iframe'); 
+      iframe.src='https://docs.google.com/gview?embedded=1&url='+encodeURIComponent(url); 
+      iframe.style.width='100%'; 
+      iframe.style.height='80vh'; 
+      iframe.loading='lazy';
+      
+      // Add error handling for Google Docs viewer
+      iframe.onerror = () => {
+        iframe.style.display = 'none';
+        const errorDiv = document.createElement('div');
+        errorDiv.style.cssText = 'padding: 16px; background: #ffebee; border: 1px solid #f44336; border-radius: 4px; color: #c62828; margin: 16px 0;';
+        errorDiv.innerHTML = `
+          <strong>❌ Preview Failed</strong><br>
+          Unable to preview this Office document. Please download the file to view it.
+        `;
+        $c.appendChild(errorDiv);
+        
+        const downloadBtn = document.createElement('a');
+        downloadBtn.href = url;
+        downloadBtn.download = name;
+        downloadBtn.textContent = `📥 Download ${name}`;
+        downloadBtn.style.cssText = `
+          display: inline-block;
+          padding: 12px 24px;
+          background: #007cba;
+          color: white;
+          text-decoration: none;
+          border-radius: 4px;
+          font-weight: 600;
+          margin: 8px 0;
+        `;
+        $c.appendChild(downloadBtn);
+      };
+      
+      $c.appendChild(iframe);
+    }
   } else {
     // Check for unsupported file types (PLC programs, etc.)
     if(['plc','rslogix','l5x','l5k','acd','rss','s7p','awl','scl','fbd','ladder'].includes(ext) || 
