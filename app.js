@@ -1217,24 +1217,19 @@ function openFile(url, name, isLocalStorage = false){
       $c.appendChild(errorP);
     });
   } else if(['doc','docx','ppt','pptx','xls','xlsx'].includes(ext)){
-    console.log('Opening Word document:', name, 'URL:', url);
+    console.log('Opening Office document:', name, 'URL:', url);
     
-    // Check if this is a local server file or localStorage file
-    if (url.startsWith('/uploads/') || 
-        url.startsWith('http://localhost') || 
-        url.startsWith('http://127.0.0.1') ||
-        url.startsWith('file://') ||
-        url.startsWith('data:') ||
-        url.startsWith('#fallback-upload-') ||
+    // Check if this is a localStorage file first
+    if (url.startsWith('#fallback-upload-') || 
         url.startsWith('#large-file-') ||
-        isLocalStorage ||
-        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-      // For local files, offer download instead of Google Docs viewer since it won't work with localhost URLs
+        url.startsWith('data:') ||
+        isLocalStorage) {
+      // For localStorage files, offer download since viewers can't access data URLs
       const warning = document.createElement('div');
       warning.style.cssText = 'padding: 16px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; color: #856404; margin: 16px 0;';
       warning.innerHTML = `
         <strong>Office Document Preview</strong><br>
-        Preview is not available for locally served Office documents. Google Docs viewer cannot access local files due to security restrictions. Please download the file to view it in Microsoft Office, LibreOffice, or another compatible application.
+        Preview is not available for locally stored Office documents. Google Docs viewer cannot access files stored in your browser's local storage. Please download the file to view it in Microsoft Office, LibreOffice, or another compatible application.
       `;
       $c.appendChild(warning);
       
@@ -1256,8 +1251,7 @@ function openFile(url, name, isLocalStorage = false){
       downloadBtn.onmouseout = () => downloadBtn.style.background = '#007cba';
       $c.appendChild(downloadBtn);
     } else {
-      // Use custom file viewer instead of Google Docs viewer
-      console.log('Using custom file viewer for:', url);
+      // Use custom file viewer for all other Office documents (including local server files)
       renderCustomFileViewer(url, name, ext);
     }
   } else {
