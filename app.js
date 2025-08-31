@@ -791,6 +791,24 @@ function renderWordDocument(url, name, loadingDiv) {
   container.appendChild(header);
   container.appendChild(iframe);
   
+  // Add error handling for failed loads
+  iframe.onerror = () => {
+    showOfficeViewerFallback(container, name, fileRawUrl, 'Word');
+  };
+  
+  // Check for load issues after timeout
+  setTimeout(() => {
+    try {
+      // If iframe hasn't loaded properly, show fallback
+      if (!iframe.contentWindow && iframe.src.includes('view.officeapps.live.com')) {
+        showOfficeViewerFallback(container, name, fileRawUrl, 'Word');
+      }
+    } catch (e) {
+      // Cross-origin errors are expected when working properly
+      console.log('Office viewer iframe loading (cross-origin blocked check is normal)');
+    }
+  }, 8000);
+  
   $c.appendChild(container);
 }
 
@@ -800,11 +818,11 @@ function renderPowerPointDocument(url, name, loadingDiv) {
     loadingDiv.remove();
   }
   
-  // Build raw GitHub URL for the file
-  const rawUrl = `https://raw.githubusercontent.com/BrianLovegrove/Mechanics-Best-Friend/Base/${url.replace(/^\//, '')}`;
+  // Build raw URL for the file using the proper rawUrl function
+  const fileRawUrl = rawUrl(url);
   
   // Generate Microsoft Office Viewer URL
-  const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(rawUrl)}`;
+  const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(fileRawUrl)}`;
   
   // Create header with filename and download link
   const header = document.createElement('div');
@@ -821,7 +839,7 @@ function renderPowerPointDocument(url, name, loadingDiv) {
   
   header.innerHTML = `
     <h3 style="margin: 0; color: #D04423; font-size: 16px;">${name}</h3>
-    <a href="${rawUrl}" download="${name}" style="
+    <a href="${fileRawUrl}" download="${name}" style="
       padding: 8px 16px;
       background: #D04423;
       color: white;
@@ -847,6 +865,24 @@ function renderPowerPointDocument(url, name, loadingDiv) {
   container.style.cssText = 'margin: 16px 0;';
   container.appendChild(header);
   container.appendChild(iframe);
+  
+  // Add error handling for failed loads
+  iframe.onerror = () => {
+    showOfficeViewerFallback(container, name, fileRawUrl, 'PowerPoint');
+  };
+  
+  // Check for load issues after timeout
+  setTimeout(() => {
+    try {
+      // If iframe hasn't loaded properly, show fallback
+      if (!iframe.contentWindow && iframe.src.includes('view.officeapps.live.com')) {
+        showOfficeViewerFallback(container, name, fileRawUrl, 'PowerPoint');
+      }
+    } catch (e) {
+      // Cross-origin errors are expected when working properly
+      console.log('Office viewer iframe loading (cross-origin blocked check is normal)');
+    }
+  }, 8000);
   
   $c.appendChild(container);
 }
@@ -904,6 +940,24 @@ function renderExcelDocument(url, name, loadingDiv) {
   container.style.cssText = 'margin: 16px 0;';
   container.appendChild(header);
   container.appendChild(iframe);
+  
+  // Add error handling for failed loads
+  iframe.onerror = () => {
+    showOfficeViewerFallback(container, name, fileRawUrl, 'Excel');
+  };
+  
+  // Check for load issues after timeout
+  setTimeout(() => {
+    try {
+      // If iframe hasn't loaded properly, show fallback
+      if (!iframe.contentWindow && iframe.src.includes('view.officeapps.live.com')) {
+        showOfficeViewerFallback(container, name, fileRawUrl, 'Excel');
+      }
+    } catch (e) {
+      // Cross-origin errors are expected when working properly
+      console.log('Office viewer iframe loading (cross-origin blocked check is normal)');
+    }
+  }, 8000);
   
   $c.appendChild(container);
 }
@@ -1314,6 +1368,78 @@ function openFile(url, name, isLocalStorage = false){
     }
     const a=document.createElement('a'); a.href=url; a.textContent='Download '+name; a.className='item'; a.download=name; $c.appendChild(a);
   }
+}
+
+// Fallback function for when Office viewers fail to load
+function showOfficeViewerFallback(container, name, fileUrl, docType) {
+  // Clear the container
+  container.innerHTML = '';
+  
+  // Create error message
+  const errorDiv = document.createElement('div');
+  errorDiv.style.cssText = `
+    padding: 16px;
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 4px;
+    color: #856404;
+    margin: 16px 0;
+  `;
+  errorDiv.innerHTML = `
+    <strong>Document Viewer Not Available</strong><br>
+    The Microsoft Office Web Viewer could not load this ${docType} document. This might be due to:
+    <ul style="margin: 8px 0; padding-left: 20px;">
+      <li>File not being publicly accessible</li>
+      <li>Network connectivity issues</li>
+      <li>Microsoft Office Web Viewer service unavailable</li>
+    </ul>
+    Please download the file to view it locally.
+  `;
+  
+  // Create download button
+  const downloadBtn = document.createElement('a');
+  downloadBtn.href = fileUrl;
+  downloadBtn.download = name;
+  downloadBtn.textContent = `Download ${name}`;
+  downloadBtn.style.cssText = `
+    display: inline-block;
+    padding: 12px 24px;
+    background: #007cba;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    font-weight: 600;
+    margin: 8px 0;
+  `;
+  downloadBtn.onmouseover = () => downloadBtn.style.background = '#005a87';
+  downloadBtn.onmouseout = () => downloadBtn.style.background = '#007cba';
+  
+  // Try opening file in new window as alternative
+  const tryViewBtn = document.createElement('button');
+  tryViewBtn.textContent = 'Try Viewing in New Window';
+  tryViewBtn.style.cssText = `
+    display: inline-block;
+    padding: 12px 24px;
+    background: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: 600;
+    margin: 8px 8px 8px 0;
+    cursor: pointer;
+  `;
+  tryViewBtn.onclick = () => {
+    window.open(fileUrl, '_blank');
+  };
+  tryViewBtn.onmouseover = () => tryViewBtn.style.background = '#545b62';
+  tryViewBtn.onmouseout = () => tryViewBtn.style.background = '#6c757d';
+  
+  const buttonContainer = document.createElement('div');
+  buttonContainer.appendChild(tryViewBtn);
+  buttonContainer.appendChild(downloadBtn);
+  
+  container.appendChild(errorDiv);
+  container.appendChild(buttonContainer);
 }
 
 // Upload functionality for admin users
