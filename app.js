@@ -743,11 +743,11 @@ function renderWordDocument(url, name, loadingDiv) {
     loadingDiv.remove();
   }
   
-  // Build raw GitHub URL for the file
-  const rawUrl = `https://raw.githubusercontent.com/BrianLovegrove/Mechanics-Best-Friend/Base/${url.replace(/^\//, '')}`;
+  // Build raw URL for the file using the proper rawUrl function
+  const fileRawUrl = rawUrl(url);
   
   // Generate Microsoft Office Viewer URL
-  const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(rawUrl)}`;
+  const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(fileRawUrl)}`;
   
   // Create header with filename and download link
   const header = document.createElement('div');
@@ -764,7 +764,7 @@ function renderWordDocument(url, name, loadingDiv) {
   
   header.innerHTML = `
     <h3 style="margin: 0; color: #2B579A; font-size: 16px;">${name}</h3>
-    <a href="${rawUrl}" download="${name}" style="
+    <a href="${fileRawUrl}" download="${name}" style="
       padding: 8px 16px;
       background: #2B579A;
       color: white;
@@ -857,11 +857,11 @@ function renderExcelDocument(url, name, loadingDiv) {
     loadingDiv.remove();
   }
   
-  // Build raw GitHub URL for the file
-  const rawUrl = `https://raw.githubusercontent.com/BrianLovegrove/Mechanics-Best-Friend/Base/${url.replace(/^\//, '')}`;
+  // Build raw URL for the file using the proper rawUrl function
+  const fileRawUrl = rawUrl(url);
   
   // Generate Microsoft Office Viewer URL
-  const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(rawUrl)}`;
+  const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(fileRawUrl)}`;
   
   // Create header with filename and download link
   const header = document.createElement('div');
@@ -878,7 +878,7 @@ function renderExcelDocument(url, name, loadingDiv) {
   
   header.innerHTML = `
     <h3 style="margin: 0; color: #1D6F42; font-size: 16px;">${name}</h3>
-    <a href="${rawUrl}" download="${name}" style="
+    <a href="${fileRawUrl}" download="${name}" style="
       padding: 8px 16px;
       background: #1D6F42;
       color: white;
@@ -914,8 +914,8 @@ function renderLegacyDocument(url, name, loadingDiv, docType) {
     loadingDiv.remove();
   }
   
-  // Build raw GitHub URL for the file
-  const rawUrl = `https://raw.githubusercontent.com/BrianLovegrove/Mechanics-Best-Friend/Base/${url.replace(/^\//, '')}`;
+  // Build raw URL for the file using the proper rawUrl function
+  const fileRawUrl = rawUrl(url);
   
   const legacyInfo = document.createElement('div');
   legacyInfo.style.cssText = `
@@ -933,7 +933,7 @@ function renderLegacyDocument(url, name, loadingDiv, docType) {
     <p style="margin: 0 0 20px 0; color: #666; line-height: 1.5;">
       Preview not available. Use Download.
     </p>
-    <a href="${rawUrl}" download="${name}" style="
+    <a href="${fileRawUrl}" download="${name}" style="
       display: inline-block;
       padding: 12px 24px;
       background: #6c757d;
