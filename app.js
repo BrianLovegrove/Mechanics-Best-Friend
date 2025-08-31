@@ -175,7 +175,7 @@ function updateGitHubStatus(statusDiv) {
   if (isGitHubConnected()) {
     statusDiv.innerHTML = `
       <div style="color: #28a745; font-weight: 600;">
-        ✅ Connected to GitHub as <strong>${githubUserInfo.login}</strong>
+        Connected to GitHub as <strong>${githubUserInfo.login}</strong>
       </div>
       <div style="font-size: 14px; color: #666; margin-top: 4px;">
         Repository: ${OWNER}/${REPO} • Branch: ${BRANCH}
@@ -184,7 +184,7 @@ function updateGitHubStatus(statusDiv) {
   } else {
     statusDiv.innerHTML = `
       <div style="color: #dc3545; font-weight: 600;">
-        ❌ Not connected to GitHub
+        Not connected to GitHub
       </div>
       <div style="font-size: 14px; color: #666; margin-top: 4px;">
         Configure your Personal Access Token to enable file uploads
@@ -208,7 +208,7 @@ async function connectGitHub(token, statusDiv) {
   } else {
     statusDiv.innerHTML = `
       <div style="color: #dc3545; font-weight: 600;">
-        ❌ Invalid token or insufficient permissions
+        Invalid token or insufficient permissions
       </div>
       <div style="font-size: 14px; color: #666; margin-top: 4px;">
         Make sure the token has Contents: write permission for ${OWNER}/${REPO}
@@ -395,7 +395,7 @@ function render(){
         color: #856404;
       `;
       noTokenMsg.innerHTML = `
-        <strong>⚠️ Upload Disabled</strong><br>
+        <strong>Upload Disabled</strong><br>
         Configure your GitHub Personal Access Token in Admin Settings to enable file uploads.
       `;
       $c.appendChild(noTokenMsg);
@@ -545,7 +545,7 @@ function showFileActions(url, name, isLocalStorage = false) {
   
   // View button
   const viewBtn = document.createElement('button');
-  viewBtn.textContent = '👁️ View File';
+  viewBtn.textContent = 'View File';
   viewBtn.className = 'action-btn';
   viewBtn.style.cssText = `
     display: inline-block;
@@ -567,11 +567,11 @@ function showFileActions(url, name, isLocalStorage = false) {
     viewBtn.style.background = '#fff';
     viewBtn.style.color = '#000';
   };
-  viewBtn.onclick = () => viewFile(url, name);
+  viewBtn.onclick = () => viewFile(url, name, isLocalStorage);
   
   // Download button
   const downloadBtn = document.createElement('button');
-  downloadBtn.textContent = '⬇️ Download File';
+  downloadBtn.textContent = 'Download File';
   downloadBtn.className = 'action-btn';
   downloadBtn.style.cssText = viewBtn.style.cssText;
   downloadBtn.onmouseover = () => {
@@ -638,8 +638,8 @@ function showFileActions(url, name, isLocalStorage = false) {
   $c.appendChild(infoDiv);
 }
 
-function viewFile(url, name) {
-  openFile(url, name);
+function viewFile(url, name, isLocalStorage = false) {
+  openFile(url, name, isLocalStorage);
 }
 
 function downloadFile(url, name, isLocalStorage = false) {
@@ -708,7 +708,7 @@ async function deleteFile(url, name, isLocalStorage = false) {
   alert('GitHub file deletion will be implemented when server mode is available.');
 }
 
-function openFile(url, name){
+function openFile(url, name, isLocalStorage = false){
   const ext = (name.split('.').pop()||'').toLowerCase();
   $c.innerHTML='';
   const title=document.createElement('div'); title.className='sectionTitle'; title.textContent=name; $c.appendChild(title);
@@ -762,7 +762,7 @@ function openFile(url, name){
              name.toLowerCase().includes('hmi') ||
              name.toLowerCase().includes('scada')) {
             const p=document.createElement('p'); 
-            p.textContent='⚠️ File type not supported for preview. This appears to be a PLC program or specialized industrial file. Please download and use with the appropriate software (RSLogix, TIA Portal, etc.).'; 
+            p.textContent='File type not supported for preview. This appears to be a PLC program or specialized industrial file. Please download and use with the appropriate software (RSLogix, TIA Portal, etc.).'; 
             p.style.cssText = 'padding: 16px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; color: #856404;';
             $c.appendChild(p);
           } else {
@@ -794,6 +794,8 @@ function openFile(url, name){
   } else if(['txt','log','json','md','csv','ini','cfg'].includes(ext)){
     fetch(url).then(r=>r.text()).then(t=>{ const pre=document.createElement('pre'); pre.textContent=t; pre.style.whiteSpace='pre-wrap'; pre.style.wordBreak='break-word'; $c.appendChild(pre); });
   } else if(['doc','docx','ppt','pptx','xls','xlsx'].includes(ext)){
+    console.log('Opening Word document:', name, 'URL:', url);
+    
     // Check if this is a local server file or localStorage file
     if (url.startsWith('/uploads/') || 
         url.startsWith('http://localhost') || 
@@ -804,7 +806,7 @@ function openFile(url, name){
       const warning = document.createElement('div');
       warning.style.cssText = 'padding: 16px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; color: #856404; margin: 16px 0;';
       warning.innerHTML = `
-        <strong>📄 Office Document Preview</strong><br>
+        <strong>Office Document Preview</strong><br>
         Preview is not available for locally stored Office documents. Please download the file to view it in Microsoft Office, LibreOffice, or another compatible application.
       `;
       $c.appendChild(warning);
@@ -812,7 +814,7 @@ function openFile(url, name){
       const downloadBtn = document.createElement('a');
       downloadBtn.href = url;
       downloadBtn.download = name;
-      downloadBtn.textContent = `📥 Download ${name}`;
+      downloadBtn.textContent = `Download ${name}`;
       downloadBtn.style.cssText = `
         display: inline-block;
         padding: 12px 24px;
@@ -827,29 +829,42 @@ function openFile(url, name){
       downloadBtn.onmouseout = () => downloadBtn.style.background = '#007cba';
       $c.appendChild(downloadBtn);
     } else {
-      // For GitHub-hosted files, try Google Docs viewer
-      const iframe=document.createElement('iframe'); 
-      iframe.src='https://docs.google.com/gview?embedded=1&url='+encodeURIComponent(url); 
-      iframe.style.width='100%'; 
-      iframe.style.height='80vh'; 
-      iframe.loading='lazy';
+      // For GitHub-hosted files, try Google Docs viewer with enhanced error handling
+      console.log('Using Google Docs viewer for:', url);
       
-      // Add better error handling for Google Docs viewer
+      // Create a loading message
+      const loadingDiv = document.createElement('div');
+      loadingDiv.style.cssText = 'text-align: center; padding: 20px; color: #666;';
+      loadingDiv.textContent = 'Loading document preview...';
+      $c.appendChild(loadingDiv);
+      
+      const iframe = document.createElement('iframe'); 
+      iframe.src = 'https://docs.google.com/gview?embedded=1&url=' + encodeURIComponent(url); 
+      iframe.style.cssText = 'width: 100%; height: 80vh; border: 1px solid #ddd; border-radius: 4px;';
+      iframe.loading = 'lazy';
+      
+      // Better error handling for Google Docs viewer
       let errorShown = false;
+      let loadTimeout;
       
       const showPreviewError = () => {
         if (errorShown) return;
         errorShown = true;
         
+        // Remove loading message
+        if (loadingDiv.parentNode) {
+          loadingDiv.remove();
+        }
+        
         iframe.style.display = 'none';
         const errorDiv = document.createElement('div');
         errorDiv.style.cssText = 'padding: 16px; background: #ffebee; border: 1px solid #f44336; border-radius: 4px; color: #c62828; margin: 16px 0;';
         errorDiv.innerHTML = `
-          <strong>❌ Preview Failed</strong><br>
+          <strong>Document Preview Unavailable</strong><br>
           Unable to preview this document. This may happen due to:
           <ul style="margin: 8px 0; padding-left: 20px;">
             <li>File is not publicly accessible</li>
-            <li>File format is not supported by Google Docs viewer</li>
+            <li>File format is not supported by the preview service</li>
             <li>Network connectivity issues</li>
             <li>CORS restrictions</li>
           </ul>
@@ -860,7 +875,7 @@ function openFile(url, name){
         const downloadBtn = document.createElement('a');
         downloadBtn.href = url;
         downloadBtn.download = name;
-        downloadBtn.textContent = `📥 Download ${name}`;
+        downloadBtn.textContent = `Download ${name}`;
         downloadBtn.style.cssText = `
           display: inline-block;
           padding: 12px 24px;
@@ -871,25 +886,40 @@ function openFile(url, name){
           font-weight: 600;
           margin: 8px 0;
         `;
+        downloadBtn.onmouseover = () => downloadBtn.style.background = '#005a87';
+        downloadBtn.onmouseout = () => downloadBtn.style.background = '#007cba';
         $c.appendChild(downloadBtn);
       };
       
-      iframe.onerror = showPreviewError;
+      // Set a timeout for loading
+      loadTimeout = setTimeout(() => {
+        console.log('Document preview timed out');
+        showPreviewError();
+      }, 15000); // 15 second timeout
       
-      // Also add a timeout for cases where the iframe loads but shows an error page
-      setTimeout(() => {
+      iframe.onload = () => {
+        console.log('Document preview loaded successfully');
+        clearTimeout(loadTimeout);
+        // Remove loading message
+        if (loadingDiv.parentNode) {
+          loadingDiv.remove();
+        }
+        
+        // Check if iframe actually loaded content
         try {
-          // Check if iframe loaded successfully
-          if (iframe.contentDocument || iframe.contentWindow) {
-            const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-            if (iframeDoc && iframeDoc.body && iframeDoc.body.innerText.includes('Sorry')) {
-              showPreviewError();
-            }
-          }
+          // This will fail due to CORS, but that's expected
+          iframe.contentDocument;
         } catch (e) {
           // Cross-origin restrictions prevent access, assume it's loading
+          console.log('Cross-origin restriction detected, assuming content loaded');
         }
-      }, 5000); // 5 second check
+      };
+      
+      iframe.onerror = () => {
+        console.log('Document preview failed to load');
+        clearTimeout(loadTimeout);
+        showPreviewError();
+      };
       
       $c.appendChild(iframe);
     }
@@ -900,7 +930,7 @@ function openFile(url, name){
        name.toLowerCase().includes('hmi') ||
        name.toLowerCase().includes('scada')) {
       const p=document.createElement('p'); 
-      p.textContent='⚠️ File type not supported for preview. This appears to be a PLC program or specialized industrial file. Please download and use with the appropriate software (RSLogix, TIA Portal, etc.).'; 
+      p.textContent='File type not supported for preview. This appears to be a PLC program or specialized industrial file. Please download and use with the appropriate software (RSLogix, TIA Portal, etc.).'; 
       p.style.cssText = 'padding: 16px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; color: #856404;';
       $c.appendChild(p);
     } else {
@@ -1060,7 +1090,7 @@ async function uploadFiles(files, targetPath, statusDiv) {
   if (!isGitHubConnected()) {
     statusDiv.innerHTML = `
       <div style="color: #cc0000; font-weight: 600; margin: 8px 0;">
-        ❌ GitHub connection required
+        GitHub connection required
       </div>
       <div style="font-size: 12px; color: #666;">
         Configure your GitHub Personal Access Token in Admin Settings
@@ -1076,7 +1106,7 @@ async function uploadFiles(files, targetPath, statusDiv) {
     if (file.size > 100 * 1024 * 1024) { // 100MB limit
       statusDiv.innerHTML = `
         <div style="color: #cc0000; font-weight: 600; margin: 8px 0;">
-          ❌ File too large: ${file.name}
+          File too large: ${file.name}
         </div>
         <div style="font-size: 12px; color: #666;">
           Maximum file size is 100MB. Use Git LFS for larger files.
@@ -1091,7 +1121,7 @@ async function uploadFiles(files, targetPath, statusDiv) {
   if (cleanPath.includes('..') || cleanPath.includes('\\')) {
     statusDiv.innerHTML = `
       <div style="color: #cc0000; font-weight: 600; margin: 8px 0;">
-        ❌ Invalid path
+        Invalid path
       </div>
       <div style="font-size: 12px; color: #666;">
         Path contains illegal characters
@@ -1140,7 +1170,7 @@ async function uploadFiles(files, targetPath, statusDiv) {
     let message = '';
     
     if (results.length > 0) {
-      message += `<div style="color: #28a745; font-weight: 600; margin: 8px 0;">✅ Successfully uploaded ${results.length} file${results.length > 1 ? 's' : ''}!</div>`;
+      message += `<div style="color: #28a745; font-weight: 600; margin: 8px 0;">Successfully uploaded ${results.length} file${results.length > 1 ? 's' : ''}!</div>`;
       message += '<div style="margin: 8px 0;"><strong>Uploaded files:</strong></div>';
       
       results.forEach(result => {
@@ -1166,7 +1196,7 @@ async function uploadFiles(files, targetPath, statusDiv) {
     }
 
     if (results.length === 0 && errors.length > 0) {
-      message = `<div style="color: #cc0000; font-weight: 600; margin: 8px 0;">❌ All uploads failed</div>` + message;
+      message = `<div style="color: #cc0000; font-weight: 600; margin: 8px 0;">All uploads failed</div>` + message;
     }
 
     statusDiv.innerHTML = message;
@@ -1182,7 +1212,7 @@ async function uploadFiles(files, targetPath, statusDiv) {
     console.error('Upload error:', error);
     statusDiv.innerHTML = `
       <div style="color: #cc0000; font-weight: 600; margin: 8px 0;">
-        ❌ Upload failed: ${error.message}
+        Upload failed: ${error.message}
       </div>
       <div style="font-size: 12px; color: #666;">
         Check your GitHub token permissions and try again.

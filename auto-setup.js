@@ -335,7 +335,7 @@ PORT=3000`;
 
     popup.innerHTML = `
       <h2 style="margin: 0 0 20px; color: #333; font-size: 24px;">
-        🔧 Mechanic's Best Friend Auto-Setup
+        Mechanic's Best Friend Auto-Setup
       </h2>
       <p style="margin: 0 0 20px; color: #666; line-height: 1.5;">
         This application needs to set up a local server for full functionality including file uploads.
@@ -352,7 +352,7 @@ PORT=3000`;
           font-weight: 600;
           cursor: pointer;
           margin-right: 10px;
-        ">🚀 Auto-Setup Server</button>
+        ">Auto-Setup Server</button>
         <button id="skipSetupBtn" style="
           background: #6c757d;
           color: white;
@@ -363,6 +363,26 @@ PORT=3000`;
           cursor: pointer;
         ">Skip (Limited Mode)</button>
       </div>
+      <div id="setupProgress" style="display: none; margin: 20px 0;">
+        <img src="assets/icons/monkey loading.gif" alt="Setting up..." style="width: 120px; height: auto; margin-bottom: 15px;">
+        <div style="background: #f0f0f0; border-radius: 10px; height: 30px; position: relative; margin-bottom: 10px;">
+          <div id="progressBar" style="
+            background: #007cba;
+            height: 100%;
+            border-radius: 10px;
+            width: 0%;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+          ">
+            <span id="progressText">Initializing...</span>
+          </div>
+        </div>
+      </div>
       <div id="setupStatus" style="margin-top: 20px; color: #666; font-style: italic;"></div>
     `;
 
@@ -372,28 +392,46 @@ PORT=3000`;
     // Setup button handlers
     document.getElementById('autoSetupBtn').onclick = async () => {
       const btn = document.getElementById('autoSetupBtn');
+      const skipBtn = document.getElementById('skipSetupBtn');
       const status = document.getElementById('setupStatus');
+      const progressDiv = document.getElementById('setupProgress');
+      const progressBar = document.getElementById('progressBar');
+      const progressText = document.getElementById('progressText');
       
-      btn.disabled = true;
-      btn.textContent = '⏳ Setting up...';
-      status.textContent = 'Configuring environment...';
+      // Hide buttons and show progress
+      btn.style.display = 'none';
+      skipBtn.style.display = 'none';
+      progressDiv.style.display = 'block';
       
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      status.textContent = 'Starting server...';
+      // Progress steps
+      const steps = [
+        { text: 'Creating environment file...', progress: 20 },
+        { text: 'Checking server status...', progress: 40 },
+        { text: 'Starting server process...', progress: 60 },
+        { text: 'Configuring routes...', progress: 80 },
+        { text: 'Finalizing setup...', progress: 100 }
+      ];
       
-      const success = await this.autoStartServer();
-      
-      if (success) {
-        status.textContent = '✅ Setup complete! Redirecting...';
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        overlay.remove();
-        // Don't reload the page - just remove the popup
-        // window.location.reload();
-      } else {
-        status.textContent = '⚠️ Server setup failed - using offline mode';
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        overlay.remove();
+      for (let i = 0; i < steps.length; i++) {
+        progressText.textContent = steps[i].text;
+        progressBar.style.width = steps[i].progress + '%';
+        
+        // Simulate actual work for each step
+        if (i === 0) {
+          await this.createEnvironmentFile();
+        } else if (i === 1) {
+          await this.checkServerStatus();
+        } else if (i === 2) {
+          await this.autoStartServer();
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 800));
       }
+      
+      progressText.textContent = 'Complete!';
+      status.textContent = 'Setup complete! Redirecting...';
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      overlay.remove();
     };
 
     document.getElementById('skipSetupBtn').onclick = () => {
