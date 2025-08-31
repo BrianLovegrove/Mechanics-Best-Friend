@@ -449,6 +449,31 @@ function rawUrl(path){
   return `https://raw.githubusercontent.com/${OWNER}/${REPO}/${encodeURIComponent(BRANCH)}/${clean}`; 
 }
 
+// URL-encode each path segment, then join with / (preserve slashes)
+function encodePath(path) {
+  const clean = path.replace(/^\/+/, '');
+  const segments = clean.split('/');
+  return segments.map(segment => encodeURIComponent(segment)).join('/');
+}
+
+// Build GitHub Pages URL for public access (not raw)
+function getGitHubPagesUrl(path) {
+  const clean = path.replace(/^\/+/, '');
+  const encodedPath = encodePath(clean);
+  return `https://brianlovegrove.github.io/Mechanics-Best-Friend/${encodedPath}`;
+}
+
+// Preflight check for file existence using HEAD request
+async function checkFileExists(url) {
+  try {
+    const response = await fetch(url, { method: 'HEAD' });
+    return response.status === 200;
+  } catch (error) {
+    console.log('Preflight check failed:', error);
+    return false;
+  }
+}
+
 // Always return the public GitHub raw URL for external services like Office Web Viewer
 function getPublicRawUrl(path) {
   const clean = path.replace(/^\/+/, ''); 
@@ -744,22 +769,20 @@ function renderCustomFileViewer(url, name, ext) {
 }
 
 // Render Word documents with Microsoft Office Web Viewer
-function renderWordDocument(url, name, loadingDiv) {
+// Render Office documents (Word, PowerPoint, Excel) with Microsoft Office Web Viewer
+async function renderOfficeDocument(url, name, loadingDiv, docType) {
   if (loadingDiv.parentNode) {
     loadingDiv.remove();
   }
   
-  // Build raw URL for the file - always use GitHub URL for Office Web Viewer
-  const fileRawUrl = getPublicRawUrl(url);
+  // Build GitHub Pages URL for the file
+  const pagesUrl = getGitHubPagesUrl(url);
   
-  console.log('Word document viewing:', {
+  console.log(`${docType} document viewing:`, {
     originalUrl: url,
     fileName: name,
-    publicRawUrl: fileRawUrl
+    pagesUrl: pagesUrl
   });
-  
-  // Generate Microsoft Office Viewer URL
-  const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(fileRawUrl)}`;
   
   // Create header with filename and download link
   const header = document.createElement('div');
@@ -787,6 +810,37 @@ function renderWordDocument(url, name, loadingDiv) {
     ">Download</a>
   `;
   
+  const container = document.createElement('div');
+  container.style.cssText = 'margin: 16px 0;';
+  container.appendChild(header);
+  
+  // Preflight check: Do a HEAD request to verify file accessibility
+  const fileExists = await checkFileExists(pagesUrl);
+  
+  if (!fileExists) {
+    // Show inline error message instead of iframe
+    const errorDiv = document.createElement('div');
+    errorDiv.style.cssText = `
+      padding: 16px;
+      background: #fff3cd;
+      border: 1px solid #ffeaa7;
+      border-radius: 0 0 6px 6px;
+      border-top: none;
+      color: #856404;
+      text-align: center;
+    `;
+    errorDiv.innerHTML = `
+      <strong>Preview not available.</strong> Download instead.<br>
+      <small>The file may not be published to GitHub Pages yet.</small>
+    `;
+    container.appendChild(errorDiv);
+    $c.appendChild(container);
+    return;
+  }
+  
+  // Generate Microsoft Office Viewer URL using Pages URL
+  const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(pagesUrl)}`;
+  
   // Create iframe for Office viewer
   const iframe = document.createElement('iframe');
   iframe.src = officeViewerUrl;
@@ -798,244 +852,24 @@ function renderWordDocument(url, name, loadingDiv) {
     border-radius: 0 0 6px 6px;
   `;
   
-  const container = document.createElement('div');
-  container.style.cssText = 'margin: 16px 0;';
-  container.appendChild(header);
   container.appendChild(iframe);
-  
-  // Enhanced error detection
-  let hasLoaded = false;
-  let fallbackTriggered = false;
-  
-  const triggerFallback = (reason) => {
-    if (fallbackTriggered) return;
-    fallbackTriggered = true;
-    console.log('Office Web Viewer failed:', reason);
-    showOfficeViewerFallback(container, name, rawUrl(url), 'Word', fileRawUrl, reason);
-  };
-  
-  // Add error handling for failed loads
-  iframe.onerror = () => {
-    triggerFallback('Iframe failed to load');
-  };
-  
-  // Listen for iframe load event
-  iframe.onload = () => {
-    hasLoaded = true;
-    console.log('Office viewer iframe loaded successfully');
-  };
-  
-  // Check for load issues after timeout
-  setTimeout(() => {
-    if (!hasLoaded && !fallbackTriggered) {
-      triggerFallback('Iframe did not load within timeout');
-    }
-  }, 10000);
-  
-  // Additional check for Office Web Viewer specific errors
-  setTimeout(() => {
-    if (!fallbackTriggered) {
-      try {
-        // Check if iframe content is accessible (may throw cross-origin error)
-        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-        if (iframeDoc && iframeDoc.body) {
-          const bodyText = iframeDoc.body.textContent || '';
-          if (bodyText.includes('not found') || bodyText.includes('not accessible') || bodyText.includes('error')) {
-            triggerFallback('Office Web Viewer reported an error');
-          }
-        }
-      } catch (e) {
-        // Cross-origin errors are expected when Office viewer loads successfully
-        console.log('Cross-origin check (normal when working):', e.message);
-      }
-    }
-  }, 15000);
-  
   $c.appendChild(container);
+}
+
+// Render Word documents with Microsoft Office Web Viewer
+function renderWordDocument(url, name, loadingDiv) {
+  renderOfficeDocument(url, name, loadingDiv, 'Word');
 }
 
 // Render PowerPoint documents with Microsoft Office Web Viewer
 function renderPowerPointDocument(url, name, loadingDiv) {
-  if (loadingDiv.parentNode) {
-    loadingDiv.remove();
-  }
-  
-  // Build raw URL for the file - always use GitHub URL for Office Web Viewer
-  const fileRawUrl = getPublicRawUrl(url);
-  
-  console.log('PowerPoint document viewing:', {
-    originalUrl: url,
-    fileName: name,
-    publicRawUrl: fileRawUrl
-  });
-  
-  // Generate Microsoft Office Viewer URL
-  const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(fileRawUrl)}`;
-  
-  // Create header with filename and download link
-  const header = document.createElement('div');
-  header.style.cssText = `
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 6px 6px 0 0;
-    padding: 12px 16px;
-    border-bottom: 1px solid #dee2e6;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  `;
-  
-  header.innerHTML = `
-    <h3 style="margin: 0; color: #D04423; font-size: 16px;">${name}</h3>
-    <a href="${rawUrl(url)}" download="${name}" style="
-      padding: 8px 16px;
-      background: #D04423;
-      color: white;
-      text-decoration: none;
-      border-radius: 4px;
-      font-weight: 600;
-      font-size: 14px;
-    ">Download</a>
-  `;
-  
-  // Create iframe for Office viewer
-  const iframe = document.createElement('iframe');
-  iframe.src = officeViewerUrl;
-  iframe.style.cssText = `
-    width: 100%;
-    height: calc(100vh - 200px);
-    border: 1px solid #dee2e6;
-    border-top: none;
-    border-radius: 0 0 6px 6px;
-  `;
-  
-  const container = document.createElement('div');
-  container.style.cssText = 'margin: 16px 0;';
-  container.appendChild(header);
-  container.appendChild(iframe);
-  
-  // Enhanced error detection
-  let hasLoaded = false;
-  let fallbackTriggered = false;
-  
-  const triggerFallback = (reason) => {
-    if (fallbackTriggered) return;
-    fallbackTriggered = true;
-    console.log('Office Web Viewer failed:', reason);
-    showOfficeViewerFallback(container, name, rawUrl(url), 'PowerPoint', fileRawUrl, reason);
-  };
-  
-  // Add error handling for failed loads
-  iframe.onerror = () => {
-    triggerFallback('Iframe failed to load');
-  };
-  
-  // Listen for iframe load event
-  iframe.onload = () => {
-    hasLoaded = true;
-    console.log('Office viewer iframe loaded successfully');
-  };
-  
-  // Check for load issues after timeout
-  setTimeout(() => {
-    if (!hasLoaded && !fallbackTriggered) {
-      triggerFallback('Iframe did not load within timeout');
-    }
-  }, 10000);
-  
-  $c.appendChild(container);
+  renderOfficeDocument(url, name, loadingDiv, 'PowerPoint');
 }
 
 // Render Excel documents with Microsoft Office Web Viewer
+// Render Excel documents with Microsoft Office Web Viewer
 function renderExcelDocument(url, name, loadingDiv) {
-  if (loadingDiv.parentNode) {
-    loadingDiv.remove();
-  }
-  
-  // Build raw URL for the file - always use GitHub URL for Office Web Viewer
-  const fileRawUrl = getPublicRawUrl(url);
-  
-  console.log('Excel document viewing:', {
-    originalUrl: url,
-    fileName: name,
-    publicRawUrl: fileRawUrl
-  });
-  
-  // Generate Microsoft Office Viewer URL
-  const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(fileRawUrl)}`;
-  
-  // Create header with filename and download link
-  const header = document.createElement('div');
-  header.style.cssText = `
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 6px 6px 0 0;
-    padding: 12px 16px;
-    border-bottom: 1px solid #dee2e6;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  `;
-  
-  header.innerHTML = `
-    <h3 style="margin: 0; color: #1D6F42; font-size: 16px;">${name}</h3>
-    <a href="${rawUrl(url)}" download="${name}" style="
-      padding: 8px 16px;
-      background: #1D6F42;
-      color: white;
-      text-decoration: none;
-      border-radius: 4px;
-      font-weight: 600;
-      font-size: 14px;
-    ">Download</a>
-  `;
-  
-  // Create iframe for Office viewer
-  const iframe = document.createElement('iframe');
-  iframe.src = officeViewerUrl;
-  iframe.style.cssText = `
-    width: 100%;
-    height: calc(100vh - 200px);
-    border: 1px solid #dee2e6;
-    border-top: none;
-    border-radius: 0 0 6px 6px;
-  `;
-  
-  const container = document.createElement('div');
-  container.style.cssText = 'margin: 16px 0;';
-  container.appendChild(header);
-  container.appendChild(iframe);
-  
-  // Enhanced error detection
-  let hasLoaded = false;
-  let fallbackTriggered = false;
-  
-  const triggerFallback = (reason) => {
-    if (fallbackTriggered) return;
-    fallbackTriggered = true;
-    console.log('Office Web Viewer failed:', reason);
-    showOfficeViewerFallback(container, name, rawUrl(url), 'Excel', fileRawUrl, reason);
-  };
-  
-  // Add error handling for failed loads
-  iframe.onerror = () => {
-    triggerFallback('Iframe failed to load');
-  };
-  
-  // Listen for iframe load event
-  iframe.onload = () => {
-    hasLoaded = true;
-    console.log('Office viewer iframe loaded successfully');
-  };
-  
-  // Check for load issues after timeout
-  setTimeout(() => {
-    if (!hasLoaded && !fallbackTriggered) {
-      triggerFallback('Iframe did not load within timeout');
-    }
-  }, 10000);
-  
-  $c.appendChild(container);
+  renderOfficeDocument(url, name, loadingDiv, 'Excel');
 }
 
 // Render legacy Office documents (.doc, .ppt, .xls) that aren't supported by Office Web Viewer
@@ -1304,13 +1138,13 @@ function openFile(url, name, isLocalStorage = false){
           audio.style.cssText='width: 100%; margin: 16px 0;'; 
           $c.appendChild(audio);
         } else if(['doc','docx','ppt','pptx','xls','xlsx'].includes(ext)){
-          // For locally stored Office documents, Google Docs viewer cannot access data URLs
+          // For locally stored Office documents, preview is not available
           // Provide download option with explanation
           const warning = document.createElement('div');
           warning.style.cssText = 'padding: 16px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; color: #856404; margin: 16px 0;';
           warning.innerHTML = `
             <strong>Office Document Preview</strong><br>
-            Preview is not available for locally stored Office documents. Google Docs viewer cannot access files stored in your browser's local storage. Please download the file to view it in Microsoft Office, LibreOffice, or another compatible application.
+            Preview is not available for locally stored Office documents. Files stored in your browser's local storage cannot be accessed by external viewers. Please download the file to view it in Microsoft Office, LibreOffice, or another compatible application.
           `;
           $c.appendChild(warning);
           
@@ -1404,7 +1238,7 @@ function openFile(url, name, isLocalStorage = false){
       warning.style.cssText = 'padding: 16px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; color: #856404; margin: 16px 0;';
       warning.innerHTML = `
         <strong>Office Document Preview</strong><br>
-        Preview is not available for locally stored Office documents. Google Docs viewer cannot access files stored in your browser's local storage. Please download the file to view it in Microsoft Office, LibreOffice, or another compatible application.
+        Preview is not available for locally stored Office documents. Files stored in your browser's local storage cannot be accessed by external viewers. Please download the file to view it in Microsoft Office, LibreOffice, or another compatible application.
       `;
       $c.appendChild(warning);
       
