@@ -571,8 +571,12 @@ function openFile(url, name){
   } else if(['txt','log','json','md','csv','ini','cfg'].includes(ext)){
     fetch(url).then(r=>r.text()).then(t=>{ const pre=document.createElement('pre'); pre.textContent=t; pre.style.whiteSpace='pre-wrap'; pre.style.wordBreak='break-word'; $c.appendChild(pre); });
   } else if(['doc','docx','ppt','pptx','xls','xlsx'].includes(ext)){
-    // Check if this is a local server file
-    if (url.startsWith('/uploads/') || url.startsWith('http://localhost')) {
+    // Check if this is a local server file or localStorage file
+    if (url.startsWith('/uploads/') || 
+        url.startsWith('http://localhost') || 
+        url.startsWith('#fallback-upload-') ||
+        url.startsWith('#large-file-') ||
+        isLocalStorage) {
       // For local files, offer download instead of Google Docs viewer since it won't work with localhost URLs
       const warning = document.createElement('div');
       warning.style.cssText = 'padding: 16px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; color: #856404; margin: 16px 0;';
@@ -607,14 +611,26 @@ function openFile(url, name){
       iframe.style.height='80vh'; 
       iframe.loading='lazy';
       
-      // Add error handling for Google Docs viewer
-      iframe.onerror = () => {
+      // Add better error handling for Google Docs viewer
+      let errorShown = false;
+      
+      const showPreviewError = () => {
+        if (errorShown) return;
+        errorShown = true;
+        
         iframe.style.display = 'none';
         const errorDiv = document.createElement('div');
         errorDiv.style.cssText = 'padding: 16px; background: #ffebee; border: 1px solid #f44336; border-radius: 4px; color: #c62828; margin: 16px 0;';
         errorDiv.innerHTML = `
           <strong>❌ Preview Failed</strong><br>
-          Unable to preview this Office document. Please download the file to view it.
+          Unable to preview this document. This may happen due to:
+          <ul style="margin: 8px 0; padding-left: 20px;">
+            <li>File is not publicly accessible</li>
+            <li>File format is not supported by Google Docs viewer</li>
+            <li>Network connectivity issues</li>
+            <li>CORS restrictions</li>
+          </ul>
+          Please download the file to view it locally.
         `;
         $c.appendChild(errorDiv);
         
@@ -634,6 +650,23 @@ function openFile(url, name){
         `;
         $c.appendChild(downloadBtn);
       };
+      
+      iframe.onerror = showPreviewError;
+      
+      // Also add a timeout for cases where the iframe loads but shows an error page
+      setTimeout(() => {
+        try {
+          // Check if iframe loaded successfully
+          if (iframe.contentDocument || iframe.contentWindow) {
+            const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+            if (iframeDoc && iframeDoc.body && iframeDoc.body.innerText.includes('Sorry')) {
+              showPreviewError();
+            }
+          }
+        } catch (e) {
+          // Cross-origin restrictions prevent access, assume it's loading
+        }
+      }, 5000); // 5 second check
       
       $c.appendChild(iframe);
     }

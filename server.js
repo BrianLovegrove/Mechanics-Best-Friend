@@ -484,6 +484,7 @@ app.post('/upload', requireAdmin, upload.array('files'), async (req, res) => {
 
     // Fallback to GitHub API if Git SSH fails
     const results = [];
+    let githubSuccess = false;
     
     if (octokit) {
       console.log('Using GitHub API fallback for upload');
@@ -550,8 +551,11 @@ app.post('/upload', requireAdmin, upload.array('files'), async (req, res) => {
             filename,
             path: fullPath,
             html_url: response.data.content.html_url,
-            download_url: response.data.content.download_url
+            download_url: response.data.content.download_url,
+            storage: 'github'
           });
+          
+          githubSuccess = true;
 
         } catch (fileError) {
           console.error(`Error uploading ${file.originalname}:`, fileError);
@@ -561,8 +565,25 @@ app.post('/upload', requireAdmin, upload.array('files'), async (req, res) => {
           });
         }
       }
-    } else {
-      // Final fallback: Use local file storage when Git and GitHub API are not available
+      
+      // If no files were successfully uploaded to GitHub, fall back to local storage
+      if (!githubSuccess) {
+        console.log('GitHub API failed for all files, falling back to local storage...');
+        results.length = 0; // Clear previous results
+      } else {
+        // Some or all files uploaded successfully to GitHub
+        const successfulUploads = results.filter(r => !r.error).length;
+        return res.json({
+          success: true,
+          message: `Successfully uploaded ${successfulUploads} file(s) to GitHub repository`,
+          committed: results.filter(r => !r.error),
+          errors: results.filter(r => r.error)
+        });
+      }
+    }
+    
+    // Final fallback: Use local file storage when Git and GitHub API are not available or failed
+    if (!octokit || !githubSuccess) {
       console.log('Using local file storage fallback for upload');
       
       for (const file of files) {
