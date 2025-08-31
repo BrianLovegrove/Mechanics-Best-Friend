@@ -567,7 +567,7 @@ function showFileActions(url, name, isLocalStorage = false) {
     viewBtn.style.background = '#fff';
     viewBtn.style.color = '#000';
   };
-  viewBtn.onclick = () => viewFile(url, name);
+  viewBtn.onclick = () => viewFile(url, name, isLocalStorage);
   
   // Download button
   const downloadBtn = document.createElement('button');
@@ -638,8 +638,8 @@ function showFileActions(url, name, isLocalStorage = false) {
   $c.appendChild(infoDiv);
 }
 
-function viewFile(url, name) {
-  openFile(url, name);
+function viewFile(url, name, isLocalStorage = false) {
+  openFile(url, name, isLocalStorage);
 }
 
 function downloadFile(url, name, isLocalStorage = false) {
@@ -708,7 +708,7 @@ async function deleteFile(url, name, isLocalStorage = false) {
   alert('GitHub file deletion will be implemented when server mode is available.');
 }
 
-function openFile(url, name){
+function openFile(url, name, isLocalStorage = false){
   const ext = (name.split('.').pop()||'').toLowerCase();
   $c.innerHTML='';
   const title=document.createElement('div'); title.className='sectionTitle'; title.textContent=name; $c.appendChild(title);
@@ -794,6 +794,8 @@ function openFile(url, name){
   } else if(['txt','log','json','md','csv','ini','cfg'].includes(ext)){
     fetch(url).then(r=>r.text()).then(t=>{ const pre=document.createElement('pre'); pre.textContent=t; pre.style.whiteSpace='pre-wrap'; pre.style.wordBreak='break-word'; $c.appendChild(pre); });
   } else if(['doc','docx','ppt','pptx','xls','xlsx'].includes(ext)){
+    console.log('Opening Word document:', name, 'URL:', url);
+    
     // Check if this is a local server file or localStorage file
     if (url.startsWith('/uploads/') || 
         url.startsWith('http://localhost') || 
@@ -827,29 +829,42 @@ function openFile(url, name){
       downloadBtn.onmouseout = () => downloadBtn.style.background = '#007cba';
       $c.appendChild(downloadBtn);
     } else {
-      // For GitHub-hosted files, try Google Docs viewer
-      const iframe=document.createElement('iframe'); 
-      iframe.src='https://docs.google.com/gview?embedded=1&url='+encodeURIComponent(url); 
-      iframe.style.width='100%'; 
-      iframe.style.height='80vh'; 
-      iframe.loading='lazy';
+      // For GitHub-hosted files, try Google Docs viewer with enhanced error handling
+      console.log('Using Google Docs viewer for:', url);
       
-      // Add better error handling for Google Docs viewer
+      // Create a loading message
+      const loadingDiv = document.createElement('div');
+      loadingDiv.style.cssText = 'text-align: center; padding: 20px; color: #666;';
+      loadingDiv.textContent = 'Loading document preview...';
+      $c.appendChild(loadingDiv);
+      
+      const iframe = document.createElement('iframe'); 
+      iframe.src = 'https://docs.google.com/gview?embedded=1&url=' + encodeURIComponent(url); 
+      iframe.style.cssText = 'width: 100%; height: 80vh; border: 1px solid #ddd; border-radius: 4px;';
+      iframe.loading = 'lazy';
+      
+      // Better error handling for Google Docs viewer
       let errorShown = false;
+      let loadTimeout;
       
       const showPreviewError = () => {
         if (errorShown) return;
         errorShown = true;
         
+        // Remove loading message
+        if (loadingDiv.parentNode) {
+          loadingDiv.remove();
+        }
+        
         iframe.style.display = 'none';
         const errorDiv = document.createElement('div');
         errorDiv.style.cssText = 'padding: 16px; background: #ffebee; border: 1px solid #f44336; border-radius: 4px; color: #c62828; margin: 16px 0;';
         errorDiv.innerHTML = `
-          <strong>Preview Failed</strong><br>
+          <strong>Document Preview Unavailable</strong><br>
           Unable to preview this document. This may happen due to:
           <ul style="margin: 8px 0; padding-left: 20px;">
             <li>File is not publicly accessible</li>
-            <li>File format is not supported by Google Docs viewer</li>
+            <li>File format is not supported by the preview service</li>
             <li>Network connectivity issues</li>
             <li>CORS restrictions</li>
           </ul>
@@ -871,25 +886,40 @@ function openFile(url, name){
           font-weight: 600;
           margin: 8px 0;
         `;
+        downloadBtn.onmouseover = () => downloadBtn.style.background = '#005a87';
+        downloadBtn.onmouseout = () => downloadBtn.style.background = '#007cba';
         $c.appendChild(downloadBtn);
       };
       
-      iframe.onerror = showPreviewError;
+      // Set a timeout for loading
+      loadTimeout = setTimeout(() => {
+        console.log('Document preview timed out');
+        showPreviewError();
+      }, 15000); // 15 second timeout
       
-      // Also add a timeout for cases where the iframe loads but shows an error page
-      setTimeout(() => {
+      iframe.onload = () => {
+        console.log('Document preview loaded successfully');
+        clearTimeout(loadTimeout);
+        // Remove loading message
+        if (loadingDiv.parentNode) {
+          loadingDiv.remove();
+        }
+        
+        // Check if iframe actually loaded content
         try {
-          // Check if iframe loaded successfully
-          if (iframe.contentDocument || iframe.contentWindow) {
-            const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-            if (iframeDoc && iframeDoc.body && iframeDoc.body.innerText.includes('Sorry')) {
-              showPreviewError();
-            }
-          }
+          // This will fail due to CORS, but that's expected
+          iframe.contentDocument;
         } catch (e) {
           // Cross-origin restrictions prevent access, assume it's loading
+          console.log('Cross-origin restriction detected, assuming content loaded');
         }
-      }, 5000); // 5 second check
+      };
+      
+      iframe.onerror = () => {
+        console.log('Document preview failed to load');
+        clearTimeout(loadTimeout);
+        showPreviewError();
+      };
       
       $c.appendChild(iframe);
     }
