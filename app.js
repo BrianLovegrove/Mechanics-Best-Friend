@@ -3,9 +3,8 @@ const OWNER='BrianLovegrove';
 const REPO='Refresco-Tempe';
 const BRANCH='main';
 
-const USERNAME='MECH';
-const PASSWORD='1234';
-const SESSION_KEY='refresco_auth_ok';
+// User session state
+let currentUser = null;
 
 let tree=null;
 const stack=[];
@@ -22,9 +21,39 @@ const $c=document.getElementById('content');
 const $bc=document.getElementById('breadcrumbs');
 const $back=document.getElementById('backBtn');
 
-function authed(){ return sessionStorage.getItem(SESSION_KEY)==='1'; }
-function showApp(){ $overlay.style.display='none'; $loadingOverlay.style.display='none'; $header.style.display='block'; $main.style.display='block'; initApp(); }
-function requireLogin(){ $overlay.style.display='flex'; $loadingOverlay.style.display='none'; $header.style.display='none'; $main.style.display='none'; }
+// Authentication functions
+async function checkAuth() {
+  try {
+    const response = await fetch('/auth/me');
+    if (response.ok) {
+      currentUser = await response.json();
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error('Auth check failed:', error);
+    return false;
+  }
+}
+
+function authed() { 
+  return currentUser !== null; 
+}
+
+function showApp() { 
+  $overlay.style.display='none'; 
+  $loadingOverlay.style.display='none'; 
+  $header.style.display='block'; 
+  $main.style.display='block'; 
+  initApp(); 
+}
+
+function requireLogin() { 
+  $overlay.style.display='flex'; 
+  $loadingOverlay.style.display='none'; 
+  $header.style.display='none'; 
+  $main.style.display='none'; 
+}
 
 async function showLoadingAnimation() {
   $overlay.style.display='none';
@@ -52,9 +81,54 @@ async function showLoadingPhase(text, duration) {
     }, 300); // Wait for fade out
   });
 }
-$loginBtn.onclick=()=>{ const uu=($u.value||'').trim(); const pp=($p.value||'').trim();
-  if(uu===USERNAME && pp===PASSWORD){ sessionStorage.setItem(SESSION_KEY,'1'); showLoadingAnimation(); } else { $err.textContent='Invalid credentials'; } };
-window.addEventListener('DOMContentLoaded', ()=>{ if(authed()) showApp(); else requireLogin(); });
+// Login handling
+$loginBtn.onclick = async () => { 
+  const username = ($u.value || '').trim(); 
+  const password = ($p.value || '').trim();
+  
+  if (!username || !password) {
+    $err.textContent = 'Please enter username and password';
+    return;
+  }
+  
+  $loginBtn.disabled = true;
+  $loginBtn.textContent = 'Signing in...';
+  $err.textContent = '';
+  
+  try {
+    const response = await fetch('/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ username, password })
+    });
+    
+    const result = await response.json();
+    
+    if (response.ok) {
+      currentUser = result.user;
+      showLoadingAnimation();
+    } else {
+      $err.textContent = result.error || 'Login failed';
+    }
+  } catch (error) {
+    console.error('Login error:', error);
+    $err.textContent = 'Connection error. Please try again.';
+  } finally {
+    $loginBtn.disabled = false;
+    $loginBtn.textContent = 'Sign In';
+  }
+};
+
+// Check authentication on page load
+window.addEventListener('DOMContentLoaded', async () => { 
+  if (await checkAuth()) {
+    showApp(); 
+  } else {
+    requireLogin(); 
+  }
+});
 
 async function initApp(){
   try{
@@ -66,7 +140,12 @@ async function initApp(){
 function current(){ let n=tree; for(const i of stack){ n=(n.children||[])[i]; } return n; }
 function pathBreadcrumbs(){ const names=[]; let n=tree; stack.forEach(i=>{ n=n.children[i]; names.push(n.name); }); return names; }
 function slugify(label){ return label.toLowerCase().replace(/&/g,' and ').replace(/[^a-z0-9]+/g,'_').replace(/_+/g,'_').replace(/^_+|_+$/g,''); }
-function nodeRepoPath(){ const names=pathBreadcrumbs(); if(names.length===0) return null; const slugs=names.map(slugify); return 'docs/'+slugs.join('/')+'/'; }
+function nodeRepoPath(){ 
+  const names=pathBreadcrumbs(); 
+  if(names.length===0) return null; 
+  const slugs=names.map(slugify); 
+  return '/library/'+slugs.join('/')+'/'; 
+}
 
 function render(){
   renderBack(); renderCrumbs();
@@ -92,9 +171,24 @@ function render(){
   const repoPath=nodeRepoPath();
   if(repoPath && !(n.children && n.children.length)){
     const title=document.createElement('div'); title.className='sectionTitle'; title.textContent='Files'; $c.appendChild(title);
+    
+    // Add upload controls for admin users
+    if (currentUser && currentUser.role === 'admin') {
+      const uploadSection = createUploadSection(repoPath);
+      $c.appendChild(uploadSection);
+    }
+    
     const list=document.createElement('div'); list.className='list'; $c.appendChild(list);
     listFiles(repoPath).then(items=>{
-      if(!items.length){ const p=document.createElement('p'); p.className='empty'; p.textContent='No files yet. Upload to '+repoPath+' in GitHub.'; $c.appendChild(p); return; }
+      if(!items.length){ 
+        const p=document.createElement('p'); 
+        p.className='empty'; 
+        p.textContent = currentUser && currentUser.role === 'admin' 
+          ? 'No files yet. Use the upload button above to add files.' 
+          : 'No files yet. Contact administrator to upload files to '+repoPath;
+        $c.appendChild(p); 
+        return; 
+      }
       items.forEach(it=>{ if(it.type==='file'){ const a=document.createElement('a'); a.className='item'; a.href='#'; a.onclick=(e)=>{ e.preventDefault(); openFile(rawUrl(repoPath+it.name), it.name); }; a.textContent=prettyName(it.name); list.appendChild(a); } });
     }).catch(err=>{ const p=document.createElement('p'); p.className='empty'; p.textContent='Folder not found yet: '+repoPath; $c.appendChild(p); console.error(err); });
   }
@@ -170,5 +264,244 @@ function openFile(url, name){
   } else {
     const p=document.createElement('p'); p.textContent='Preview not supported. Download the file below:'; $c.appendChild(p);
     const a=document.createElement('a'); a.href=url; a.textContent='Download '+name; a.className='item'; a.download=name; $c.appendChild(a);
+  }
+}
+
+// Upload functionality for admin users
+function createUploadSection(targetPath) {
+  const uploadDiv = document.createElement('div');
+  uploadDiv.className = 'upload-section';
+  uploadDiv.style.cssText = `
+    margin: 16px 0;
+    padding: 20px;
+    border: 2px dashed #000;
+    border-radius: 8px;
+    background: #f9f9f9;
+    text-align: center;
+    position: relative;
+  `;
+
+  const uploadTitle = document.createElement('h3');
+  uploadTitle.textContent = 'Upload Files';
+  uploadTitle.style.cssText = 'margin: 0 0 16px 0; font-size: 18px;';
+  uploadDiv.appendChild(uploadTitle);
+
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.multiple = true;
+  fileInput.style.display = 'none';
+  fileInput.accept = '*/*';
+  uploadDiv.appendChild(fileInput);
+
+  const uploadButton = document.createElement('button');
+  uploadButton.className = 'btn';
+  uploadButton.textContent = 'Choose Files';
+  uploadButton.style.cssText = `
+    display: inline-block;
+    padding: 12px 24px;
+    margin: 8px;
+    border: 1px solid #000;
+    border-radius: 4px;
+    background: #fff;
+    color: #000;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  `;
+  uploadButton.onmouseover = () => {
+    uploadButton.style.background = '#000';
+    uploadButton.style.color = '#fff';
+  };
+  uploadButton.onmouseout = () => {
+    uploadButton.style.background = '#fff';
+    uploadButton.style.color = '#000';
+  };
+  uploadButton.onclick = () => fileInput.click();
+  uploadDiv.appendChild(uploadButton);
+
+  const uploadStatus = document.createElement('div');
+  uploadStatus.className = 'upload-status';
+  uploadStatus.style.cssText = 'margin: 16px 0; font-size: 14px;';
+  uploadDiv.appendChild(uploadStatus);
+
+  const selectedFiles = document.createElement('div');
+  selectedFiles.className = 'selected-files';
+  selectedFiles.style.cssText = 'margin: 12px 0; text-align: left;';
+  uploadDiv.appendChild(selectedFiles);
+
+  // File selection handling
+  fileInput.onchange = () => {
+    const files = Array.from(fileInput.files);
+    if (files.length === 0) {
+      selectedFiles.innerHTML = '';
+      return;
+    }
+
+    selectedFiles.innerHTML = '<strong>Selected files:</strong><br>';
+    files.forEach(file => {
+      const fileDiv = document.createElement('div');
+      fileDiv.style.cssText = 'margin: 4px 0; padding: 4px; font-size: 13px;';
+      fileDiv.textContent = `• ${file.name} (${formatFileSize(file.size)})`;
+      selectedFiles.appendChild(fileDiv);
+    });
+
+    // Show upload button
+    if (uploadDiv.querySelector('.upload-submit')) {
+      uploadDiv.removeChild(uploadDiv.querySelector('.upload-submit'));
+    }
+
+    const submitButton = document.createElement('button');
+    submitButton.className = 'btn upload-submit';
+    submitButton.textContent = `Upload ${files.length} file${files.length > 1 ? 's' : ''}`;
+    submitButton.style.cssText = `
+      display: inline-block;
+      padding: 12px 24px;
+      margin: 8px;
+      border: 1px solid #000;
+      border-radius: 4px;
+      background: #000;
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    `;
+    submitButton.onclick = () => uploadFiles(files, targetPath, uploadStatus);
+    uploadDiv.appendChild(submitButton);
+  };
+
+  // Drag and drop functionality
+  uploadDiv.ondragover = (e) => {
+    e.preventDefault();
+    uploadDiv.style.borderColor = '#000';
+    uploadDiv.style.background = '#f0f0f0';
+  };
+
+  uploadDiv.ondragleave = (e) => {
+    e.preventDefault();
+    uploadDiv.style.borderColor = '#000';
+    uploadDiv.style.background = '#f9f9f9';
+  };
+
+  uploadDiv.ondrop = (e) => {
+    e.preventDefault();
+    uploadDiv.style.borderColor = '#000';
+    uploadDiv.style.background = '#f9f9f9';
+    
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      fileInput.files = e.dataTransfer.files;
+      fileInput.onchange();
+    }
+  };
+
+  const dropText = document.createElement('p');
+  dropText.textContent = 'Or drag and drop files here';
+  dropText.style.cssText = 'margin: 8px 0; color: #666; font-size: 14px;';
+  uploadDiv.appendChild(dropText);
+
+  return uploadDiv;
+}
+
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+async function uploadFiles(files, targetPath, statusDiv) {
+  statusDiv.innerHTML = '';
+  
+  const formData = new FormData();
+  formData.append('targetPath', targetPath);
+  
+  for (const file of files) {
+    formData.append('files', file);
+  }
+
+  // Show progress
+  statusDiv.innerHTML = `
+    <div style="margin: 8px 0;">
+      <div style="color: #000; font-weight: 600;">Uploading ${files.length} file${files.length > 1 ? 's' : ''}...</div>
+      <div style="margin: 8px 0; background: #e0e0e0; border-radius: 4px; height: 6px; overflow: hidden;">
+        <div style="background: #000; height: 100%; width: 0%; transition: width 0.3s ease;" class="progress-bar"></div>
+      </div>
+    </div>
+  `;
+
+  const progressBar = statusDiv.querySelector('.progress-bar');
+  
+  // Simulate progress (since we can't track real upload progress easily)
+  let progress = 0;
+  const progressInterval = setInterval(() => {
+    progress += Math.random() * 20;
+    if (progress > 90) progress = 90;
+    progressBar.style.width = progress + '%';
+  }, 200);
+
+  try {
+    const response = await fetch('/upload', {
+      method: 'POST',
+      body: formData
+    });
+
+    clearInterval(progressInterval);
+    progressBar.style.width = '100%';
+
+    const result = await response.json();
+
+    if (response.ok) {
+      let message = `<div style="color: #008000; font-weight: 600; margin: 8px 0;">✅ Upload successful!</div>`;
+      
+      if (result.committed && result.committed.length > 0) {
+        message += '<div style="margin: 8px 0;"><strong>Uploaded files:</strong></div>';
+        result.committed.forEach(file => {
+          message += `
+            <div style="margin: 4px 0; padding: 8px; background: #f0f8f0; border-radius: 4px; font-size: 13px;">
+              • ${file.filename}
+              <br><a href="${file.html_url}" target="_blank" style="color: #0066cc; text-decoration: none;">View in GitHub</a>
+            </div>
+          `;
+        });
+      }
+
+      if (result.errors && result.errors.length > 0) {
+        message += '<div style="margin: 8px 0;"><strong>Errors:</strong></div>';
+        result.errors.forEach(error => {
+          message += `
+            <div style="margin: 4px 0; padding: 8px; background: #fff0f0; border-radius: 4px; font-size: 13px; color: #cc0000;">
+              • ${error.filename}: ${error.error}
+            </div>
+          `;
+        });
+      }
+
+      statusDiv.innerHTML = message;
+
+      // Refresh the file list
+      setTimeout(() => {
+        render();
+      }, 1000);
+      
+    } else {
+      statusDiv.innerHTML = `
+        <div style="color: #cc0000; font-weight: 600; margin: 8px 0;">
+          ❌ Upload failed: ${result.error}
+        </div>
+        ${result.details ? `<div style="font-size: 12px; color: #666;">${result.details}</div>` : ''}
+      `;
+    }
+  } catch (error) {
+    clearInterval(progressInterval);
+    console.error('Upload error:', error);
+    statusDiv.innerHTML = `
+      <div style="color: #cc0000; font-weight: 600; margin: 8px 0;">
+        ❌ Upload failed: ${error.message}
+      </div>
+      <div style="font-size: 12px; color: #666;">
+        Check your connection and try again. For large files, ensure they are under 50MB.
+      </div>
+    `;
   }
 }
