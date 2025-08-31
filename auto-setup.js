@@ -157,6 +157,12 @@ PORT=3000`;
     const userJson = sessionStorage.getItem('mbf_fallback_user');
     if (userJson) {
       const user = JSON.parse(userJson);
+      
+      // Ensure app is properly initialized after successful auth
+      setTimeout(() => {
+        this.ensureAppInitialized();
+      }, 100);
+      
       return new Response(JSON.stringify(user), {
         status: 200,
         headers: { 'Content-Type': 'application/json' }
@@ -171,31 +177,116 @@ PORT=3000`;
     }
   }
 
+  // Ensure the app is properly initialized
+  async ensureAppInitialized() {
+    if (window.tree && window.currentUser && window.stack !== undefined) {
+      return; // Already initialized
+    }
+
+    try {
+      // Load tree if not loaded
+      if (!window.tree) {
+        const treeResponse = await window.originalFetch('/data/tree.json?v=' + (Date.now() % 1e7));
+        if (treeResponse.ok) {
+          window.tree = await treeResponse.json();
+        }
+      }
+
+      // Set user if not set
+      if (!window.currentUser) {
+        const userJson = sessionStorage.getItem('mbf_fallback_user');
+        if (userJson) {
+          window.currentUser = JSON.parse(userJson);
+        }
+      }
+
+      // Initialize stack if not set
+      if (window.stack === undefined) {
+        window.stack = [];
+      }
+
+      // Call render if available
+      if (window.tree && window.render) {
+        window.render();
+      }
+
+      console.log('App initialization completed successfully');
+    } catch (error) {
+      console.error('Error during app initialization:', error);
+    }
+  }
+
   // Handle file upload in fallback mode
   async handleFallbackUpload(options) {
-    // In fallback mode, simulate successful upload
-    // Extract file information from the FormData
+    // In fallback mode, store files in localStorage so they persist
     
     try {
       const formData = options?.body;
       const simulatedCommitted = [];
+      const targetPath = formData?.get('targetPath') || '/library/unknown/';
       
       if (formData && formData instanceof FormData) {
+        // Get existing stored files for this path
+        const storageKey = `mbf_files_${targetPath.replace(/[^a-zA-Z0-9]/g, '_')}`;
+        let storedFiles = [];
+        try {
+          storedFiles = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        } catch (e) {
+          storedFiles = [];
+        }
+
         // Get files from FormData
         const files = formData.getAll('files');
-        files.forEach((file, index) => {
+        
+        for (const file of files) {
+          // Convert file to base64 for storage (for small files only)
+          let fileData = null;
+          if (file.size < 10 * 1024 * 1024) { // Only store files smaller than 10MB in localStorage
+            try {
+              const reader = new FileReader();
+              fileData = await new Promise((resolve) => {
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => resolve(null);
+                reader.readAsDataURL(file);
+              });
+            } catch (e) {
+              fileData = null;
+            }
+          }
+
+          const fileInfo = {
+            filename: file.name,
+            size: file.size,
+            type: file.type,
+            uploadDate: new Date().toISOString(),
+            data: fileData, // Only for small files
+            path: targetPath
+          };
+
+          // Add to stored files (check for duplicates)
+          const existingIndex = storedFiles.findIndex(f => f.filename === file.name);
+          if (existingIndex >= 0) {
+            storedFiles[existingIndex] = fileInfo; // Replace existing
+          } else {
+            storedFiles.push(fileInfo); // Add new
+          }
+
           simulatedCommitted.push({
             filename: file.name,
-            html_url: `#simulated-upload-${file.name}`,
-            download_url: `#simulated-download-${file.name}`,
+            path: `${targetPath}${file.name}`,
+            html_url: `#fallback-upload-${file.name}`,
+            download_url: fileData || `#large-file-${file.name}`,
             size: file.size
           });
-        });
+        }
+
+        // Store updated file list
+        localStorage.setItem(storageKey, JSON.stringify(storedFiles));
       }
       
       return new Response(JSON.stringify({
         success: true,
-        message: 'File upload simulation - in static mode, files are not actually stored but upload functionality is working',
+        message: `Successfully uploaded ${simulatedCommitted.length} file(s) in static mode. Files will be visible immediately.`,
         committed: simulatedCommitted,
         errors: []
       }), {

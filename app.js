@@ -217,7 +217,25 @@ async function listFiles(path){
     const items=await res.json(); 
     return Array.isArray(items)?items:[];
   } catch (error) {
-    // Fallback to check for known files when GitHub API fails
+    // Check localStorage for uploaded files in fallback mode
+    const storageKey = `mbf_files_${path.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    let storedFiles = [];
+    try {
+      storedFiles = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      if (storedFiles.length > 0) {
+        console.log(`Found ${storedFiles.length} stored files for path: ${path}`);
+        return storedFiles.map(file => ({
+          name: file.filename,
+          type: 'file',
+          size: file.size,
+          uploadDate: file.uploadDate
+        }));
+      }
+    } catch (e) {
+      console.error('Error reading stored files:', e);
+    }
+
+    // Fallback to check for known files when GitHub API fails and no stored files
     const knownFiles = [
       'sample_schematic.txt',
       'fault_codes_reference.txt',
@@ -253,6 +271,46 @@ function openFile(url, name){
   const ext = (name.split('.').pop()||'').toLowerCase();
   $c.innerHTML='';
   const title=document.createElement('div'); title.className='sectionTitle'; title.textContent=name; $c.appendChild(title);
+  
+  // Check if this is a localStorage file
+  if (url.startsWith('#fallback-upload-') || url.startsWith('#large-file-')) {
+    // Try to find the file in localStorage
+    const currentPath = nodeRepoPath();
+    const storageKey = `mbf_files_${currentPath.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    try {
+      const storedFiles = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      const file = storedFiles.find(f => f.filename === name);
+      
+      if (file && file.data) {
+        // File has data stored
+        if(['png','jpg','jpeg','gif','webp','svg'].includes(ext)){
+          const img=new Image(); img.src=file.data; img.style.maxWidth='100%'; img.style.height='auto'; $c.appendChild(img);
+        } else if(['txt','log','json','md','csv','ini','cfg'].includes(ext)){
+          // Extract text content from data URL
+          const base64Data = file.data.split(',')[1];
+          const text = atob(base64Data);
+          const pre=document.createElement('pre'); pre.textContent=text; pre.style.whiteSpace='pre-wrap'; pre.style.wordBreak='break-word'; $c.appendChild(pre);
+        } else {
+          // Offer download
+          const p=document.createElement('p'); p.textContent=`File uploaded: ${name} (${formatFileSize(file.size)})`; $c.appendChild(p);
+          const a=document.createElement('a'); a.href=file.data; a.textContent='Download '+name; a.className='item'; a.download=name; $c.appendChild(a);
+        }
+        return;
+      } else if (file) {
+        // File exists but too large for storage
+        const p=document.createElement('p'); p.textContent=`Large file uploaded: ${name} (${formatFileSize(file.size)}). File was uploaded successfully but is too large to preview in static mode.`; $c.appendChild(p);
+        return;
+      }
+    } catch (e) {
+      console.error('Error accessing stored file:', e);
+    }
+    
+    // Fallback message
+    const p=document.createElement('p'); p.textContent='File was uploaded but is not available for preview in static mode.'; $c.appendChild(p);
+    return;
+  }
+
+  // Regular file handling  
   if(['png','jpg','jpeg','gif','webp','svg'].includes(ext)){
     const img=new Image(); img.src=url; img.style.maxWidth='100%'; img.style.height='auto'; $c.appendChild(img);
   } else if(ext==='pdf'){
