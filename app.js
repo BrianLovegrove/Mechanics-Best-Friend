@@ -189,7 +189,7 @@ function render(){
         $c.appendChild(p); 
         return; 
       }
-      items.forEach(it=>{ if(it.type==='file'){ const a=document.createElement('a'); a.className='item'; a.href='#'; a.onclick=(e)=>{ e.preventDefault(); openFile(rawUrl(repoPath+it.name), it.name); }; a.textContent=prettyName(it.name); list.appendChild(a); } });
+      items.forEach(it=>{ if(it.type==='file'){ const a=document.createElement('a'); a.className='item'; a.href='#'; a.onclick=(e)=>{ e.preventDefault(); const url = it.isLocalStorage ? `#fallback-upload-${it.name}` : rawUrl(repoPath+it.name); openFile(url, it.name); }; a.textContent=prettyName(it.name); list.appendChild(a); } });
     }).catch(err=>{ const p=document.createElement('p'); p.className='empty'; p.textContent='Folder not found yet: '+repoPath; $c.appendChild(p); console.error(err); });
   }
 }
@@ -228,7 +228,8 @@ async function listFiles(path){
           name: file.filename,
           type: 'file',
           size: file.size,
-          uploadDate: file.uploadDate
+          uploadDate: file.uploadDate,
+          isLocalStorage: true // Flag to indicate this is stored in localStorage
         }));
       }
     } catch (e) {
