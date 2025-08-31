@@ -27,7 +27,7 @@ async function loadUsers() {
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB limit
+    fileSize: 1024 * 1024 * 1024, // 1GB limit
     files: 10 // Maximum 10 files per upload
   }
 });
@@ -257,7 +257,7 @@ app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({ 
-        error: 'File too large. Maximum size is 50MB per file.' 
+        error: 'File too large. Maximum size is 1GB per file.' 
       });
     }
     if (err.code === 'LIMIT_FILE_COUNT') {
