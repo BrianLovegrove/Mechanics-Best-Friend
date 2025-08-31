@@ -175,7 +175,7 @@ function updateGitHubStatus(statusDiv) {
   if (isGitHubConnected()) {
     statusDiv.innerHTML = `
       <div style="color: #28a745; font-weight: 600;">
-        ✅ Connected to GitHub as <strong>${githubUserInfo.login}</strong>
+        Connected to GitHub as <strong>${githubUserInfo.login}</strong>
       </div>
       <div style="font-size: 14px; color: #666; margin-top: 4px;">
         Repository: ${OWNER}/${REPO} • Branch: ${BRANCH}
@@ -184,7 +184,7 @@ function updateGitHubStatus(statusDiv) {
   } else {
     statusDiv.innerHTML = `
       <div style="color: #dc3545; font-weight: 600;">
-        ❌ Not connected to GitHub
+        Not connected to GitHub
       </div>
       <div style="font-size: 14px; color: #666; margin-top: 4px;">
         Configure your Personal Access Token to enable file uploads
@@ -208,7 +208,7 @@ async function connectGitHub(token, statusDiv) {
   } else {
     statusDiv.innerHTML = `
       <div style="color: #dc3545; font-weight: 600;">
-        ❌ Invalid token or insufficient permissions
+        Invalid token or insufficient permissions
       </div>
       <div style="font-size: 14px; color: #666; margin-top: 4px;">
         Make sure the token has Contents: write permission for ${OWNER}/${REPO}
@@ -395,7 +395,7 @@ function render(){
         color: #856404;
       `;
       noTokenMsg.innerHTML = `
-        <strong>⚠️ Upload Disabled</strong><br>
+        <strong>Upload Disabled</strong><br>
         Configure your GitHub Personal Access Token in Admin Settings to enable file uploads.
       `;
       $c.appendChild(noTokenMsg);
@@ -545,7 +545,7 @@ function showFileActions(url, name, isLocalStorage = false) {
   
   // View button
   const viewBtn = document.createElement('button');
-  viewBtn.textContent = '👁️ View File';
+  viewBtn.textContent = 'View File';
   viewBtn.className = 'action-btn';
   viewBtn.style.cssText = `
     display: inline-block;
@@ -571,7 +571,7 @@ function showFileActions(url, name, isLocalStorage = false) {
   
   // Download button
   const downloadBtn = document.createElement('button');
-  downloadBtn.textContent = '⬇️ Download File';
+  downloadBtn.textContent = 'Download File';
   downloadBtn.className = 'action-btn';
   downloadBtn.style.cssText = viewBtn.style.cssText;
   downloadBtn.onmouseover = () => {
@@ -762,7 +762,7 @@ function openFile(url, name){
              name.toLowerCase().includes('hmi') ||
              name.toLowerCase().includes('scada')) {
             const p=document.createElement('p'); 
-            p.textContent='⚠️ File type not supported for preview. This appears to be a PLC program or specialized industrial file. Please download and use with the appropriate software (RSLogix, TIA Portal, etc.).'; 
+            p.textContent='File type not supported for preview. This appears to be a PLC program or specialized industrial file. Please download and use with the appropriate software (RSLogix, TIA Portal, etc.).'; 
             p.style.cssText = 'padding: 16px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; color: #856404;';
             $c.appendChild(p);
           } else {
@@ -804,7 +804,7 @@ function openFile(url, name){
       const warning = document.createElement('div');
       warning.style.cssText = 'padding: 16px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; color: #856404; margin: 16px 0;';
       warning.innerHTML = `
-        <strong>📄 Office Document Preview</strong><br>
+        <strong>Office Document Preview</strong><br>
         Preview is not available for locally stored Office documents. Please download the file to view it in Microsoft Office, LibreOffice, or another compatible application.
       `;
       $c.appendChild(warning);
@@ -812,7 +812,7 @@ function openFile(url, name){
       const downloadBtn = document.createElement('a');
       downloadBtn.href = url;
       downloadBtn.download = name;
-      downloadBtn.textContent = `📥 Download ${name}`;
+      downloadBtn.textContent = `Download ${name}`;
       downloadBtn.style.cssText = `
         display: inline-block;
         padding: 12px 24px;
@@ -845,7 +845,7 @@ function openFile(url, name){
         const errorDiv = document.createElement('div');
         errorDiv.style.cssText = 'padding: 16px; background: #ffebee; border: 1px solid #f44336; border-radius: 4px; color: #c62828; margin: 16px 0;';
         errorDiv.innerHTML = `
-          <strong>❌ Preview Failed</strong><br>
+          <strong>Preview Failed</strong><br>
           Unable to preview this document. This may happen due to:
           <ul style="margin: 8px 0; padding-left: 20px;">
             <li>File is not publicly accessible</li>
@@ -860,7 +860,7 @@ function openFile(url, name){
         const downloadBtn = document.createElement('a');
         downloadBtn.href = url;
         downloadBtn.download = name;
-        downloadBtn.textContent = `📥 Download ${name}`;
+        downloadBtn.textContent = `Download ${name}`;
         downloadBtn.style.cssText = `
           display: inline-block;
           padding: 12px 24px;
@@ -900,7 +900,7 @@ function openFile(url, name){
        name.toLowerCase().includes('hmi') ||
        name.toLowerCase().includes('scada')) {
       const p=document.createElement('p'); 
-      p.textContent='⚠️ File type not supported for preview. This appears to be a PLC program or specialized industrial file. Please download and use with the appropriate software (RSLogix, TIA Portal, etc.).'; 
+      p.textContent='File type not supported for preview. This appears to be a PLC program or specialized industrial file. Please download and use with the appropriate software (RSLogix, TIA Portal, etc.).'; 
       p.style.cssText = 'padding: 16px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; color: #856404;';
       $c.appendChild(p);
     } else {
@@ -1060,7 +1060,7 @@ async function uploadFiles(files, targetPath, statusDiv) {
   if (!isGitHubConnected()) {
     statusDiv.innerHTML = `
       <div style="color: #cc0000; font-weight: 600; margin: 8px 0;">
-        ❌ GitHub connection required
+        GitHub connection required
       </div>
       <div style="font-size: 12px; color: #666;">
         Configure your GitHub Personal Access Token in Admin Settings
@@ -1076,7 +1076,7 @@ async function uploadFiles(files, targetPath, statusDiv) {
     if (file.size > 100 * 1024 * 1024) { // 100MB limit
       statusDiv.innerHTML = `
         <div style="color: #cc0000; font-weight: 600; margin: 8px 0;">
-          ❌ File too large: ${file.name}
+          File too large: ${file.name}
         </div>
         <div style="font-size: 12px; color: #666;">
           Maximum file size is 100MB. Use Git LFS for larger files.
@@ -1091,7 +1091,7 @@ async function uploadFiles(files, targetPath, statusDiv) {
   if (cleanPath.includes('..') || cleanPath.includes('\\')) {
     statusDiv.innerHTML = `
       <div style="color: #cc0000; font-weight: 600; margin: 8px 0;">
-        ❌ Invalid path
+        Invalid path
       </div>
       <div style="font-size: 12px; color: #666;">
         Path contains illegal characters
@@ -1140,7 +1140,7 @@ async function uploadFiles(files, targetPath, statusDiv) {
     let message = '';
     
     if (results.length > 0) {
-      message += `<div style="color: #28a745; font-weight: 600; margin: 8px 0;">✅ Successfully uploaded ${results.length} file${results.length > 1 ? 's' : ''}!</div>`;
+      message += `<div style="color: #28a745; font-weight: 600; margin: 8px 0;">Successfully uploaded ${results.length} file${results.length > 1 ? 's' : ''}!</div>`;
       message += '<div style="margin: 8px 0;"><strong>Uploaded files:</strong></div>';
       
       results.forEach(result => {
@@ -1166,7 +1166,7 @@ async function uploadFiles(files, targetPath, statusDiv) {
     }
 
     if (results.length === 0 && errors.length > 0) {
-      message = `<div style="color: #cc0000; font-weight: 600; margin: 8px 0;">❌ All uploads failed</div>` + message;
+      message = `<div style="color: #cc0000; font-weight: 600; margin: 8px 0;">All uploads failed</div>` + message;
     }
 
     statusDiv.innerHTML = message;
@@ -1182,7 +1182,7 @@ async function uploadFiles(files, targetPath, statusDiv) {
     console.error('Upload error:', error);
     statusDiv.innerHTML = `
       <div style="color: #cc0000; font-weight: 600; margin: 8px 0;">
-        ❌ Upload failed: ${error.message}
+        Upload failed: ${error.message}
       </div>
       <div style="font-size: 12px; color: #666;">
         Check your GitHub token permissions and try again.
