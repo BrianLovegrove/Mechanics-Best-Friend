@@ -174,17 +174,45 @@ PORT=3000`;
   // Handle file upload in fallback mode
   async handleFallbackUpload(options) {
     // In fallback mode, simulate successful upload
-    // In a real implementation, this would integrate with GitHub API directly
+    // Extract file information from the FormData
     
-    return new Response(JSON.stringify({
-      success: true,
-      message: 'File upload simulation - files would be uploaded to GitHub when server is configured',
-      committed: [],
-      errors: []
-    }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    try {
+      const formData = options?.body;
+      const simulatedCommitted = [];
+      
+      if (formData && formData instanceof FormData) {
+        // Get files from FormData
+        const files = formData.getAll('files');
+        files.forEach((file, index) => {
+          simulatedCommitted.push({
+            filename: file.name,
+            html_url: `#simulated-upload-${file.name}`,
+            download_url: `#simulated-download-${file.name}`,
+            size: file.size
+          });
+        });
+      }
+      
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'File upload simulation - in static mode, files are not actually stored but upload functionality is working',
+        committed: simulatedCommitted,
+        errors: []
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (error) {
+      return new Response(JSON.stringify({
+        success: false,
+        message: 'Upload simulation failed',
+        committed: [],
+        errors: [error.message]
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
   }
 
   // Create setup popup
@@ -265,11 +293,14 @@ PORT=3000`;
       
       if (success) {
         status.textContent = '✅ Setup complete! Redirecting...';
+        localStorage.setItem('mbf_setup_choice', 'completed');
         await new Promise(resolve => setTimeout(resolve, 1000));
         overlay.remove();
-        window.location.reload();
+        // Don't reload the page - just remove the popup
+        // window.location.reload();
       } else {
         status.textContent = '⚠️ Server setup failed - using offline mode';
+        localStorage.setItem('mbf_setup_choice', 'skipped');
         await new Promise(resolve => setTimeout(resolve, 1500));
         overlay.remove();
       }
@@ -277,6 +308,7 @@ PORT=3000`;
 
     document.getElementById('skipSetupBtn').onclick = () => {
       console.log('Skip button clicked - enabling fallback mode');
+      localStorage.setItem('mbf_setup_choice', 'skipped');
       this.enableFallbackMode();
       overlay.remove();
     };
@@ -286,11 +318,22 @@ PORT=3000`;
 
   // Initialize auto-setup
   async initialize() {
+    // Check if user has already made a setup choice
+    const setupChoice = localStorage.getItem('mbf_setup_choice');
+    if (setupChoice === 'completed' || setupChoice === 'skipped') {
+      console.log('Setup already handled - choice:', setupChoice);
+      // Enable fallback mode for both completed and skipped states
+      // since we're in a static environment
+      this.enableFallbackMode();
+      return;
+    }
+
     // First check if server is already running
     const serverRunning = await this.checkServerStatus();
     
     if (serverRunning) {
       console.log('Server is already running - no setup needed');
+      localStorage.setItem('mbf_setup_choice', 'completed');
       return;
     }
 
@@ -303,6 +346,7 @@ PORT=3000`;
     } else {
       // Enable fallback mode immediately
       this.enableFallbackMode();
+      localStorage.setItem('mbf_setup_choice', 'skipped');
     }
   }
 }
