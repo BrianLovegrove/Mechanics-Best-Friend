@@ -76,6 +76,9 @@ function requireAdmin(req, res, next) {
 // File uploads are now handled client-side via GitHub Contents API
 let octokit = null;
 
+// Upload concurrency control - prevent overlapping Git operations
+const uploadLocks = new Map();
+
 // Git utilities
 // Sanitize and validate repository paths
 function sanitizeRepoPath(targetPath) {
@@ -468,8 +471,26 @@ async function startServer() {
   app.listen(PORT, () => {
     console.log(`Mechanic's Best Friend server running on port ${PORT}`);
     console.log(`Open http://localhost:${PORT} to access the application`);
-    console.log('📝 Server-side uploads disabled - using client-side GitHub API uploads');
-    console.log('🔒 Configure GitHub Personal Access Token in admin settings for uploads');
+    
+    // Check Git SSH configuration
+    if (GIT_CONFIG.repo && GIT_CONFIG.sshKeyPath) {
+      console.log('✅ Git SSH upload enabled');
+      console.log(`   Repository: ${GIT_CONFIG.repo}`);
+      console.log(`   Branch: ${GIT_CONFIG.branch}`);
+      console.log(`   Author: ${GIT_CONFIG.authorName} <${GIT_CONFIG.authorEmail}>`);
+    } else {
+      console.warn('⚠️  Git SSH upload disabled. Set GIT_REPO and GIT_SSH_PRIVATE_KEY_PATH to enable.');
+    }
+    
+    if (!octokit) {
+      console.warn('⚠️  GitHub API integration disabled. Set GITHUB_TOKEN to enable fallback uploads.');
+    } else {
+      console.log('✅ GitHub API fallback enabled');
+    }
+    
+    if (!GIT_CONFIG.repo && !octokit) {
+      console.warn('⚠️  No upload methods configured. Files will only be stored locally.');
+    }
   });
 }
 
