@@ -67,7 +67,7 @@ Always execute this complete validation scenario after making changes:
 - **Missing tree data**: Ensure `data/tree.json` is accessible and valid JSON
 
 ### GitHub Integration
-- Application attempts to list files from GitHub repository paths like `docs/line_2/depal/electrical_schematics/`
+- Application attempts to list files from GitHub repository paths like `library/line_2/depalletizer/electrical_schematics/`
 - GitHub API calls may be blocked in testing environments - this is expected behavior
 - File listing functionality depends on actual files being uploaded to the repository
 - Supports file types: images (PNG, JPG, etc.), PDFs, text files, and Office documents
