@@ -536,9 +536,33 @@ function exportNoteTxt(note) {
 
 async function listFilesFromWorker(prefix) {
   await loadConfig();
-  const r = await fetch(`${CONFIG.WORKER_BASE_URL}/files?prefix=${encodeURIComponent(prefix)}`);
-  if (!r.ok) return [];
-  return r.json();
+  
+  try {
+    // Add cache-busting parameter to ensure fresh data on each request
+    const cacheBuster = `v=${Date.now()}`;
+    const url = `${CONFIG.WORKER_BASE_URL}/files?prefix=${encodeURIComponent(prefix)}&${cacheBuster}`;
+    
+    const r = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
+    
+    if (!r.ok) {
+      console.warn(`Failed to fetch files for prefix ${prefix}: ${r.status} ${r.statusText}`);
+      return [];
+    }
+    
+    const data = await r.json();
+    console.log(`Successfully loaded ${data.length} items for prefix: ${prefix}`);
+    return data;
+  } catch (error) {
+    console.error(`Error fetching files for prefix ${prefix}:`, error);
+    return [];
+  }
 }
 
 async function renderFilesList(prefix) {
@@ -546,23 +570,27 @@ async function renderFilesList(prefix) {
   const host = document.getElementById('files-list');
   if (!host) return;
 
-  host.innerHTML = '<div class="mbf-empty">Loading…</div>';
-  const items = await listFilesFromWorker(prefix);
-  const files = items.filter(x => x.kind === 'object');
-  const folders = items.filter(x => x.kind === 'prefix'); // if you want to show subfolders too
+  host.innerHTML = '<div class="mbf-empty">Loading files...</div>';
+  
+  try {
+    const items = await listFilesFromWorker(prefix);
+    const files = items.filter(x => x.kind === 'object');
+    const folders = items.filter(x => x.kind === 'prefix'); // if you want to show subfolders too
 
-  if (!files.length && !folders.length) {
-    host.innerHTML = '<div class="mbf-empty">No files yet in this folder.</div>';
-    return;
-  }
+    if (!files.length && !folders.length) {
+      host.innerHTML = '<div class="mbf-empty">No files found in this folder. Files will appear here when uploaded to the repository.</div>';
+      return;
+    }
 
-  host.innerHTML = '';
-  // (Optional) render folders here first…
+    host.innerHTML = '';
+    console.log(`Rendering ${files.length} files and ${folders.length} folders`);
+    
+    // (Optional) render folders here first…
 
-  // Files
-  for (const f of files) {
-    const row = document.createElement('div');
-    row.className = 'mbf-row';
+    // Files
+    for (const f of files) {
+      const row = document.createElement('div');
+      row.className = 'mbf-row';
     const name = f.key.split('/').pop();
     const isNoteFile = f.key.toLowerCase().endsWith('.json') && f.key.includes('/mechanic_notes/');
 
@@ -604,6 +632,10 @@ async function renderFilesList(prefix) {
     }
 
     host.appendChild(row);
+  }
+  } catch (error) {
+    console.error('Error rendering files list:', error);
+    host.innerHTML = '<div class="mbf-empty">Error loading files. Please refresh the page and try again.</div>';
   }
 }
 
