@@ -10,22 +10,39 @@ export async function initFolderPage(currentBreadcrumbs) {
   // Prefix for the CURRENT folder (always ends with "/")
   const folderPrefix = prefixFromBreadcrumbs(currentBreadcrumbs);
 
-  // Render file UI everywhere
-  await renderFolderToolbar(folderPrefix);
-  await renderFilesList(folderPrefix);
-
-  // Render notes ONLY inside a "Mechanic Notes" folder
+  // Check if this is a Mechanic Notes folder - implement notes-only view
   const notesHost = document.getElementById('notes-panel');
   if (isMechanicNotesCrumbs(currentBreadcrumbs)) {
-    // Show notes panel
-    notesHost.style.display = '';
-    // parent machine prefix (drop the last "Mechanic Notes" crumb)
-    const machinePrefix = prefixFromBreadcrumbs(currentBreadcrumbs.slice(0, -1));
-    await renderNotes(machinePrefix);
-  } else if (notesHost) {
-    // hide or clear if present on non-notes pages
-    notesHost.style.display = 'none';
-    notesHost.innerHTML = '';
+    // NOTES-ONLY VIEW: Hide all file UI components
+    const toolbarEl = document.getElementById('folder-toolbar');
+    const filesEl = document.getElementById('files-list');
+    
+    if (toolbarEl) {
+      toolbarEl.style.display = 'none';
+      toolbarEl.innerHTML = '';
+    }
+    if (filesEl) {
+      filesEl.style.display = 'none';
+      filesEl.innerHTML = '';
+    }
+
+    // Show notes panel only
+    if (notesHost) {
+      notesHost.style.display = '';
+      // parent machine prefix (drop the last "Mechanic Notes" crumb)
+      const machinePrefix = prefixFromBreadcrumbs(currentBreadcrumbs.slice(0, -1));
+      await renderNotes(machinePrefix);
+    }
+  } else {
+    // NORMAL VIEW: Show file UI, hide notes
+    await renderFolderToolbar(folderPrefix);
+    await renderFilesList(folderPrefix);
+    
+    if (notesHost) {
+      // hide notes panel on non-notes pages
+      notesHost.style.display = 'none';
+      notesHost.innerHTML = '';
+    }
   }
 }
 

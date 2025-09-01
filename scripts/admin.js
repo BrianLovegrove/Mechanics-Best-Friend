@@ -8,7 +8,14 @@ export function getAdminKey() {
   return localStorage.getItem('mbf_admin_token') || ''; 
 }
 
+// Check if current user has admin role
 export function isAdmin() { 
+  // Check if currentUser exists and has admin role
+  if (window.currentUser && (window.currentUser.role === 'admin' || window.currentUser.role === 'ADMIN')) {
+    return true;
+  }
+  
+  // Fallback to token check for backward compatibility
   return !!getAdminKey(); 
 }
 
@@ -24,5 +31,3 @@ export function seedAdminOnLogin(){
 
 // Expose to global scope for app.js compatibility
 window.seedAdminOnLogin = seedAdminOnLogin;
-
-// Alt+A admin toggle feature removed as requested

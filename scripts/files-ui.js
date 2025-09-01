@@ -6,27 +6,7 @@ import { iconFor, createIconElement, humanSize, UPLOAD_ICON, DOWNLOAD_ICON } fro
 
 
 
-// File type badge component
-function FileBadge({ ext }) {
-  const base = "inline-flex h-8 w-8 items-center justify-center rounded-md border text-xs font-bold";
-  if (/docx?$/.test(ext)) {
-    return `<span class="${base} border-blue-200 text-blue-700" style="border: 1px solid #dbeafe; color: #1d4ed8; background: #f8fafc;">W</span>`;
-  }
-  if (/pdf$/.test(ext)) {
-    return `<span class="${base} border-red-200 text-red-700" style="border: 1px solid #fecaca; color: #dc2626; background: #fef2f2;">PDF</span>`;
-  }
-  if (/(png|jpe?g|gif|webp)$/.test(ext)) {
-    return `<span class="${base} border-emerald-200 text-emerald-700" style="border: 1px solid #a7f3d0; color: #047857; background: #ecfdf5;">IMG</span>`;
-  }
-  if (/xlsx?$/.test(ext)) {
-    return `<span class="${base} border-green-200 text-green-700" style="border: 1px solid #bbf7d0; color: #15803d; background: #f0fdf4;">XL</span>`;
-  }
-  if (/pptx?$/.test(ext)) {
-    return `<span class="${base} border-orange-200 text-orange-700" style="border: 1px solid #fed7aa; color: #c2410c; background: #fff7ed;">PP</span>`;
-  }
-  // For .txt and other files, return empty string (no badge)
-  return "";
-}
+
 
 function viewerUrlFor(key, contentType = '') {
   const url = r2PublicUrl(key);
