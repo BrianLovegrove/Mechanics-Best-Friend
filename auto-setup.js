@@ -182,6 +182,8 @@ PORT=3000`;
         return autoSetup.handleFallbackAuthCheck();
       } else if (url.startsWith('/upload') || url.endsWith('/upload')) {
         return autoSetup.handleFallbackUpload(options);
+      } else if (options && options.method === 'DELETE' && (url.includes('/object') || url.includes('/notes'))) {
+        return autoSetup.handleFallbackDelete(url, options);
       }
       return window.originalFetch.call(this, url, options);
     };
@@ -371,6 +373,48 @@ PORT=3000`;
         message: 'Upload simulation failed',
         committed: [],
         errors: [error.message]
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+  }
+
+  // Handle delete operations with role checking
+  async handleFallbackDelete(url, options) {
+    try {
+      // Check if user is authenticated and has admin role
+      const currentUser = window.currentSessionUser || window.currentUser;
+      if (!currentUser) {
+        return new Response(JSON.stringify({
+          error: 'Authentication required'
+        }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      
+      // Only ADMIN can delete
+      if (currentUser.role !== 'admin' && currentUser.role !== 'ADMIN') {
+        return new Response(JSON.stringify({
+          error: 'Forbidden: Only administrators can delete files and notes'
+        }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      
+      // For now, simulate successful deletion
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'Item deleted successfully (simulated in fallback mode)'
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (error) {
+      return new Response(JSON.stringify({
+        error: 'Delete operation failed: ' + error.message
       }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }

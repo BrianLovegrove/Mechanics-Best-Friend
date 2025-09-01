@@ -179,11 +179,86 @@ export async function renderFilesList(prefix) {
   for (const f of files) {
     const row = document.createElement('div');
     row.className = 'mbf-row';
+    row.style.cssText = `
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 8px;
+      background: white;
+      transition: all 0.2s ease;
+    `;
+    
+    row.addEventListener('mouseenter', () => {
+      row.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+      row.style.borderColor = '#ccc';
+    });
+    
+    row.addEventListener('mouseleave', () => {
+      row.style.boxShadow = 'none';
+      row.style.borderColor = '#ddd';
+    });
+    
     const name = f.key.split('/').pop();
     const isNoteFile = f.key.toLowerCase().endsWith('.json') && f.key.includes('/mechanic_notes/');
 
+    const contentDiv = document.createElement('div');
+    contentDiv.style.cssText = 'display: flex; align-items: center; gap: 12px; flex: 1;';
+    
+    const iconDiv = document.createElement('div');
+    iconDiv.style.cssText = `
+      width: 36px;
+      height: 36px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    `;
+    
+    // Set icon based on file type
+    const ext = name.toLowerCase().split('.').pop();
+    if (['pdf'].includes(ext)) iconDiv.textContent = '📄';
+    else if (['jpg', 'jpeg', 'png', 'gif', 'svg'].includes(ext)) iconDiv.textContent = '🖼️';
+    else if (['doc', 'docx'].includes(ext)) iconDiv.textContent = '📝';
+    else if (['xls', 'xlsx'].includes(ext)) iconDiv.textContent = '📊';
+    else if (['ppt', 'pptx'].includes(ext)) iconDiv.textContent = '📽️';
+    else if (['txt', 'md'].includes(ext)) iconDiv.textContent = '📄';
+    else iconDiv.textContent = '📁';
+    
+    const nameDiv = document.createElement('div');
+    nameDiv.textContent = name;
+    nameDiv.style.cssText = 'font-weight: 500; color: #333;';
+    nameDiv.title = f.key;
+    
+    contentDiv.appendChild(iconDiv);
+    contentDiv.appendChild(nameDiv);
+    
+    const actionsDiv = document.createElement('div');
+    actionsDiv.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+    
+    // View button
     const viewBtn = document.createElement('button');
-    viewBtn.textContent = 'View';
+    viewBtn.innerHTML = '👁️ View';
+    viewBtn.style.cssText = `
+      border: 1px solid #ddd;
+      background: white;
+      color: #333;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    `;
+    viewBtn.addEventListener('mouseenter', () => {
+      viewBtn.style.background = '#f8f9fa';
+    });
+    viewBtn.addEventListener('mouseleave', () => {
+      viewBtn.style.background = 'white';
+    });
     
     if (isNoteFile) {
       // Special handling for mechanic notes - open in internal reader
@@ -192,20 +267,60 @@ export async function renderFilesList(prefix) {
       // Regular file viewing
       viewBtn.onclick = () => window.open(viewerUrlFor(f.key, f.contentType || ''), '_blank');
     }
+    
+    // Download button
+    const dlBtn = document.createElement('button');
+    dlBtn.innerHTML = '⬇️ Download';
+    dlBtn.style.cssText = `
+      border: 1px solid #ddd;
+      background: white;
+      color: #333;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    `;
+    dlBtn.addEventListener('mouseenter', () => {
+      dlBtn.style.background = '#f8f9fa';
+    });
+    dlBtn.addEventListener('mouseleave', () => {
+      dlBtn.style.background = 'white';
+    });
+    dlBtn.onclick = () => {
+      const a = document.createElement('a');
+      a.href = r2PublicUrl(f.key);
+      a.download = f.originalFileName || name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    };
 
-    const dlBtn = document.createElement('a');
-    dlBtn.textContent = 'Download';
-    dlBtn.href = r2PublicUrl(f.key);
-    dlBtn.download = f.originalFileName || name;
-    dlBtn.role = 'button';
+    actionsDiv.appendChild(viewBtn);
+    actionsDiv.appendChild(dlBtn);
 
-    row.innerHTML = `<div title="${f.key}">${name}</div>`;
-    row.appendChild(viewBtn);
-    row.appendChild(dlBtn);
-
+    // Delete button (only for admin)
     if (isAdmin()) {
       const del = document.createElement('button');
-      del.textContent = 'Delete';
+      del.innerHTML = '🗑️ Delete';
+      del.style.cssText = `
+        border: 1px solid #dc3545;
+        background: #fff5f5;
+        color: #dc3545;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      `;
+      del.addEventListener('mouseenter', () => {
+        del.style.background = '#dc3545';
+        del.style.color = 'white';
+      });
+      del.addEventListener('mouseleave', () => {
+        del.style.background = '#fff5f5';
+        del.style.color = '#dc3545';
+      });
       del.onclick = async () => {
         if (!confirm(`Delete "${name}"?`)) return;
         const r = await fetch(await api(`/object?key=${encodeURIComponent(f.key)}`), {
@@ -216,9 +331,11 @@ export async function renderFilesList(prefix) {
         if (!r.ok) { alert(j.error || 'Delete failed'); return; }
         await renderFilesList(prefix);
       };
-      row.appendChild(del);
+      actionsDiv.appendChild(del);
     }
-
+    
+    row.appendChild(contentDiv);
+    row.appendChild(actionsDiv);
     host.appendChild(row);
   }
 }
