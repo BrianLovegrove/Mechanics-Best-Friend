@@ -2,8 +2,9 @@
 // User session state
 let currentUser = null;
 
-// Application configuration
+// Application configuration (global CONFIG for modular components)
 let config = null;
+let CONFIG = { FILES_BASE_URL:"", WORKER_BASE_URL:"", ROOT_PREFIX:"library" };
 
 let tree=null;
 const stack=[];
@@ -28,6 +29,8 @@ async function loadConfig() {
     const response = await fetch('/data/config.json?v=' + (Date.now() % 1e7));
     if (response.ok) {
       config = await response.json();
+      // Set global CONFIG for new modular components
+      CONFIG = { ...config };
       return config;
     }
   } catch (error) {
@@ -42,6 +45,7 @@ async function loadConfig() {
     "ALLOWED_ROOTS": ["library", "docs", "assets"],
     "STRICT_FOLDERS": true
   };
+  CONFIG = { ...config };
   return config;
 }
 
@@ -82,6 +86,46 @@ async function buildFileUrl(key) {
 // Admin token management
 const getAdminToken = () => localStorage.getItem('mbf_admin_token') || '';
 const isAdmin = () => !!getAdminToken();
+
+// Admin helper functions (inline)
+function setAdminKey(k) { 
+  localStorage.setItem('mbf_admin_token', k); 
+}
+function getAdminKey() { 
+  return localStorage.getItem('mbf_admin_token') || ''; 
+}
+function clearAdminKey() { 
+  localStorage.removeItem('mbf_admin_token'); 
+}
+
+// Dev helper: Alt+A toggles admin on/off while testing
+window.addEventListener('keydown', e => {
+  if (e.altKey && e.key.toLowerCase() === 'a') {
+    if (isAdmin()) { 
+      clearAdminKey(); 
+      alert('Admin OFF'); 
+    } else { 
+      setAdminKey('124rfgsdfw3r3trhfjghju8475623edsfsfffwefsd33'); 
+      alert('Admin ON'); 
+    }
+    location.reload();
+  }
+});
+
+// Utility functions (inline)
+function encodeKey(p) {
+  return p.replace(/^\/+/, '').split('/').map(encodeURIComponent).join('/');
+}
+
+function prefixFromBreadcrumbs(crumbs) {
+  // e.g. ['Home','Line 2','Depalletizer',...,'Electrical Schematics']
+  const segs = crumbs.map(slug);
+  return `library/${segs.join('/')}/`;          // always end with "/"
+}
+
+function fileUrlFromKey(key) {
+  return `${CONFIG.FILES_BASE_URL}/${encodeKey(key)}`;
+}
 
 // Auto-store admin token on successful admin login
 function onAdminLoginSuccess() {
@@ -276,6 +320,14 @@ function slugify(label){ return label.toLowerCase().replace(/&/g,' and ').replac
 function render(){
   renderBack(); renderCrumbs();
   const n=current(); $c.innerHTML='';
+  
+  // Clear the new UI components initially
+  const toolbarEl = document.getElementById('folder-toolbar');
+  const filesEl = document.getElementById('files-list');
+  const notesEl = document.getElementById('notes-panel');
+  if (toolbarEl) toolbarEl.innerHTML = '';
+  if (filesEl) filesEl.innerHTML = '';
+  if (notesEl) notesEl.innerHTML = '';
 
   // Admin settings panel (only at root level for admin users)
   if (currentUser && currentUser.role === 'admin' && stack.length === 0) {
@@ -298,57 +350,265 @@ function render(){
       list.appendChild(b); 
     });
     $c.appendChild(list);
-  }
-
-  const repoPath=nodeRepoPath();
-  if(repoPath && !(n.children && n.children.length)){
-    const title=document.createElement('div'); title.className='sectionTitle'; title.textContent='Files'; $c.appendChild(title);
-    
-    // Add upload controls for admin users
-    if (isAdmin()) {
-      const uploadSection = createUploadSection(repoPath);
-      $c.appendChild(uploadSection);
-    }
-    
-    // Add Mechanics Notes section
-    createMechanicsNotesSection().then(notesSection => {
-      if (notesSection) {
-        $c.appendChild(notesSection);
-      }
-    });
-    
-    const list=document.createElement('div'); list.className='list'; $c.appendChild(list);
-    listFiles(repoPath).then(async items=>{
-      if(!items.length){ 
-        const p=document.createElement('p'); 
-        p.className='empty'; 
-        p.textContent = currentUser && currentUser.role === 'admin' 
-          ? 'Folder not initialized—contact admin.' 
-          : 'No files yet. Contact administrator to upload files to '+repoPath;
-        $c.appendChild(p); 
-        return; 
-      }
-      
-      const cfg = await loadConfig();
-      items.forEach(async it=>{ 
-        if(it.type==='file'){ 
-          const a=document.createElement('a'); 
-          a.className='item'; 
-          a.href='#'; 
-          a.onclick=async (e)=>{ 
-            e.preventDefault(); 
-            const folderKey = breadcrumbsToKey(stack.map(s => s.name));
-            const fileKey = `${folderKey}/${it.name}`;
-            const url = await buildFileUrl(fileKey);
-            showFileActions(url, it.name, false); 
-          }; 
-          a.textContent=prettyName(it.name); 
-          list.appendChild(a); 
-        } 
-      });
-    }).catch(err=>{ const p=document.createElement('p'); p.className='empty'; p.textContent='Folder not found yet: '+repoPath; $c.appendChild(p); console.error(err); });
+  } else {
+    // This is a folder page - use the new modular UI components
+    initFolderPage();
   }
 }
+
+// Initialize folder page with new modular components
+async function initFolderPage() {
+  await loadConfig();
+  const crumbs = pathBreadcrumbs(); // you already have this array of labels
+  const prefix = prefixFromBreadcrumbs(crumbs);            // ALWAYS ends with "/"
+
+  await renderFolderToolbar(prefix);   // admin-only Upload
+  await renderFilesList(prefix);       // list with view/download/(admin) delete
+  await renderNotes(prefix);           // mechanic notes for this machine
+}
+
+// Files UI functions (inline implementations)
+function viewerUrlFor(key, contentType = '') {
+  const url = fileUrlFromKey(key);
+  const lower = key.toLowerCase();
+  
+  // Office documents
+  if (lower.endsWith('.doc') || lower.endsWith('.docx')
+   || lower.endsWith('.ppt') || lower.endsWith('.pptx')
+   || lower.endsWith('.xls') || lower.endsWith('.xlsx')) {
+    return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`;
+  }
+  
+  // PDF (use PDF.js bundled in the repo)
+  if (lower.endsWith('.pdf')) {
+    return `/assets/pdfjs/web/viewer.html?file=${encodeURIComponent(url)}`;
+  }
+  
+  // Images / text / others → open directly
+  return url;
+}
+
+async function listFilesFromWorker(prefix) {
+  await loadConfig();
+  const r = await fetch(`${CONFIG.WORKER_BASE_URL}/files?prefix=${encodeURIComponent(prefix)}`);
+  if (!r.ok) return [];
+  return r.json();
+}
+
+async function renderFilesList(prefix) {
+  await loadConfig();
+  const host = document.getElementById('files-list');
+  if (!host) return;
+
+  host.innerHTML = '<div class="mbf-empty">Loading…</div>';
+  const items = await listFilesFromWorker(prefix);
+  const files = items.filter(x => x.kind === 'object');
+  const folders = items.filter(x => x.kind === 'prefix'); // if you want to show subfolders too
+
+  if (!files.length && !folders.length) {
+    host.innerHTML = '<div class="mbf-empty">No files yet in this folder.</div>';
+    return;
+  }
+
+  host.innerHTML = '';
+  // (Optional) render folders here first…
+
+  // Files
+  for (const f of files) {
+    const row = document.createElement('div');
+    row.className = 'mbf-row';
+    const name = f.key.split('/').pop();
+
+    const viewBtn = document.createElement('button');
+    viewBtn.textContent = 'View';
+    viewBtn.onclick = () => window.open(viewerUrlFor(f.key, f.contentType || ''), '_blank');
+
+    const dlBtn = document.createElement('a');
+    dlBtn.textContent = 'Download';
+    dlBtn.href = fileUrlFromKey(f.key);
+    dlBtn.download = name;
+    dlBtn.role = 'button';
+
+    row.innerHTML = `<div title="${f.key}">${name}</div>`;
+    row.appendChild(viewBtn);
+    row.appendChild(dlBtn);
+
+    if (isAdmin()) {
+      const del = document.createElement('button');
+      del.textContent = 'Delete';
+      del.onclick = async () => {
+        if (!confirm(`Delete "${name}"?`)) return;
+        const r = await fetch(`${CONFIG.WORKER_BASE_URL}/object?key=${encodeURIComponent(f.key)}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${getAdminKey()}` }
+        });
+        const j = await r.json();
+        if (!r.ok) { alert(j.error || 'Delete failed'); return; }
+        await renderFilesList(prefix);
+      };
+      row.appendChild(del);
+    }
+
+    host.appendChild(row);
+  }
+}
+
+// Admin-only Upload functionality
+async function renderFolderToolbar(prefix) {
+  await loadConfig();
+  const el = document.getElementById('folder-toolbar');
+  if (!el) return;
+  el.innerHTML = '';
+
+  if (!isAdmin()) return; // only admins see upload button
+
+  const btn = document.createElement('button');
+  btn.textContent = 'Upload';
+  btn.className = 'btn';
+  const input = document.createElement('input');
+  input.type = 'file'; 
+  input.multiple = true; 
+  input.style.display = 'none';
+  btn.onclick = () => input.click();
+
+  input.onchange = async (e) => {
+    const files = Array.from(e.target.files || []);
+    for (const file of files) {
+      const key = `${prefix}${file.name}`.replace(/\/+$/, '');   // full key
+      const url = `${CONFIG.WORKER_BASE_URL}/upload?key=${encodeURIComponent(key)}&mkparents=true`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${getAdminKey()}`,
+          'Content-Type': file.type || 'application/octet-stream'
+        },
+        body: file
+      });
+      const data = await res.json();
+      if (!res.ok) { alert(data.error || 'Upload failed'); break; }
+    }
+    input.value = '';
+    await renderFilesList(prefix);       // refresh list after upload
+  };
+
+  el.appendChild(btn);
+  el.appendChild(input);
+}
+
+// Mechanic Notes functionality
+async function fetchNotes(prefix) {
+  await loadConfig();
+  const r = await fetch(`${CONFIG.WORKER_BASE_URL}/notes/list?machinePrefix=${encodeURIComponent(prefix)}`);
+  return r.ok ? r.json() : { notes: [] };
+}
+
+async function createNote(prefix, author, title, body) {
+  await loadConfig();
+  const r = await fetch(`${CONFIG.WORKER_BASE_URL}/notes/create`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ machinePrefix: prefix, author, title, body })
+  });
+  return r.json();
+}
+
+async function deleteNote(prefix, id) {
+  await loadConfig();
+  const r = await fetch(`${CONFIG.WORKER_BASE_URL}/notes/delete?id=${encodeURIComponent(id)}&machinePrefix=${encodeURIComponent(prefix)}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${getAdminKey()}` }
+  });
+  return r.json();
+}
+
+function openNoteModal(onSubmit) {
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:9999';
+  wrap.innerHTML = `
+    <div style="background:#fff;padding:16px;max-width:520px;width:92%;border-radius:8px">
+      <h3>Create Mechanic Note</h3>
+      <div style="display:grid;gap:8px">
+        <input id="n-author" placeholder="Author" />
+        <input id="n-title"  placeholder="Title" />
+        <textarea id="n-body" placeholder="Note..." rows="8"></textarea>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+        <button id="n-cancel">Cancel</button>
+        <button id="n-save">Save note</button>
+      </div>
+    </div>`;
+  document.body.appendChild(wrap);
+  wrap.querySelector('#n-cancel').onclick = () => wrap.remove();
+  wrap.querySelector('#n-save').onclick = () => {
+    const author = wrap.querySelector('#n-author').value.trim();
+    const title  = wrap.querySelector('#n-title').value.trim();
+    const body   = wrap.querySelector('#n-body').value.trim();
+    onSubmit({ author, title, body }).finally(() => wrap.remove());
+  };
+}
+
+async function renderNotes(prefix) {
+  await loadConfig();
+  const host = document.getElementById('notes-panel');
+  if (!host) return;
+
+  host.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <h3 style="margin:0">Mechanic Notes</h3>
+      <button id="mbf-create-note">Create note</button>
+    </div>
+    <div id="mbf-notes-list" class="mbf-notes-list">Loading…</div>
+    <div id="mbf-note-view" style="display:none;margin-top:10px;border:1px solid #eee;border-radius:6px;padding:10px"></div>
+  `;
+
+  host.querySelector('#mbf-create-note').onclick = () => {
+    openNoteModal(async ({ author, title, body }) => {
+      if (!author || !title) { alert('Author and Title are required'); return; }
+      const res = await createNote(prefix, author, title, body || '');
+      if (!res.ok) { alert(res.error || 'Failed to save note'); return; }
+      await draw();
+    });
+  };
+
+  async function draw() {
+    const listEl = host.querySelector('#mbf-notes-list');
+    const viewEl = host.querySelector('#mbf-note-view');
+    const { notes = [] } = await fetchNotes(prefix);
+
+    if (!notes.length) { listEl.textContent = 'No notes yet.'; viewEl.style.display = 'none'; return; }
+    listEl.innerHTML = '';
+
+    for (const n of notes) {
+      const row = document.createElement('div');
+      row.className = 'mbf-note-row';
+      row.innerHTML = `
+        <div><strong>${n.title}</strong> — <em>${n.author}</em> <span style="opacity:.6">(${new Date(n.createdAt).toLocaleString()})</span></div>
+        ${isAdmin() ? '<button class="del" title="Delete note">Delete</button>' : ''}
+      `;
+      row.onclick = async (ev) => {
+        if (ev.target.classList.contains('del')) {
+          ev.stopPropagation();
+          if (!confirm('Delete this note?')) return;
+          const r = await deleteNote(prefix, n.id);
+          if (!r.ok) { alert(r.error || 'Delete failed'); return; }
+          await draw();
+        } else {
+          const r = await fetch(fileUrlFromKey(n.key));
+          if (!r.ok) { alert('Cannot load note'); return; }
+          const obj = await r.json();
+          viewEl.style.display = 'block';
+          viewEl.innerHTML = `<h4 style="margin:.25rem 0">${obj.title}</h4>
+            <div style="opacity:.7;margin-bottom:.5rem">${obj.author} — ${new Date(obj.createdAt).toLocaleString()}</div>
+            <pre style="white-space:pre-wrap;margin:0">${obj.body || ''}</pre>`;
+          viewEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      };
+      listEl.appendChild(row);
+    }
+  }
+  await draw();
+}
+
 function renderCrumbs(){ const parts=['<a href="#" data-i="-1">Home</a>']; let n=tree;
   stack.forEach((idx,d)=>{ n=n.children[idx]; if(d<stack.length-1) parts.push(`<a href="#" data-i="${d}">${n.name}</a>`); else parts.push(`<span>${n.name}</span>`); });
   $bc.innerHTML=parts.join(' / ');
