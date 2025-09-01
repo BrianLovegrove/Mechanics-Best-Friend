@@ -24,9 +24,14 @@ function viewerUrlFor(key, contentType = '') {
 }
 
 async function listFiles(prefix) {
-  const r = await fetch(await api(`/files?prefix=${encodeURIComponent(prefix)}`));
-  if (!r.ok) return [];
-  return r.json();
+  try {
+    const r = await fetch(await api(`/files?prefix=${encodeURIComponent(prefix)}`));
+    if (!r.ok) return [];
+    return r.json();
+  } catch (error) {
+    console.warn('Failed to list files, using empty list:', error);
+    return [];
+  }
 }
 
 export async function renderFilesList(prefix) {
@@ -40,7 +45,7 @@ export async function renderFilesList(prefix) {
   const folders = items.filter(x => x.kind === 'prefix'); // if you want to show subfolders too
 
   if (!files.length && !folders.length) {
-    host.innerHTML = '<div class="mbf-empty">No files yet in this folder.</div>';
+    host.innerHTML = '<div class="mbf-empty">No files in this folder yet. Use the Upload button above to add files.</div>';
     return;
   }
 

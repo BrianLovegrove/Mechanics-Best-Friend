@@ -4,25 +4,40 @@ import { isAdmin, getAdminKey } from './admin.js';
 import { fileUrlFromKey, api } from './utils.js';
 
 async function fetchNotes(prefix) {
-  const r = await fetch(await api(`/notes/list?machinePrefix=${encodeURIComponent(prefix)}`));
-  return r.ok ? r.json() : { notes: [] };
+  try {
+    const r = await fetch(await api(`/notes/list?machinePrefix=${encodeURIComponent(prefix)}`));
+    return r.ok ? r.json() : { notes: [] };
+  } catch (error) {
+    console.warn('Failed to fetch notes, using empty list:', error);
+    return { notes: [] };
+  }
 }
 
 async function createNote(prefix, author, title, body) {
-  const r = await fetch(await api(`/notes/create`), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ machinePrefix: prefix, author, title, body })
-  });
-  return r.json();
+  try {
+    const r = await fetch(await api(`/notes/create`), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ machinePrefix: prefix, author, title, body })
+    });
+    return r.json();
+  } catch (error) {
+    console.error('Failed to create note:', error);
+    return { ok: false, error: 'Failed to save note. API unavailable.' };
+  }
 }
 
 async function deleteNote(prefix, id) {
-  const r = await fetch(await api(`/notes/delete?id=${encodeURIComponent(id)}&machinePrefix=${encodeURIComponent(prefix)}`), {
-    method: 'DELETE',
-    headers: { 'Authorization': `Bearer ${getAdminKey()}` }
-  });
-  return r.json();
+  try {
+    const r = await fetch(await api(`/notes/delete?id=${encodeURIComponent(id)}&machinePrefix=${encodeURIComponent(prefix)}`), {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${getAdminKey()}` }
+    });
+    return r.json();
+  } catch (error) {
+    console.error('Failed to delete note:', error);
+    return { ok: false, error: 'Failed to delete note. API unavailable.' };
+  }
 }
 
 function openNoteModal(onSubmit) {
