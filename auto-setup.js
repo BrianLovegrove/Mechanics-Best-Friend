@@ -34,19 +34,90 @@ PORT=3000`;
     }
   }
 
-  // Check if server is running
-  async checkServerStatus() {
+  // Check Cloudflare Worker connectivity
+  async checkWorkerConnectivity() {
     try {
-      const response = await fetch('/auth/me', { 
+      const config = await this.loadAppConfig();
+      const response = await fetch(`${config.WORKER_BASE_URL}/files?prefix=library`, {
         method: 'GET',
         headers: { 'Cache-Control': 'no-cache' }
       });
-      this.isServerRunning = response.status !== 404;
-      return this.isServerRunning;
+      
+      if (response.ok) {
+        console.log('Worker connectivity verified');
+        return true;
+      } else {
+        console.error('Worker connectivity failed:', response.status);
+        return false;
+      }
     } catch (error) {
-      this.isServerRunning = false;
+      console.error('Worker connectivity check failed:', error);
       return false;
     }
+  }
+
+  // Check R2 public URL accessibility
+  async checkR2Connectivity() {
+    try {
+      const config = await this.loadAppConfig();
+      // Try to fetch a file or 404 from R2 to confirm public reachability
+      const testUrl = `${config.FILES_BASE_URL}/test.txt`;
+      const response = await fetch(testUrl, {
+        method: 'HEAD',
+        headers: { 'Cache-Control': 'no-cache' }
+      });
+      
+      // We expect either 200 (file exists) or 404 (file doesn't exist but R2 is reachable)
+      if (response.status === 200 || response.status === 404) {
+        console.log('R2 public URL verified');
+        return true;
+      } else {
+        console.error('R2 connectivity failed:', response.status);
+        return false;
+      }
+    } catch (error) {
+      console.error('R2 connectivity check failed:', error);
+      return false;
+    }
+  }
+
+  // Load application configuration
+  async loadAppConfiguration() {
+    try {
+      const response = await fetch('/data/tree.json?v=' + (Date.now() % 1e7));
+      if (response.ok) {
+        const tree = await response.json();
+        console.log('Folder map loaded successfully');
+        return tree;
+      } else {
+        console.error('Failed to load folder map');
+        return null;
+      }
+    } catch (error) {
+      console.error('App configuration load failed:', error);
+      return null;
+    }
+  }
+
+  // Load app config from data/config.json
+  async loadAppConfig() {
+    try {
+      const response = await fetch('/data/config.json?v=' + (Date.now() % 1e7));
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch (error) {
+      console.error('Failed to load app config:', error);
+    }
+    
+    // Fallback config
+    return {
+      "FILES_BASE_URL": "https://pub-d8f89cb648cd4a35a8635d47997501f2.r2.dev/mbf-library",
+      "WORKER_BASE_URL": "https://mbf-api.factoryflowdynamics.workers.dev",
+      "ROOT_PREFIX": "library",
+      "ALLOWED_ROOTS": ["library", "docs", "assets"],
+      "STRICT_FOLDERS": true
+    };
   }
 
   // Auto-start server (simulation for browser environment)
@@ -352,16 +423,7 @@ PORT=3000`;
           font-weight: 600;
           cursor: pointer;
           margin-right: 10px;
-        ">Auto-Setup Server</button>
-        <button id="skipSetupBtn" style="
-          background: #6c757d;
-          color: white;
-          border: none;
-          padding: 12px 30px;
-          border-radius: 6px;
-          font-size: 16px;
-          cursor: pointer;
-        ">Skip (Limited Mode)</button>
+        ">Connect to System</button>
       </div>
       <div id="setupProgress" style="display: none; margin: 20px 0;">
         <img src="assets/icons/monkey loading.gif" alt="Setting up..." style="width: 120px; height: auto; margin-bottom: 15px;">
@@ -392,7 +454,6 @@ PORT=3000`;
     // Setup button handlers
     document.getElementById('autoSetupBtn').onclick = async () => {
       const btn = document.getElementById('autoSetupBtn');
-      const skipBtn = document.getElementById('skipSetupBtn');
       const status = document.getElementById('setupStatus');
       const progressDiv = document.getElementById('setupProgress');
       const progressBar = document.getElementById('progressBar');
@@ -400,43 +461,39 @@ PORT=3000`;
       
       // Hide buttons and show progress
       btn.style.display = 'none';
-      skipBtn.style.display = 'none';
       progressDiv.style.display = 'block';
       
-      // Progress steps
+      // Progress steps for Cloudflare Worker + R2 connectivity
       const steps = [
-        { text: 'Creating environment file...', progress: 20 },
-        { text: 'Checking server status...', progress: 40 },
-        { text: 'Starting server process...', progress: 60 },
-        { text: 'Configuring routes...', progress: 80 },
-        { text: 'Finalizing setup...', progress: 100 }
+        { text: 'Connecting to Cloudflare Worker...', progress: 33 },
+        { text: 'Verifying R2 public URL...', progress: 66 },
+        { text: 'Loading folder map...', progress: 90 },
+        { text: 'Ready', progress: 100 }
       ];
       
       for (let i = 0; i < steps.length; i++) {
         progressText.textContent = steps[i].text;
         progressBar.style.width = steps[i].progress + '%';
         
-        // Simulate actual work for each step
+        // Actual connectivity checks for each step
         if (i === 0) {
-          await this.createEnvironmentFile();
+          await this.checkWorkerConnectivity();
         } else if (i === 1) {
-          await this.checkServerStatus();
+          await this.checkR2Connectivity();
         } else if (i === 2) {
-          await this.autoStartServer();
+          await this.loadAppConfiguration();
         }
         
         await new Promise(resolve => setTimeout(resolve, 800));
       }
       
-      progressText.textContent = 'Complete!';
-      status.textContent = 'Setup complete! Redirecting...';
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      overlay.remove();
-    };
-
-    document.getElementById('skipSetupBtn').onclick = () => {
-      console.log('Skip button clicked - enabling fallback mode');
+      progressText.textContent = 'Ready';
+      status.textContent = 'System ready! Loading application...';
+      
+      // Always enable fallback mode for static operation
       this.enableFallbackMode();
+      
+      await new Promise(resolve => setTimeout(resolve, 1000));
       overlay.remove();
     };
 
@@ -445,18 +502,10 @@ PORT=3000`;
 
   // Initialize auto-setup
   async initialize() {
-    // Always run setup - no persistence of setup choice
+    // Always run setup for Cloudflare connectivity
     console.log('Running setup for new session');
 
-    // First check if server is already running
-    const serverRunning = await this.checkServerStatus();
-    
-    if (serverRunning) {
-      console.log('Server is already running - no setup needed');
-      return;
-    }
-
-    // If we can auto-setup, show the popup
+    // Show the connectivity popup
     if (this.canAutoSetup()) {
       // Small delay to ensure DOM is ready
       setTimeout(() => {
