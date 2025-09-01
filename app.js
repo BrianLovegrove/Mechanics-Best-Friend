@@ -833,7 +833,8 @@ async function renderOfficeDocument(url, name, loadingDiv, docType) {
 
 // Try multiple strategies to view documents
 async function tryDocumentViewing(container, url, name, docType, pagesUrl, rawUrl) {
-  // Strategy 1: Try Office Web Viewer with GitHub Pages URL (if accessible)
+  // Primary strategy: Try Office Web Viewer with GitHub Pages URL
+  // First check if the file exists on GitHub Pages with HEAD request
   const pagesAccessible = await checkFileExists(pagesUrl);
   if (pagesAccessible) {
     console.log('GitHub Pages URL accessible, trying Office Web Viewer...');
@@ -842,20 +843,8 @@ async function tryDocumentViewing(container, url, name, docType, pagesUrl, rawUr
     }
   }
   
-  // Strategy 2: Try Office Web Viewer with raw GitHub URL
-  console.log('Trying Office Web Viewer with raw URL...');
-  if (await tryOfficeWebViewer(container, rawUrl, name, docType)) {
-    return; // Success!
-  }
-  
-  // Strategy 3: Try custom document viewer for supported formats
-  console.log('Trying custom document viewer...');
-  if (await tryCustomDocumentViewer(container, rawUrl, name, docType)) {
-    return; // Success!
-  }
-  
-  // Strategy 4: Show enhanced fallback with multiple options
-  showEnhancedFallback(container, name, docType, rawUrl, pagesUrl);
+  // If Pages URL is not accessible (HEAD != 200), show fallback message
+  showPreviewNotAvailableFallback(container, name, rawUrl);
 }
 
 // Try Office Web Viewer with timeout and error handling
@@ -963,6 +952,37 @@ async function tryCustomDocumentViewer(container, fileUrl, name, docType) {
     console.error('Custom document viewer failed:', error);
     return false;
   }
+}
+
+// Show "Preview not available. Download instead." when Pages URL is not accessible
+function showPreviewNotAvailableFallback(container, name, downloadUrl) {
+  container.innerHTML = `
+    <div style="padding: 20px; text-align: center;">
+      <div style="margin-bottom: 16px;">
+        <div style="display: inline-block; padding: 8px 16px; background: #6c757d; color: white; border-radius: 4px; margin-bottom: 8px;">
+          📄 Office Document
+        </div>
+        <h4 style="margin: 8px 0; color: #333;">${name}</h4>
+      </div>
+      <div style="background: white; border-radius: 6px; padding: 20px; margin: 16px 0; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <p style="color: #666; line-height: 1.6; margin-bottom: 16px;">
+          Preview not available. Download instead.
+        </p>
+        <a href="${downloadUrl}" download="${name}" style="
+          display: inline-block;
+          padding: 12px 24px;
+          background: #007cba;
+          color: white;
+          text-decoration: none;
+          border-radius: 4px;
+          font-weight: 600;
+          transition: background 0.2s;
+        " onmouseover="this.style.background='#0056b3'" onmouseout="this.style.background='#007cba'">
+          📥 Download ${name}
+        </a>
+      </div>
+    </div>
+  `;
 }
 
 // Show enhanced fallback with multiple viewing options
