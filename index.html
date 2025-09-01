@@ -48,51 +48,24 @@
       
       header{
         padding: 16px;
-        font-weight: bold;
         background: #ffffff;
-        color: #000000;
         border-bottom: 1px solid #000000;
-        font-size: 40px;
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 16px;
         line-height: 1;
-      }
-      
-      .header-logo{
-        width: 140px;
-        height: 140px;
-        max-height: 140px;
-        object-fit: contain;
-        border-radius: 4px;
-        flex-shrink: 0;
       }
       
       /* Responsive scaling for smaller screens */
       @media (max-width: 768px) {
         header {
-          font-size: 36px;
-          gap: 12px;
           padding: 12px;
-        }
-        .header-logo{
-          width: 120px;
-          height: 120px;
-          max-height: 120px;
         }
       }
       
       @media (max-width: 480px) {
         header {
-          font-size: 32px;
-          gap: 8px;
           padding: 8px;
-        }
-        .header-logo{
-          width: 100px;
-          height: 100px;
-          max-height: 100px;
         }
       }
       
@@ -360,9 +333,12 @@
           <div class="loading-text" id="loadingText">Thinking<span class="dots"></span></div>
         </div>
       </div>
-      <header id="appHeader" style="display:none">
-        Mechanic's Best Friend
-        <img src="assets/icons/monkey.png" alt="Logo" class="header-logo">
+      <header id="appHeader" style="display:none" class="w-full flex items-center justify-center py-3 md:py-4">
+        <img 
+          src="/assets/icons/headertitle.png" 
+          alt="Mechanic's Best Friend" 
+          style="width: 100%; max-width: 1000px; height: auto;"
+        />
       </header>
       <div class="container" id="appMain" style="display:none">
         <div id="breadcrumbs"></div>
@@ -377,6 +353,7 @@
 <script type="module" src="scripts/config.js"></script>
 <script type="module" src="scripts/admin.js"></script>
 <script type="module" src="scripts/utils.js"></script>
+<script type="module" src="scripts/icons.js"></script>
 <script type="module" src="scripts/files-ui.js"></script>
 <script type="module" src="scripts/notes-ui.js"></script>
 <script type="module" src="scripts/folder-page.js"></script>

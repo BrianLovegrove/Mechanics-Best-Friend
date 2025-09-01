@@ -2,19 +2,9 @@
 import { loadConfig, CONFIG } from './config.js';
 import { isAdmin, getAdminKey } from './admin.js';
 import { encodeKey, r2PublicUrl, isMechanicNotesCrumbs, api } from './utils.js';
+import { iconFor, createIconElement, humanSize, UPLOAD_ICON, DOWNLOAD_ICON } from './icons.js';
 
-// Utility function to format file sizes
-function humanSize(b) {
-  if (b == null) return "";
-  const u = ["B", "KB", "MB", "GB"];
-  let i = 0;
-  let n = b;
-  while (n >= 1024 && i < u.length - 1) {
-    n /= 1024;
-    i++;
-  }
-  return `${n.toFixed(n < 10 && i ? 1 : 0)} ${u[i]}`;
-}
+
 
 // File type badge component
 function FileBadge({ ext }) {
@@ -220,11 +210,11 @@ export async function renderFilesList(prefix) {
       justify-content: space-between;
       border: 1px solid #ddd;
       border-radius: 16px;
-      padding: 16px 20px;
-      margin-bottom: 12px;
+      padding: 20px 24px;
+      margin-bottom: 16px;
       background: white;
       transition: all 0.2s ease;
-      min-height: 64px;
+      min-height: 80px;
     `;
     
     row.addEventListener('mouseenter', () => {
@@ -245,16 +235,12 @@ export async function renderFilesList(prefix) {
     const contentDiv = document.createElement('div');
     contentDiv.style.cssText = 'display: flex; align-items: center; gap: 16px; flex: 1;';
     
-    // File badge/icon
-    const badgeHtml = FileBadge({ ext });
+    // File icon using real icons (no emojis)
     const iconDiv = document.createElement('div');
     iconDiv.style.cssText = 'display: flex; align-items: center; justify-content: center;';
-    if (badgeHtml) {
-      iconDiv.innerHTML = badgeHtml;
-    } else {
-      // For files without badges, show a simple generic icon
-      iconDiv.innerHTML = `<div style="width: 32px; height: 32px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #64748b; font-weight: 600;">${ext.toUpperCase() || 'FILE'}</div>`;
-    }
+    
+    const iconImg = createIconElement(iconFor(name), name, 32);
+    iconDiv.appendChild(iconImg);
     
     const fileInfoDiv = document.createElement('div');
     fileInfoDiv.style.cssText = 'flex: 1;';
@@ -309,9 +295,8 @@ export async function renderFilesList(prefix) {
       viewBtn.onclick = () => window.open(viewerUrlFor(f.key, f.contentType || ''), '_blank');
     }
     
-    // Download button - bigger and no emoji
+    // Download button - bigger and with icon
     const dlBtn = document.createElement('button');
-    dlBtn.textContent = 'Download';
     dlBtn.style.cssText = `
       border: 1px solid #ddd;
       background: white;
@@ -323,7 +308,18 @@ export async function renderFilesList(prefix) {
       cursor: pointer;
       transition: all 0.2s ease;
       min-width: 90px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     `;
+    
+    // Add download icon
+    const downloadIcon = createIconElement(DOWNLOAD_ICON, 'Download', 16);
+    dlBtn.appendChild(downloadIcon);
+    
+    const downloadText = document.createElement('span');
+    downloadText.textContent = 'Download';
+    dlBtn.appendChild(downloadText);
     dlBtn.addEventListener('mouseenter', () => {
       dlBtn.style.background = '#f8f9fa';
     });
@@ -395,7 +391,6 @@ export async function renderFolderToolbar(prefix) {
   if (!isAdmin()) return; // only admins see upload button
 
   const btn = document.createElement('button');
-  btn.textContent = 'Upload Files';
   btn.style.cssText = `
     background: #3b82f6;
     color: white;
@@ -407,7 +402,19 @@ export async function renderFolderToolbar(prefix) {
     cursor: pointer;
     transition: all 0.2s ease;
     margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
   `;
+  
+  // Add upload icon
+  const uploadIcon = createIconElement(UPLOAD_ICON, 'Upload', 20);
+  uploadIcon.style.filter = 'brightness(0) invert(1)'; // Make icon white
+  btn.appendChild(uploadIcon);
+  
+  const uploadText = document.createElement('span');
+  uploadText.textContent = 'Upload Files';
+  btn.appendChild(uploadText);
   btn.addEventListener('mouseenter', () => {
     btn.style.background = '#2563eb';
   });
