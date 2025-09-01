@@ -1,7 +1,7 @@
 // Mechanic Notes component for Mechanic's Best Friend
 import { loadConfig, CONFIG } from './config.js';
 import { isAdmin, getAdminKey } from './admin.js';
-import { fileUrlFromKey, api } from './utils.js';
+import { r2PublicUrl, api } from './utils.js';
 
 async function fetchNotes(prefix) {
   const r = await fetch(await api(`/notes/list?machinePrefix=${encodeURIComponent(prefix)}`));
@@ -96,7 +96,7 @@ export async function renderNotes(prefix) {
           if (!r.ok) { alert(r.error || 'Delete failed'); return; }
           await draw();
         } else {
-          const r = await fetch(fileUrlFromKey(n.key));
+          const r = await fetch(r2PublicUrl(n.key));
           if (!r.ok) { alert('Cannot load note'); return; }
           const obj = await r.json();
           viewEl.style.display = 'block';

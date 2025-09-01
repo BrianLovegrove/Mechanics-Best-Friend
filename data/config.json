@@ -1,5 +1,5 @@
 {
   "WORKER_BASE_URL": "https://mbf-api.factoryflowdynamics.workers.dev",
-  "FILES_BASE_URL": "https://pub-d8f89cb648cd4a35a8635d47997501f2.r2.dev/mbf-library",
+  "FILES_BASE_URL": "https://pub-d8f89cb648cd4a35a8635d47997501f2.r2.dev",
   "ROOT_PREFIX": "library"
 }

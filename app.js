@@ -39,7 +39,7 @@ async function loadConfig() {
   
   // Fallback config
   config = {
-    "FILES_BASE_URL": "https://pub-d8f89cb648cd4a35a8635d47997501f2.r2.dev/mbf-library",
+    "FILES_BASE_URL": "https://pub-d8f89cb648cd4a35a8635d47997501f2.r2.dev",
     "WORKER_BASE_URL": "https://mbf-api.factoryflowdynamics.workers.dev",
     "ROOT_PREFIX": "library",
     "ALLOWED_ROOTS": ["library", "docs", "assets"],
@@ -77,10 +77,16 @@ function encodeKey(keyPath) {
   return keyPath.replace(/^\/+/, '').split('/').map(encodeURIComponent).join('/');
 }
 
+// Build file URL from R2 key using new centralized function
+function r2PublicUrl(key) {
+  // Use the preferred R2 public domain (cleaner, no bucket name in path)
+  const PUBLIC_BASE = 'https://pub-d8f89cb648cd4a35a8635d47997501f2.r2.dev';
+  return `${PUBLIC_BASE}/${encodeURI(key)}`;
+}
+
 // Build file URL from R2 key
 async function buildFileUrl(key) {
-  const cfg = await loadConfig();
-  return `${cfg.FILES_BASE_URL}/${encodeKey(key)}`;
+  return r2PublicUrl(key);
 }
 
 // Admin token management
@@ -112,7 +118,7 @@ function prefixFromBreadcrumbs(crumbs) {
 }
 
 function fileUrlFromKey(key) {
-  return `${CONFIG.FILES_BASE_URL}/${encodeKey(key)}`;
+  return r2PublicUrl(key);
 }
 
 // Auto-store admin token on successful admin login
@@ -379,7 +385,7 @@ async function initFolderPage() {
 
 // Files UI functions (inline implementations)
 function viewerUrlFor(key, contentType = '') {
-  const url = fileUrlFromKey(key);
+  const url = r2PublicUrl(key);
   const lower = key.toLowerCase();
   
   // Office documents
@@ -396,6 +402,134 @@ function viewerUrlFor(key, contentType = '') {
   
   // Images / text / others → open directly
   return url;
+}
+
+// Handle special view action for mechanic notes
+function handleNoteView(noteKey) {
+  openNoteReader(noteKey);
+}
+
+// Open mechanic note in internal reader
+async function openNoteReader(noteKey) {
+  try {
+    const url = r2PublicUrl(noteKey);
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Note not found: ${noteKey}`);
+    }
+    const note = await response.json();
+    showNoteModal(note, noteKey);
+  } catch (error) {
+    console.error('Error loading note:', error);
+    alert(`File not found in storage. Key: ${noteKey}`);
+  }
+}
+
+// Show note in a modal reader
+function showNoteModal(note, noteKey) {
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+  `;
+
+  const content = document.createElement('div');
+  content.style.cssText = `
+    background: white;
+    padding: 24px;
+    border-radius: 8px;
+    max-width: 90%;
+    max-height: 90%;
+    width: 600px;
+    overflow-y: auto;
+  `;
+
+  const header = document.createElement('div');
+  header.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
+  
+  const title = document.createElement('h3');
+  title.textContent = note.title || 'Mechanic Note';
+  title.style.margin = '0';
+  
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '×';
+  closeBtn.style.cssText = `
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+  `;
+  closeBtn.onclick = () => modal.remove();
+  
+  header.appendChild(title);
+  header.appendChild(closeBtn);
+
+  const meta = document.createElement('div');
+  meta.style.cssText = 'margin-bottom: 16px; color: #666; font-size: 14px;';
+  meta.innerHTML = `
+    <strong>Author:</strong> ${note.author || 'Unknown'}<br>
+    <strong>Created:</strong> ${note.createdAt ? new Date(note.createdAt).toLocaleString() : 'Unknown'}
+  `;
+
+  const body = document.createElement('pre');
+  body.style.cssText = `
+    white-space: pre-wrap;
+    margin: 16px 0;
+    padding: 16px;
+    background: #f5f5f5;
+    border-radius: 4px;
+    font-family: inherit;
+  `;
+  body.textContent = note.body || '';
+
+  const exportBtn = document.createElement('button');
+  exportBtn.textContent = 'Export as .txt';
+  exportBtn.style.cssText = `
+    padding: 8px 16px;
+    background: #007cba;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 16px;
+  `;
+  exportBtn.onclick = () => exportNoteTxt(note);
+
+  content.appendChild(header);
+  content.appendChild(meta);
+  content.appendChild(body);
+  content.appendChild(exportBtn);
+  modal.appendChild(content);
+  document.body.appendChild(modal);
+
+  // Close on background click
+  modal.onclick = (e) => {
+    if (e.target === modal) modal.remove();
+  };
+}
+
+// Export note as .txt file
+function exportNoteTxt(note) {
+  const text = `Title: ${note.title || 'Untitled'}\nAuthor: ${note.author || 'Unknown'}\nDate: ${note.createdAt ? new Date(note.createdAt).toLocaleString() : 'Unknown'}\n\n${note.body || ''}\n`;
+  const blob = new Blob([text], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (note.title || 'note').replace(/\s+/g, '_') + '.txt';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
 }
 
 async function listFilesFromWorker(prefix) {
@@ -428,15 +562,23 @@ async function renderFilesList(prefix) {
     const row = document.createElement('div');
     row.className = 'mbf-row';
     const name = f.key.split('/').pop();
+    const isNoteFile = f.key.toLowerCase().endsWith('.json') && f.key.includes('/mechanic_notes/');
 
     const viewBtn = document.createElement('button');
     viewBtn.textContent = 'View';
-    viewBtn.onclick = () => window.open(viewerUrlFor(f.key, f.contentType || ''), '_blank');
+    
+    if (isNoteFile) {
+      // Special handling for mechanic notes - open in internal reader
+      viewBtn.onclick = () => handleNoteView(f.key);
+    } else {
+      // Regular file viewing
+      viewBtn.onclick = () => window.open(viewerUrlFor(f.key, f.contentType || ''), '_blank');
+    }
 
     const dlBtn = document.createElement('a');
     dlBtn.textContent = 'Download';
-    dlBtn.href = fileUrlFromKey(f.key);
-    dlBtn.download = name;
+    dlBtn.href = r2PublicUrl(f.key);
+    dlBtn.download = f.originalFileName || name;
     dlBtn.role = 'button';
 
     row.innerHTML = `<div title="${f.key}">${name}</div>`;

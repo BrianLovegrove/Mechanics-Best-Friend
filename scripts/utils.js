@@ -17,9 +17,16 @@ export function prefixFromBreadcrumbs(crumbs) {
   return `${rootPrefix}/${segs.join('/')}/`;          // always end with "/"
 }
 
+// Build public R2 URL from object key
+export function r2PublicUrl(key) {
+  // Use the preferred R2 public domain (cleaner, no bucket name in path)
+  const PUBLIC_BASE = 'https://pub-d8f89cb648cd4a35a8635d47997501f2.r2.dev';
+  return `${PUBLIC_BASE}/${encodeURI(key)}`;
+}
+
 export function fileUrlFromKey(key) {
-  const baseUrl = CONFIG.FILES_BASE_URL || 'https://pub-d8f89cb648cd4a35a8635d47997501f2.r2.dev/mbf-library';
-  return `${baseUrl}/${encodeKey(key)}`;
+  // Maintain backward compatibility but use the new r2PublicUrl function
+  return r2PublicUrl(key);
 }
 
 export async function api(path){
