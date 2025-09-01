@@ -1397,7 +1397,7 @@ function renderPDFDocument(url, name, loadingDiv) {
   
   pdfContainer.innerHTML = `
     <div style="
-      background: linear-gradient(135deg, #007cba20, #007cba10);
+      background: linear-gradient(135deg, rgba(0, 124, 186, 0.125), rgba(0, 124, 186, 0.063));
       border: 2px solid #007cba;
       border-radius: 12px;
       padding: 30px;
@@ -1422,6 +1422,7 @@ function renderPDFDocument(url, name, loadingDiv) {
         Open PDF Document
       </a>
     </div>
+  `;
   $c.appendChild(pdfContainer);
 }
 
@@ -1433,7 +1434,7 @@ function renderGenericDocument(url, name, loadingDiv, ext) {
   
   const genericInfo = document.createElement('div');
   genericInfo.style.cssText = `
-    background: linear-gradient(135deg, #6c757d20, #6c757d10);
+    background: linear-gradient(135deg, rgba(108, 117, 125, 0.125), rgba(108, 117, 125, 0.063));
     border: 2px dashed #6c757d;
     border-radius: 12px;
     padding: 30px;
