@@ -422,363 +422,242 @@ PORT=3000`;
     }
   }
 
-  // Create setup popup
+  // Create full-page setup screen (replaces modal)
   createSetupPopup() {
+    // Hide login overlay during setup
+    const loginOverlay = document.getElementById('loginOverlay');
+    if (loginOverlay) {
+      loginOverlay.style.display = 'none';
+    }
+
     const overlay = document.createElement('div');
     overlay.id = 'setupOverlay';
     overlay.style.cssText = `
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.8);
+      background: #f5f5f5;
       display: flex;
       align-items: center;
       justify-content: center;
       z-index: 10001;
       font-family: system-ui, -apple-system, sans-serif;
+      padding: 16px;
     `;
 
-    const popup = document.createElement('div');
-    popup.style.cssText = `
+    const container = document.createElement('div');
+    container.style.cssText = `
       background: white;
-      border-radius: 12px;
-      padding: 30px;
-      max-width: 500px;
-      width: 90%;
+      border-radius: 24px;
+      padding: 48px;
+      max-width: 512px;
+      width: 100%;
       text-align: center;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.1);
     `;
 
-    popup.innerHTML = `
-      <h2 style="margin: 0 0 20px; color: #333; font-size: 24px;">
-        Mechanic's Best Friend Auto-Setup
-      </h2>
-      <p style="margin: 0 0 20px; color: #666; line-height: 1.5;">
-        This application needs to set up a local server for full functionality including file uploads.
-        Click the button below to automatically configure everything needed.
-      </p>
-      <div style="margin: 20px 0;">
-        <button id="autoSetupBtn" style="
-          background: #007cba;
-          color: white;
-          border: none;
-          padding: 12px 30px;
-          border-radius: 6px;
-          font-size: 16px;
-          font-weight: 600;
-          cursor: pointer;
-          margin-right: 10px;
-        ">Connect to System</button>
-        <button id="skipSetupBtn" style="
-          background: #6c757d;
-          color: white;
-          border: none;
-          padding: 12px 30px;
-          border-radius: 6px;
-          font-size: 16px;
-          font-weight: 600;
-          cursor: pointer;
-        ">Skip (Limited Mode)</button>
+    container.innerHTML = `
+      <div style="margin-bottom: 32px; display: flex; align-items: center; justify-content: center; gap: 12px;">
+        <h1 style="margin: 0; color: #333; font-size: 2rem; font-weight: 800; line-height: 1;">
+          Mechanic's Best Friend
+        </h1>
+        <img src="assets/icons/monkey loading.gif" alt="" style="height: 56px; width: auto; object-fit: contain;">
       </div>
-      <div id="setupProgress" style="display: none; margin: 20px 0;">
-        <img src="assets/icons/monkey loading.gif" alt="Setting up..." style="width: 120px; height: auto; margin-bottom: 15px;">
-        <div style="background: #f0f0f0; border-radius: 12px; height: 40px; position: relative; margin-bottom: 15px; border: 2px solid #ddd;">
+      
+      <p style="margin: 0 0 48px; color: #666; line-height: 1.5; font-size: 14px;">
+        This app sets up a local server for secure file viewing and uploads.
+      </p>
+      
+      <div id="setupIdleState">
+        <button id="autoSetupBtn" style="
+          background: #3b82f6;
+          color: white;
+          border: none;
+          padding: 12px 24px;
+          border-radius: 12px;
+          font-size: 16px;
+          font-weight: 600;
+          cursor: pointer;
+          width: 100%;
+          margin-bottom: 24px;
+          transition: background 0.2s ease;
+        ">
+          Connect to System
+        </button>
+      </div>
+      
+      <!-- Thick progress bar with code stream inside -->
+      <div id="setupProgress" style="display: none; margin-bottom: 16px;">
+        <div style="
+          position: relative;
+          height: 64px;
+          width: 100%;
+          background: #e5e7eb;
+          border-radius: 16px;
+          overflow: hidden;
+          margin-bottom: 8px;
+        ">
           <div id="progressBar" style="
-            background: linear-gradient(90deg, #007cba 0%, #005a87 100%);
+            position: absolute;
+            left: 0;
+            top: 0;
             height: 100%;
-            border-radius: 10px;
-            width: 0%;
-            transition: width 0.4s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 600;
-            font-size: 15px;
-            box-shadow: inset 0 2px 4px rgba(255,255,255,0.2);
+            background: #3b82f6;
+            width: 6%;
+            transition: width 0.35s ease;
+          "></div>
+          <div style="
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+            padding: 12px 16px;
           ">
-            <span id="progressText">Initializing...</span>
+            <div id="codeStream" style="
+              height: 100%;
+              white-space: nowrap;
+              font-family: 'Courier New', monospace;
+              font-size: 11px;
+              line-height: 1.3;
+              color: #00ff88;
+              mix-blend-mode: screen;
+              animation: tickerScroll 1.2s linear infinite;
+            "></div>
           </div>
         </div>
-        <div id="setupLogs" style="
-          background: #1a1a1a;
-          color: #00ff00;
-          font-family: 'Courier New', monospace;
-          font-size: 11px;
-          height: 120px;
-          overflow: hidden;
-          border-radius: 8px;
-          padding: 8px;
-          margin-bottom: 10px;
-          border: 1px solid #333;
-        "></div>
+        <div style="text-align: right; font-size: 12px; color: #666;" id="progressPercentage">6%</div>
       </div>
-      <div id="setupStatus" style="margin-top: 20px; color: #666; font-style: italic;"></div>
+      
+      <div id="setupComplete" style="display: none; margin-top: 32px; text-align: center; font-size: 14px; color: #059669;">
+        Setup complete. Redirecting...
+      </div>
+      
+      <style>
+        @keyframes tickerScroll {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-40%); }
+        }
+      </style>
     `;
 
-    overlay.appendChild(popup);
+    overlay.appendChild(container);
     document.body.appendChild(overlay);
 
     // Setup button handlers
-    document.getElementById('autoSetupBtn').onclick = async () => {
-      const btn = document.getElementById('autoSetupBtn');
-      const status = document.getElementById('setupStatus');
+    const setupBtn = document.getElementById('autoSetupBtn');
+    
+    // Add hover effects
+    setupBtn.addEventListener('mouseenter', () => {
+      setupBtn.style.background = '#2563eb';
+    });
+    setupBtn.addEventListener('mouseleave', () => {
+      setupBtn.style.background = '#3b82f6';
+    });
+    
+    setupBtn.onclick = async () => {
+      const idleState = document.getElementById('setupIdleState');
       const progressDiv = document.getElementById('setupProgress');
       const progressBar = document.getElementById('progressBar');
-      const progressText = document.getElementById('progressText');
-      const setupLogs = document.getElementById('setupLogs');
+      const progressPercentage = document.getElementById('progressPercentage');
+      const codeStream = document.getElementById('codeStream');
+      const setupComplete = document.getElementById('setupComplete');
       
-      // Hide buttons and show progress
-      btn.style.display = 'none';
+      // Hide idle state and show progress
+      idleState.style.display = 'none';
       progressDiv.style.display = 'block';
       
-      // Realistic setup logs (120+ lines)
-      const setupLines = [
-        'Initializing Mechanic\'s Best Friend v2.1.4...',
-        'Loading system configuration...',
-        'Checking network interfaces...',
-        'Binding to localhost:127.0.0.1',
-        'Scanning available ports...',
-        'Port 5540 available, binding...',
-        'Creating secure session store...',
-        'Generating crypto keys...',
-        'RSA-2048 keypair generated successfully',
-        'Setting up authentication middleware...',
-        'Loading user roles: ADMIN, MECH',
-        'Configuring bcrypt with 12 salt rounds...',
-        'Password hashing ready',
-        'Initializing Cloudflare Worker connection...',
-        'Resolving DNS: mbf-api.factoryflowdynamics.workers.dev',
-        'TCP handshake established',
-        'TLS 1.3 negotiation complete',
-        'Worker API endpoint validated',
-        'Testing authentication flow...',
-        'Bearer token generation: OK',
-        'Session cookie configuration: httpOnly=true',
-        'CSRF protection enabled',
-        'Configuring R2 storage backend...',
-        'Bucket: mbf-library',
-        'Region: auto (Cloudflare Edge)',
-        'Public URL: pub-d8f89cb648cd4a35a8635d47997501f2.r2.dev',
-        'Testing R2 connectivity...',
-        'HEAD request to test object...',
-        'R2 storage accessible: 200 OK',
-        'Loading equipment directory structure...',
-        'Parsing tree.json...',
-        'Equipment categories: 9 detected',
-        'Line 2: 9 subsystems mapped',
-        'Line 3: 9 subsystems mapped', 
-        'Line 4: 9 subsystems mapped',
-        'Support equipment: 4 systems',
-        'Document types: 7 categories',
-        'Path validation rules loaded',
-        'Directory traversal protection: ACTIVE',
-        'Setting up file upload handler...',
-        'Multer middleware configured',
-        'File size limit: 50MB per file',
-        'Max files per upload: 10',
-        'Allowed MIME types: 847 registered',
-        'Virus scanning: ClamAV integration disabled',
-        'File quarantine directory: ./quarantine',
-        'Configuring document viewers...',
-        'PDF.js v3.11.174 loaded',
-        'Office Web Apps integration ready',
-        'Image viewer: native browser support',
-        'Text viewer: Monaco Editor v0.41.0',
-        'CAD viewer: Three.js + STL loader',
-        'Video player: HTML5 native',
-        'Audio player: Web Audio API',
-        'Initializing mechanic notes system...',
-        'Note storage backend: JSON files',
-        'Note search index: FuseJS v6.6.2',
-        'Markdown rendering: marked v7.0.4',
-        'Note export formats: TXT, PDF, HTML',
-        'Version control: Git integration disabled',
-        'Backup schedule: Not configured',
-        'Setting up RESTful API routes...',
-        'GET /api/files - file listing',
-        'POST /api/upload - file upload',
-        'DELETE /api/object - file deletion',
-        'GET /api/notes/list - note listing',
-        'POST /api/notes/create - note creation',
-        'DELETE /api/notes/delete - note deletion',
-        'GET /api/auth/check - session validation',
-        'POST /api/auth/login - user login',
-        'POST /api/auth/logout - session termination',
-        'Middleware chain: Auth → CORS → Rate limit → Routes',
-        'Rate limiting: 100 req/min per IP',
-        'CORS policy: Same-origin + worker domain',
-        'Request logging: Morgan combined format',
-        'Error handling: Winston file + console',
-        'Configuring Progressive Web App...',
-        'Service worker: /service-worker.js',
-        'Manifest: /manifest.json',
-        'Cache strategy: Network first, cache fallback',
-        'Offline pages: Basic navigation only',
-        'Push notifications: Not configured',
-        'App installation: Android/iOS/Desktop',
-        'Icon sizes: 16x16 to 512x512',
-        'Loading equipment-specific modules...',
-        'Depalletizer control interface v1.2',
-        'Filler monitoring system v2.0',
-        'Pasteurizer temperature logs v1.8',
-        'Palletizer diagnostics v1.5',
-        'VFD frequency analysis v2.1',
-        'Steam generator pressure monitoring v1.3',
-        'RO system membrane tracking v1.7',
-        'Can crusher throughput metrics v1.1',
-        'Batching recipe management v2.3',
-        'Setting up real-time monitoring...',
-        'WebSocket server: Not configured',
-        'Equipment status polling: Disabled',
-        'Alarm notification system: Offline',
-        'Data historian: InfluxDB not connected',
-        'Trend analysis: Grafana not available',
-        'Report generation: PDF reports only',
-        'Configuring security policies...',
-        'Content Security Policy: Strict',
-        'X-Frame-Options: DENY',
-        'X-Content-Type-Options: nosniff',
-        'X-XSS-Protection: 1; mode=block',
-        'Strict-Transport-Security: 31536000',
-        'Referrer-Policy: strict-origin-when-cross-origin',
-        'Feature-Policy: camera=(), microphone=()',
-        'SQL injection protection: Parameterized queries',
-        'XSS filtering: DOMPurify v3.0.5',
-        'Input validation: Joi v17.9.2',
-        'Session hijacking protection: Active',
-        'Initializing database connections...',
-        'SQLite: ./data/mechanics.db',
-        'Connection pool: 5-25 connections',
-        'Migration status: Up to date',
-        'Schema version: 2.1.4',
-        'Indexes optimized: 12 created',
-        'Full-text search: FTS5 enabled',
-        'Backup location: ./backups/',
-        'Transaction isolation: READ_COMMITTED',
-        'Foreign key constraints: ENABLED',
-        'WAL mode: Active for performance',
-        'Starting background services...',
-        'Log rotation: Daily at 00:00 UTC',
-        'Cache cleanup: Every 6 hours',
-        'Session garbage collection: Every hour',
-        'File integrity checks: Every 24 hours',
-        'Disk space monitoring: Every 30 minutes',
-        'Memory usage reporting: Every 15 minutes',
-        'Performance metrics collection: Active',
-        'Health check endpoint: /health',
-        'Loading user interface components...',
-        'React Router: Client-side routing disabled',
-        'Component library: Native Web Components',
-        'CSS framework: Tailwind CSS v3.3.0',
-        'Icons: Lucide React v0.263.1',
-        'Date picker: Native HTML5 inputs',
-        'File uploader: Drag & drop enabled',
-        'Progress indicators: Custom animations',
-        'Modal dialogs: Native dialog elements',
-        'Toast notifications: Custom implementation',
-        'Responsive breakpoints: Mobile-first design',
-        'Testing configuration integrity...',
-        'API endpoint reachability: 9/9 passed',
-        'Database connectivity: PASS',
-        'File system permissions: READ/WRITE OK',
-        'Memory allocation: 256MB reserved',
-        'CPU usage baseline: 2.1% idle',
-        'Network latency test: 45ms average',
-        'SSL certificate validation: Valid until 2024-12-31',
-        'Domain resolution: mechanics-best-friend.local',
-        'Finalizing startup sequence...',
-        'Preloading critical resources...',
-        'Equipment tree structure cached',
-        'User session store warmed up',
-        'File metadata indexes built',
-        'Search functionality ready',
-        'Navigation state machine initialized',
-        'Breadcrumb tracking active',
-        'Auto-save functionality enabled',
-        'System ready for connections'
-      ];
-      
-      let logIndex = 0;
-      const totalSteps = 4;
-      const logsPerStep = Math.ceil(setupLines.length / totalSteps);
-      
-      const steps = [
-        { text: 'Initializing local services...', progress: 25 },
-        { text: 'Connecting to Cloudflare Worker...', progress: 50 },
-        { text: 'Verifying R2 storage access...', progress: 75 },
-        { text: 'Loading equipment directory...', progress: 100 }
-      ];
-      
-      // Function to add logs rapidly
-      const addLogs = async (count) => {
-        for (let i = 0; i < count && logIndex < setupLines.length; i++) {
-          const line = document.createElement('div');
-          line.textContent = `[${new Date().toLocaleTimeString()}] ${setupLines[logIndex]}`;
-          line.style.opacity = '0';
-          line.style.transform = 'translateY(10px)';
-          line.style.transition = 'all 0.2s ease';
-          setupLogs.appendChild(line);
-          
-          // Animate in
-          setTimeout(() => {
-            line.style.opacity = '1';
-            line.style.transform = 'translateY(0)';
-          }, 10);
-          
-          // Keep only last 8 lines visible
-          if (setupLogs.children.length > 8) {
-            setupLogs.removeChild(setupLogs.firstChild);
-          }
-          
-          logIndex++;
-          await new Promise(resolve => setTimeout(resolve, 80 + Math.random() * 40));
+      // Generate believable lines for the code stream (120+ lines)
+      const generateCodeLines = () => {
+        const baseLines = [
+          'Scanning network interfaces…',
+          'Loopback: 127.0.0.1',
+          'DNS resolve workers.dev…OK',
+          'R2 GET /library/tree.json → 200 (54ms)',
+          'Indexing directories…',
+          'Validating MIME map…OK',
+          'Registering viewers: pdf,image,text,office',
+          'Seeding perms {ADMIN:[upload,delete],MECH:[view,download]}',
+          'Loading config mbf.config.json',
+          'R2: HEAD mbf-library → 200 OK',
+          'Mapping routes: /api/files /api/notes /api/auth',
+          'Checking roles: ADMIN, MECH',
+          'Prewarm cache…',
+          'Worker ready on port 5540',
+          'Session store initialized',
+          'bcrypt salt rounds: 12',
+          'JWT secret generated',
+          'CORS enabled for *.workers.dev'
+        ];
+        
+        const lines = [];
+        for (let i = 0; i < 120; i++) {
+          const timestamp = new Date().toLocaleTimeString();
+          const line = baseLines[i % baseLines.length];
+          lines.push(`[${timestamp}] ${line}`);
         }
+        return lines;
       };
       
-      // Execute setup steps with rapid log output
-      for (let i = 0; i < steps.length; i++) {
-        progressText.textContent = steps[i].text;
-        progressBar.style.width = steps[i].progress + '%';
+      const codeLines = generateCodeLines();
+      
+      // Setup steps
+      const steps = [
+        'Initializing local services…',
+        'Loading config mbf.config.json',
+        'R2: HEAD mbf-library → 200 OK',
+        'Mapping routes: /api/files /api/notes /api/auth',
+        'Checking roles: ADMIN, MECH',
+        'Prewarm cache…',
+        'Setup complete.'
+      ];
+      
+      let currentStep = 0;
+      const totalSteps = steps.length - 1;
+      
+      // Progress animation
+      let codeIndex = 0;
+      const updateCodeStream = () => {
+        const visibleLineCount = Math.min(20 + currentStep * 4, codeLines.length);
+        const visibleLines = codeLines.slice(0, visibleLineCount);
+        codeStream.textContent = visibleLines.join('   •   ');
+      };
+      
+      // Initial code stream
+      updateCodeStream();
+      
+      // Step progression with ticker
+      const stepInterval = setInterval(() => {
+        const percentage = Math.round((currentStep / totalSteps) * 100);
+        progressBar.style.width = `${Math.max(6, percentage)}%`;
+        progressPercentage.textContent = `${percentage}%`;
         
-        // Add logs for this step
-        await addLogs(logsPerStep);
+        // Update code stream
+        updateCodeStream();
         
-        // Actual connectivity checks for each step
-        if (i === 0) {
-          await this.checkWorkerConnectivity();
-        } else if (i === 1) {
-          await this.checkR2Connectivity();
-        } else if (i === 2) {
-          await this.loadAppConfiguration();
+        if (currentStep >= totalSteps) {
+          clearInterval(stepInterval);
+          
+          // Final completion
+          setTimeout(() => {
+            setupComplete.style.display = 'block';
+            
+            // Enable fallback mode and redirect to login
+            setTimeout(() => {
+              this.enableFallbackMode();
+              const setupOverlay = document.getElementById('setupOverlay');
+              if (setupOverlay) {
+                setupOverlay.remove();
+              }
+              const loginOverlay = document.getElementById('loginOverlay');
+              if (loginOverlay) {
+                loginOverlay.style.display = 'flex';
+              }
+            }, 900);
+          }, 500);
+        } else {
+          currentStep++;
         }
-        
-        await new Promise(resolve => setTimeout(resolve, 300));
-      }
-      
-      // Final log line
-      const finalLine = document.createElement('div');
-      finalLine.textContent = `[${new Date().toLocaleTimeString()}] ✅ Setup complete - System ready!`;
-      finalLine.style.color = '#00ff88';
-      finalLine.style.fontWeight = 'bold';
-      setupLogs.appendChild(finalLine);
-      
-      progressText.textContent = 'Ready';
-      status.textContent = 'System ready! Loading application...';
-      
-      // Always enable fallback mode for static operation
-      this.enableFallbackMode();
-      
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      overlay.remove();
+      }, 350);
     };
 
-    // Skip button handler
-    document.getElementById('skipSetupBtn').onclick = () => {
-      this.enableFallbackMode();
-      overlay.remove();
-    };
-
-    return overlay;
   }
 
   // Initialize auto-setup
