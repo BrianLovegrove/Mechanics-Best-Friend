@@ -1,6 +1,6 @@
 // scripts/config.js
 export let CONFIG = { 
-  FILES_BASE_URL: "https://pub-d8f89cb648cd4a35a8635d47997501f2.r2.dev/mbf-library", 
+  FILES_BASE_URL: "https://pub-d8f89cb648cd4a35a8635d47997501f2.r2.dev", 
   WORKER_BASE_URL: "https://mbf-api.factoryflowdynamics.workers.dev", 
   ROOT_PREFIX: "library" 
 };
