@@ -3,5 +3,5 @@
   "WORKER_BASE_URL": "https://mbf-api.factoryflowdynamics.workers.dev",
   "ROOT_PREFIX": "library",
   "ALLOWED_ROOTS": ["library", "docs", "assets"],
-  "STRICT_FOLDERS": true
+  "STRICT_FOLDERS": false
 }
