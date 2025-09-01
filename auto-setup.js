@@ -779,16 +779,12 @@ PORT=3000`;
     const setupCompleted = localStorage.getItem('mbf_setup_completed');
     
     if (!setupCompleted) {
-      // Always run setup for new users
-      console.log('Running setup for new session');
-
-      // Show the connectivity popup immediately
-      if (this.canAutoSetup()) {
-        this.createSetupPopup();
-      } else {
-        // Enable fallback mode immediately
-        this.enableFallbackMode();
-      }
+      // For static GitHub Pages deployment, skip popup and enable fallback mode directly
+      console.log('Enabling fallback mode for static operation');
+      this.enableFallbackMode();
+      
+      // Mark setup as completed to avoid showing popup again
+      localStorage.setItem('mbf_setup_completed', 'true');
     } else {
       // Setup already completed, enable fallback mode
       this.enableFallbackMode();
