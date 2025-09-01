@@ -81,7 +81,9 @@ function encodeKey(keyPath) {
 function r2PublicUrl(key) {
   // Use the preferred R2 public domain (cleaner, no bucket name in path)
   const PUBLIC_BASE = 'https://pub-d8f89cb648cd4a35a8635d47997501f2.r2.dev';
-  return `${PUBLIC_BASE}/${encodeURI(key)}`;
+  // Properly encode each path segment for R2 keys
+  const encodedKey = key.split('/').map(segment => encodeURIComponent(segment)).join('/');
+  return `${PUBLIC_BASE}/${encodedKey}`;
 }
 
 // Build file URL from R2 key
