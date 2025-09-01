@@ -227,8 +227,8 @@ async function showLoadingAnimation() {
   $overlay.style.display='none';
   $loadingOverlay.style.display='flex';
   
-  // Simple "Thinking..." for 3 seconds
-  await showLoadingPhase('Thinking', 3000);
+  // Simple "Finalizing Environment..." for 3 seconds
+  await showLoadingPhase('Finalizing Environment', 3000);
   
   // Show main app
   showApp();
