@@ -422,7 +422,7 @@ PORT=3000`;
     }
   }
 
-  // Create full-page setup screen (replaces modal)
+  // Create full-page setup screen (replaces modal and appears before login)
   createSetupPopup() {
     // Hide login overlay during setup
     const loginOverlay = document.getElementById('loginOverlay');
@@ -437,110 +437,166 @@ PORT=3000`;
       inset: 0;
       background: #f5f5f5;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       z-index: 10001;
       font-family: system-ui, -apple-system, sans-serif;
-      padding: 16px;
-    `;
-
-    const container = document.createElement('div');
-    container.style.cssText = `
-      background: white;
-      border-radius: 24px;
-      padding: 48px;
-      max-width: 512px;
+      padding: 24px;
+      min-height: 100vh;
       width: 100%;
-      text-align: center;
-      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.1);
     `;
 
-    container.innerHTML = `
-      <div style="margin-bottom: 32px; display: flex; align-items: center; justify-content: center; gap: 16px;">
-        <h1 style="margin: 0; color: #333; font-size: 2.5rem; font-weight: 800; line-height: 1; text-align: center;">
-          Mechanic's Best Friend
-        </h1>
-        <img src="assets/icons/monkey loading.gif" alt="" style="height: 64px; width: auto; object-fit: contain;">
-      </div>
+    overlay.innerHTML = `
+      <!-- Header Image -->
+      <img src="/assets/icons/headertitle.png" alt="Mechanic's Best Friend" style="
+        width: 100%;
+        max-width: 1000px;
+        height: auto;
+        margin-bottom: 24px;
+      ">
       
-      <p style="margin: 0 0 48px; color: #666; line-height: 1.5; font-size: 14px;">
-        This app sets up a local server for secure file viewing and uploads.
-      </p>
+      <!-- Monkey Loading GIF -->
+      <img src="/assets/icons/monkey loading.gif" alt="" style="
+        width: 280px;
+        height: auto;
+        margin-bottom: 24px;
+      ">
       
-      <div id="setupIdleState">
+      <!-- Setup Content -->
+      <div id="setupIdleState" style="max-width: 980px; width: 100%; text-align: center;">
+        <p style="
+          margin: 0 0 24px;
+          color: #374151;
+          line-height: 1.6;
+          font-size: 16px;
+          text-align: center;
+        ">
+          This action will securely configure your environment, establish a protected connection, and start a private local server for file access and uploads. All data transfers are encrypted and safeguarded by industry-standard security protocols, ensuring your files remain safe and confidential. The system is designed to run only on your device, giving you complete control while protecting against unauthorized access.
+          <br><br>
+          By clicking <strong>Initialize Mechanic's Best Friend</strong>, you agree not to harm, disrupt, or act maliciously toward the application in any way.
+        </p>
+        
         <button id="autoSetupBtn" style="
-          background: #3b82f6;
+          background: #2563eb;
           color: white;
           border: none;
           padding: 12px 24px;
-          border-radius: 12px;
-          font-size: 16px;
+          border-radius: 16px;
+          font-size: 18px;
           font-weight: 600;
           cursor: pointer;
-          width: 100%;
-          margin-bottom: 24px;
           transition: background 0.2s ease;
         ">
-          Connect to System
+          Initialize Mechanic's Best Friend
         </button>
       </div>
       
-      <!-- Thick progress bar with code stream inside -->
-      <div id="setupProgress" style="display: none; margin-bottom: 16px;">
+      <!-- Progress Screen -->
+      <div id="setupProgress" style="display: none; max-width: 1000px; width: 100%; text-align: center;">
+        <!-- Thick progress bar with code stream inside -->
         <div style="
           position: relative;
-          height: 80px;
+          height: 96px;
           width: 100%;
           background: #e5e7eb;
           border-radius: 16px;
           overflow: hidden;
-          margin-bottom: 8px;
+          margin-bottom: 12px;
         ">
           <div id="progressBar" style="
             position: absolute;
             left: 0;
             top: 0;
             height: 100%;
-            background: #3b82f6;
-            width: 6%;
-            transition: width 0.35s ease;
+            background: #2563eb;
+            width: 1%;
+            transition: width 100ms ease;
           "></div>
+          
           <div style="
             position: absolute;
             inset: 0;
             overflow: hidden;
             padding: 16px 20px;
+            display: flex;
+            align-items: center;
           ">
             <div id="codeStream" style="
-              height: 100%;
+              width: 220%;
               white-space: nowrap;
               font-family: 'Courier New', monospace;
-              font-size: 16px;
+              font-size: 20px;
               line-height: 1.2;
               color: #000000;
-              text-shadow: 0 0 0 #000;
-              animation: tickerScroll 1.1s linear infinite;
-              display: flex;
-              align-items: center;
+              transition: filter 160ms linear;
             "></div>
           </div>
         </div>
-        <div style="text-align: right; font-size: 12px; color: #666;" id="progressPercentage">6%</div>
+        
+        <!-- Percentage -->
+        <div id="progressPercentage" style="
+          font-size: 32px;
+          font-weight: 700;
+          color: #1f2937;
+          margin-bottom: 12px;
+        ">1%</div>
+        
+        <!-- Completion message -->
+        <div id="completionMessage" style="
+          display: none;
+          font-size: 16px;
+          color: #059669;
+          margin-top: 8px;
+        ">Initialization Complete — System Ready</div>
       </div>
       
-      <div id="setupComplete" style="display: none; margin-top: 32px; text-align: center; font-size: 14px; color: #059669;">
-        Setup complete. Redirecting...
+      <!-- Finalizing screen -->
+      <div id="finalizingScreen" style="display: none; text-align: center;">
+        <img src="/assets/icons/monkey loading.gif" alt="" style="
+          width: 180px;
+          height: auto;
+          margin-bottom: 12px;
+        ">
+        <div style="
+          font-size: 24px;
+          font-weight: 600;
+          color: #1f2937;
+        ">
+          Finalizing Application<span class="dots">...</span>
+        </div>
       </div>
       
       <style>
-        @keyframes tickerScroll {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-45%); }
+        @keyframes flash { 
+          0% { filter: invert(0); } 
+          50% { filter: invert(1); } 
+          100% { filter: invert(0); } 
+        }
+        .animate-flash { animation: flash 160ms linear 1; }
+        
+        @keyframes dots {
+          0%, 20% { content: '.'; }
+          40% { content: '..'; }
+          60% { content: '...'; }
+          80%, 100% { content: '....'; }
+        }
+        .dots::after {
+          content: '';
+          animation: dots 1s infinite;
+        }
+        
+        @media (max-width: 768px) {
+          #setupOverlay img:first-child { max-width: 100%; }
+          #setupOverlay img:nth-child(2) { width: 240px; }
+          #setupProgress > div:first-child { height: 72px; }
+          #setupProgress #codeStream { font-size: 16px; }
+          #setupProgress #progressPercentage { font-size: 24px; }
+          #finalizingScreen > div { font-size: 20px; }
         }
       </style>
     `;
 
-    overlay.appendChild(container);
     document.body.appendChild(overlay);
 
     // Setup button handlers
@@ -548,253 +604,163 @@ PORT=3000`;
     
     // Add hover effects
     setupBtn.addEventListener('mouseenter', () => {
-      setupBtn.style.background = '#2563eb';
+      setupBtn.style.background = '#1d4ed8';
     });
     setupBtn.addEventListener('mouseleave', () => {
-      setupBtn.style.background = '#3b82f6';
+      setupBtn.style.background = '#2563eb';
     });
     
     setupBtn.onclick = async () => {
-      const idleState = document.getElementById('setupIdleState');
-      const progressDiv = document.getElementById('setupProgress');
-      const progressBar = document.getElementById('progressBar');
-      const progressPercentage = document.getElementById('progressPercentage');
-      const codeStream = document.getElementById('codeStream');
-      const setupComplete = document.getElementById('setupComplete');
-      
-      // Hide idle state and show progress
-      idleState.style.display = 'none';
-      progressDiv.style.display = 'block';
-      
-      // Generate 120 realistic code lines for the progress bar
-      const generateCodeLines = () => {
-        const baseLines = [
-          'Initializing local services…',
-          'Loading mbf.config.json',
-          'Detecting interfaces: lo, eth0',
-          'R2 HEAD mbf-library → 200 OK',
-          'Syncing index: /library/tree.json (54ms)',
-          'Registering routes: /api/files /api/notes /api/auth',
-          'Verifying MIME map: pdf,image,text,office',
-          'Seeding roles: {ADMIN:[upload,delete],MECH:[view,download]}',
-          'Prewarming cache…',
-          'Health check /healthz → 200',
-          'Scanning network interfaces…',
-          'Loopback: 127.0.0.1 active',
-          'DNS resolve workers.dev…OK',
-          'R2 GET /library/tree.json → 200 (54ms)',
-          'Indexing directories…',
-          'Validating MIME map…OK',
-          'Registering viewers: pdf,image,text,office',
-          'Loading config mbf.config.json',
-          'Mapping routes: /api/files /api/notes /api/auth',
-          'Checking roles: ADMIN, MECH',
-          'Worker ready on port 5540',
-          'Session store initialized',
-          'bcrypt salt rounds: 12',
-          'JWT secret generated',
-          'CORS enabled for *.workers.dev',
-          'Starting HTTP server on 0.0.0.0:5540',
-          'Middleware: express.json() loaded',
-          'Middleware: express-session configured',
-          'Database: users.json found (2 entries)',
-          'Auth: password hashing ready',
-          'R2: bucket connection verified',
-          'Cache: Redis fallback to memory',
-          'SSL: certificate not required (dev mode)',
-          'Logging: Winston configured (debug level)',
-          'Security: helmet middleware active',
-          'CORS: origins whitelist configured',
-          'Rate limiting: 100 req/min per IP',
-          'File upload: multer configured (1GB max)',
-          'Compression: gzip enabled',
-          'Static files: serving from ./public',
-          'Template engine: none (API only)',
-          'Error handling: global middleware set',
-          'Graceful shutdown: SIGTERM handler ready',
-          'Process monitoring: PM2 compatible',
-          'Memory usage: 45MB RSS, 12MB heap',
-          'CPU usage: 0.1% average',
-          'Disk I/O: 2.3KB/s read, 1.1KB/s write',
-          'Network: listening on all interfaces',
-          'Environment: development mode active',
-          'Debug: verbose logging enabled',
-          'Timezone: UTC configured',
-          'Locale: en-US default',
-          'File watchers: 127 active',
-          'Process ID: 8829',
-          'Parent process: shell (bash)',
-          'Working directory: /app',
-          'Node.js version: v18.17.0',
-          'NPM version: 9.6.7',
-          'OS: Linux 5.15.0-72-generic',
-          'Architecture: x64',
-          'Total memory: 8192MB',
-          'Free memory: 6341MB',
-          'Load average: 0.12, 0.08, 0.05',
-          'Uptime: 42d 13h 27m',
-          'Git branch: main',
-          'Git commit: a1b2c3d (HEAD)',
-          'Last deploy: 2024-01-15 14:30:22 UTC',
-          'Container: Docker 24.0.2',
-          'Registry: ghcr.io/brianlovegrove',
-          'Image tag: mechanics-best-friend:latest',
-          'Build time: 2024-01-15 14:28:15 UTC',
-          'Build context: GitHub Actions',
-          'Dependencies: 47 packages installed',
-          'Vulnerabilities: 0 high, 0 moderate',
-          'License check: MIT compliant',
-          'TypeScript: compilation skipped (JS mode)',
-          'ESLint: 0 errors, 0 warnings',
-          'Prettier: formatting verified',
-          'Tests: 24 passed, 0 failed',
-          'Coverage: 87% lines, 92% functions',
-          'Performance: startup time 1.2s',
-          'Memory leaks: none detected',
-          'Event loop lag: <1ms',
-          'Handle count: 23 active',
-          'TCP connections: 0 active',
-          'HTTP keep-alive: 30s timeout',
-          'Request timeout: 60s',
-          'Body parser: 50MB limit',
-          'Cookie parser: httpOnly secure',
-          'Session TTL: 24h',
-          'CSRF protection: enabled',
-          'Content-Type validation: strict',
-          'Input sanitization: active',
-          'SQL injection: N/A (no database)',
-          'XSS protection: headers set',
-          'Clickjacking: X-Frame-Options deny',
-          'HSTS: max-age=31536000',
-          'Referrer policy: strict-origin',
-          'Feature policy: restricted',
-          'Permission policy: camera=(), microphone=()',
-          'Web workers: service-worker.js ready',
-          'PWA manifest: valid',
-          'Cache strategy: cache-first for assets',
-          'Offline support: enabled',
-          'Push notifications: not configured',
-          'Background sync: ready',
-          'IndexedDB: quota 1GB available',
-          'Local storage: 10MB limit',
-          'Session storage: 5MB limit',
-          'WebRTC: not required',
-          'WebSocket: upgrade ready',
-          'Server-sent events: endpoint /events',
-          'API versioning: v1 default',
-          'Rate limiting: Redis store connected',
-          'Request logging: morgan combined format',
-          'Response compression: brotli preferred',
-          'Asset optimization: minification ready',
-          'CDN: CloudFlare proxy detected',
-          'Geographic routing: nearest edge',
-          'Load balancer: health check passed',
-          'Auto-scaling: threshold 80% CPU',
-          'Backup strategy: daily R2 snapshots',
-          'Monitoring: Prometheus metrics exposed',
-          'Alerting: webhook configured',
-          'Tracing: OpenTelemetry ready',
-          'Profiling: disabled in production',
-          'Feature flags: LaunchDarkly connected',
-          'A/B testing: split.io ready',
-          'Analytics: Google Analytics 4',
-          'Error tracking: Sentry configured',
-          'User feedback: Hotjar snippet loaded',
-          'Documentation: OpenAPI 3.0 spec generated',
-          'Health checks: liveness, readiness probes',
-          'Metrics endpoint: /metrics (Prometheus)',
-          'Status page: /status (public)',
-          'Debug endpoint: /debug (admin only)',
-          'System startup completed successfully',
-          'All services operational',
-          'Ready to accept connections'
-        ];
-        
-        const lines = [];
-        for (let i = 0; i < 120; i++) {
-          const line = baseLines[i % baseLines.length];
-          lines.push(`${line}`);
-        }
-        return lines;
+      this.startProgressAnimation();
+    };
+  }
+
+  // Start the progress animation with proper timing and code stream
+  startProgressAnimation() {
+    const idleState = document.getElementById('setupIdleState');
+    const progressDiv = document.getElementById('setupProgress');
+    const progressBar = document.getElementById('progressBar');
+    const progressPercentage = document.getElementById('progressPercentage');
+    const codeStream = document.getElementById('codeStream');
+    const completionMessage = document.getElementById('completionMessage');
+    const finalizingScreen = document.getElementById('finalizingScreen');
+    
+    // Hide idle state and show progress
+    idleState.style.display = 'none';
+    progressDiv.style.display = 'block';
+    
+    // Generate simple code lines inline
+    const generateSimpleLines = () => {
+      const lines = [];
+      const consts = {
+        APP_NAME: "Mechanic's Best Friend",
+        APP_VERSION: "1.0.0",
+        NET_PORT_API: 8080,
+        NET_STATUS_OK: 200,
+        CACHE_MAX_MB: 256,
+        SESSION_TTL_SEC: 86400
       };
       
-      const codeLines = generateCodeLines();
+      // Add some config lines with numbers
+      Object.entries(consts).forEach(([k, v]) => {
+        lines.push(`${k}=${JSON.stringify(v)}`);
+      });
       
-      // Setup steps
-      const steps = [
-        'Initializing local services…',
-        'Loading config mbf.config.json',
-        'R2: HEAD mbf-library → 200 OK',
-        'Mapping routes: /api/files /api/notes /api/auth',
-        'Checking roles: ADMIN, MECH',
-        'Prewarm cache…',
-        'Setup complete.'
+      // Add operational lines
+      const ops = [
+        "Initialize Mechanic's Best Friend 1.0.0",
+        "Detect OS win32 / ARCH x64",
+        "DNS 1.1.1.1 / 8.8.8.8 • Bind 127.0.0.1",
+        "R2 HEAD mbf-library → 200",
+        "Map routes /api/files /api/notes /api/auth",
+        "Seed roles ADMIN / MECH",
+        "Health /healthz → 200",
+        "Cache warmup • Parallel 4",
+        "Start API 8080 • Notes 8081 • Static 8082",
+        "Ready local server at http://127.0.0.1:8080"
       ];
       
-      let currentStep = 0;
-      const totalSteps = steps.length - 1;
+      // Repeat to get ~120 lines
+      for (let i = 0; i < 12; i++) {
+        ops.forEach(line => lines.push(line));
+      }
       
-      // Progress animation
-      let codeIndex = 0;
-      const updateCodeStream = () => {
-        // Show all 120 lines continuously scrolling with bullet separators
-        const displayText = codeLines.join('     •     ');
-        codeStream.textContent = displayText;
-      };
-      
-      // Initial code stream
-      updateCodeStream();
-      
-      // Step progression with ticker
-      const stepInterval = setInterval(() => {
-        const percentage = Math.round((currentStep / totalSteps) * 100);
-        progressBar.style.width = `${Math.max(6, percentage)}%`;
-        progressPercentage.textContent = `${percentage}%`;
-        
-        // Update code stream
-        updateCodeStream();
-        
-        if (currentStep >= totalSteps) {
-          clearInterval(stepInterval);
-          
-          // Final completion
-          setTimeout(() => {
-            setupComplete.style.display = 'block';
-            
-            // Enable fallback mode and redirect to login
-            setTimeout(() => {
-              this.enableFallbackMode();
-              const setupOverlay = document.getElementById('setupOverlay');
-              if (setupOverlay) {
-                setupOverlay.remove();
-              }
-              const loginOverlay = document.getElementById('loginOverlay');
-              if (loginOverlay) {
-                loginOverlay.style.display = 'flex';
-              }
-            }, 900);
-          }, 500);
-        } else {
-          currentStep++;
-        }
-      }, 350);
+      return lines.slice(0, 120);
     };
-
+    
+    const codeLines = generateSimpleLines();
+    
+    // Progress timing: 4.7s total with pauses
+    const DURATION = 4700;
+    const PAUSES = [0.22, 0.53, 0.78];
+    const FLASH_MS = 160;
+    
+    let animationFrame;
+    const startTime = performance.now();
+    let isFlashing = false;
+    
+    const updateProgress = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / DURATION, 1);
+      const percentage = Math.max(1, Math.round(progress * 100));
+      
+      // Check for pause windows and flash
+      if (!isFlashing) {
+        for (const pausePoint of PAUSES) {
+          if (progress > pausePoint && progress < pausePoint + 0.03) {
+            isFlashing = true;
+            codeStream.classList.add('animate-flash');
+            setTimeout(() => {
+              codeStream.classList.remove('animate-flash');
+              isFlashing = false;
+            }, FLASH_MS);
+            break;
+          }
+        }
+      }
+      
+      // Update UI
+      progressBar.style.width = `${Math.max(4, percentage)}%`;
+      progressPercentage.textContent = `${percentage}%`;
+      
+      // Update code stream (show more lines as progress increases)
+      const visibleCount = Math.min(120, Math.max(10, Math.round((percentage / 100) * 120)));
+      const slice = codeLines.slice(0, visibleCount);
+      
+      // Add red color to numbers
+      const colorizedText = slice.join('     •     ')
+        .replace(/\b(\d+)\b/g, "<span style='color: #dc2626;'>$1</span>");
+      codeStream.innerHTML = colorizedText;
+      
+      if (progress < 1) {
+        animationFrame = requestAnimationFrame(updateProgress);
+      } else {
+        // Show completion
+        completionMessage.style.display = 'block';
+        
+        setTimeout(() => {
+          // Hide progress and show finalizing
+          progressDiv.style.display = 'none';
+          finalizingScreen.style.display = 'block';
+          
+          setTimeout(() => {
+            // Complete setup
+            localStorage.setItem('mbf_setup_completed', 'true');
+            this.enableFallbackMode();
+            const setupOverlay = document.getElementById('setupOverlay');
+            if (setupOverlay) {
+              setupOverlay.remove();
+            }
+            const loginOverlay = document.getElementById('loginOverlay');
+            if (loginOverlay) {
+              loginOverlay.style.display = 'flex';
+            }
+          }, 600);
+        }, 600);
+      }
+    };
+    
+    animationFrame = requestAnimationFrame(updateProgress);
   }
 
   // Initialize auto-setup
   async initialize() {
-    // Always run setup for Cloudflare connectivity
-    console.log('Running setup for new session');
+    // Check if setup has been completed before
+    const setupCompleted = localStorage.getItem('mbf_setup_completed');
+    
+    if (!setupCompleted) {
+      // Always run setup for new users
+      console.log('Running setup for new session');
 
-    // Show the connectivity popup
-    if (this.canAutoSetup()) {
-      // Small delay to ensure DOM is ready
-      setTimeout(() => {
+      // Show the connectivity popup immediately
+      if (this.canAutoSetup()) {
         this.createSetupPopup();
-      }, 500);
+      } else {
+        // Enable fallback mode immediately
+        this.enableFallbackMode();
+      }
     } else {
-      // Enable fallback mode immediately
+      // Setup already completed, enable fallback mode
       this.enableFallbackMode();
     }
   }

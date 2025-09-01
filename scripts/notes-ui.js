@@ -2,6 +2,7 @@
 import { loadConfig, CONFIG } from './config.js';
 import { isAdmin, getAdminKey } from './admin.js';
 import { r2PublicUrl, api } from './utils.js';
+import { createIconElement, DOWNLOAD_ICON } from './icons.js';
 
 async function fetchNotes(prefix) {
   const r = await fetch(await api(`/notes/list?machinePrefix=${encodeURIComponent(prefix)}`));
@@ -135,22 +136,12 @@ export async function renderNotes(prefix) {
       const contentDiv = document.createElement('div');
       contentDiv.style.cssText = 'display: flex; align-items: center; gap: 16px; flex: 1;';
       
-      // Note icon (no emoji, use styled div)
+      // Note icon using real icon (no emoji)
       const iconDiv = document.createElement('div');
-      iconDiv.style.cssText = `
-        width: 40px;
-        height: 40px;
-        background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-        border: 2px solid #cbd5e1;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 14px;
-        font-weight: 700;
-        color: #475569;
-      `;
-      iconDiv.textContent = 'NOTE';
+      iconDiv.style.cssText = 'display: flex; align-items: center; justify-content: center;';
+      
+      const noteIcon = createIconElement('/assets/icons/txtfileicon.png', 'Note', 40);
+      iconDiv.appendChild(noteIcon);
       
       const textDiv = document.createElement('div');
       textDiv.style.cssText = 'flex: 1;';
@@ -167,9 +158,8 @@ export async function renderNotes(prefix) {
       const actionsDiv = document.createElement('div');
       actionsDiv.style.cssText = 'display: flex; align-items: center; gap: 12px;';
       
-      // Download button (bigger, no emoji)
+      // Download button (bigger, with icon)
       const downloadBtn = document.createElement('button');
-      downloadBtn.textContent = 'Download';
       downloadBtn.style.cssText = `
         border: 1px solid #ddd;
         background: white;
@@ -181,7 +171,18 @@ export async function renderNotes(prefix) {
         cursor: pointer;
         transition: all 0.2s ease;
         min-width: 90px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
       `;
+      
+      // Add download icon
+      const downloadIcon = createIconElement(DOWNLOAD_ICON, 'Download', 16);
+      downloadBtn.appendChild(downloadIcon);
+      
+      const downloadText = document.createElement('span');
+      downloadText.textContent = 'Download';
+      downloadBtn.appendChild(downloadText);
       downloadBtn.addEventListener('mouseenter', () => {
         downloadBtn.style.background = '#f8f9fa';
       });
