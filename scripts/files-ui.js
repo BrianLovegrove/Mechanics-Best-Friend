@@ -1,7 +1,38 @@
 // Files UI component for Mechanic's Best Friend
 import { loadConfig, CONFIG } from './config.js';
 import { isAdmin, getAdminKey } from './admin.js';
-import { encodeKey, r2PublicUrl, isMechanicNotesCrumbs, api } from './utils.js';
+import { encodeKey, r2PublicUrl, isMechanicNotesCrumbs, api, humanSize } from './utils.js';
+
+// Create file type badge component
+function createFileBadge(ext) {
+  const badge = document.createElement('span');
+  const baseStyle = 'display: inline-flex; width: 32px; height: 32px; align-items: center; justify-content: center; border-radius: 6px; font-size: 10px; font-weight: bold;';
+  
+  if (/docx?$/.test(ext)) {
+    badge.style.cssText = `${baseStyle} border: 1px solid #1e40af; background: #dbeafe; color: #1e40af;`;
+    badge.textContent = 'DOC';
+  } else if (/pdf$/.test(ext)) {
+    badge.style.cssText = `${baseStyle} border: 1px solid #dc2626; background: #fee2e2; color: #dc2626;`;
+    badge.textContent = 'PDF';
+  } else if (/(png|jpg|jpeg|gif|webp|svg)$/.test(ext)) {
+    badge.style.cssText = `${baseStyle} border: 1px solid #059669; background: #dcfce7; color: #059669;`;
+    badge.textContent = 'IMG';
+  } else if (/(xlsx?|csv)$/.test(ext)) {
+    badge.style.cssText = `${baseStyle} border: 1px solid #059669; background: #dcfce7; color: #059669;`;
+    badge.textContent = 'XLS';
+  } else if (/(pptx?)$/.test(ext)) {
+    badge.style.cssText = `${baseStyle} border: 1px solid #ea580c; background: #fed7aa; color: #ea580c;`;
+    badge.textContent = 'PPT';
+  } else if (/(txt|md)$/.test(ext)) {
+    badge.style.cssText = `${baseStyle} border: 1px solid #6b7280; background: #f3f4f6; color: #6b7280;`;
+    badge.textContent = 'TXT';
+  } else {
+    badge.style.cssText = `${baseStyle} border: 1px solid #6b7280; background: #f3f4f6; color: #6b7280;`;
+    badge.textContent = 'FILE';
+  }
+  
+  return badge;
+}
 
 function viewerUrlFor(key, contentType = '') {
   const url = r2PublicUrl(key);
@@ -164,7 +195,16 @@ export async function renderFilesList(prefix) {
 
   host.innerHTML = '<div class="mbf-empty">Loading…</div>';
   const items = await listFiles(prefix);
-  const files = items.filter(x => x.kind === 'object');
+  
+  // Filter out JSON files and _index.json files as required
+  const files = items.filter(x => {
+    if (x.kind !== 'object') return false;
+    const fileName = x.key.split('/').pop().toLowerCase();
+    // Hide storage files like *.json and _index.json
+    if (fileName.endsWith('.json') || fileName === '_index.json') return false;
+    return true;
+  });
+  
   const folders = items.filter(x => x.kind === 'prefix'); // if you want to show subfolders too
 
   if (!files.length && !folders.length) {
@@ -184,11 +224,12 @@ export async function renderFilesList(prefix) {
       align-items: center;
       justify-content: space-between;
       border: 1px solid #ddd;
-      border-radius: 12px;
-      padding: 12px;
+      border-radius: 16px;
+      padding: 16px 20px;
       margin-bottom: 8px;
       background: white;
       transition: all 0.2s ease;
+      min-height: 72px;
     `;
     
     row.addEventListener('mouseenter', () => {
@@ -202,56 +243,48 @@ export async function renderFilesList(prefix) {
     });
     
     const name = f.key.split('/').pop();
-    const isNoteFile = f.key.toLowerCase().endsWith('.json') && f.key.includes('/mechanic_notes/');
+    const ext = name.toLowerCase().split('.').pop();
 
     const contentDiv = document.createElement('div');
     contentDiv.style.cssText = 'display: flex; align-items: center; gap: 12px; flex: 1;';
     
-    const iconDiv = document.createElement('div');
-    iconDiv.style.cssText = `
-      width: 36px;
-      height: 36px;
-      background: #f8f9fa;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-    `;
+    // Use new file badge instead of emoji icons
+    const fileBadge = createFileBadge(ext);
     
-    // Set icon based on file type
-    const ext = name.toLowerCase().split('.').pop();
-    if (['pdf'].includes(ext)) iconDiv.textContent = '📄';
-    else if (['jpg', 'jpeg', 'png', 'gif', 'svg'].includes(ext)) iconDiv.textContent = '🖼️';
-    else if (['doc', 'docx'].includes(ext)) iconDiv.textContent = '📝';
-    else if (['xls', 'xlsx'].includes(ext)) iconDiv.textContent = '📊';
-    else if (['ppt', 'pptx'].includes(ext)) iconDiv.textContent = '📽️';
-    else if (['txt', 'md'].includes(ext)) iconDiv.textContent = '📄';
-    else iconDiv.textContent = '📁';
+    const fileInfoDiv = document.createElement('div');
+    fileInfoDiv.style.cssText = 'flex: 1;';
     
     const nameDiv = document.createElement('div');
     nameDiv.textContent = name;
-    nameDiv.style.cssText = 'font-weight: 500; color: #333;';
+    nameDiv.style.cssText = 'font-weight: 500; color: #333; font-size: 16px; margin-bottom: 2px;';
     nameDiv.title = f.key;
     
-    contentDiv.appendChild(iconDiv);
-    contentDiv.appendChild(nameDiv);
+    const sizeDiv = document.createElement('div');
+    sizeDiv.textContent = humanSize(f.size);
+    sizeDiv.style.cssText = 'font-size: 12px; color: #666;';
+    
+    fileInfoDiv.appendChild(nameDiv);
+    fileInfoDiv.appendChild(sizeDiv);
+    
+    contentDiv.appendChild(fileBadge);
+    contentDiv.appendChild(fileInfoDiv);
     
     const actionsDiv = document.createElement('div');
     actionsDiv.style.cssText = 'display: flex; align-items: center; gap: 8px;';
     
     // View button
     const viewBtn = document.createElement('button');
-    viewBtn.innerHTML = '👁️ View';
+    viewBtn.innerHTML = 'View';
     viewBtn.style.cssText = `
       border: 1px solid #ddd;
       background: white;
       color: #333;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 12px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 14px;
       cursor: pointer;
       transition: all 0.2s ease;
+      font-weight: 500;
     `;
     viewBtn.addEventListener('mouseenter', () => {
       viewBtn.style.background = '#f8f9fa';
@@ -260,26 +293,22 @@ export async function renderFilesList(prefix) {
       viewBtn.style.background = 'white';
     });
     
-    if (isNoteFile) {
-      // Special handling for mechanic notes - open in internal reader
-      viewBtn.onclick = () => handleNoteView(f.key);
-    } else {
-      // Regular file viewing
-      viewBtn.onclick = () => window.open(viewerUrlFor(f.key, f.contentType || ''), '_blank');
-    }
+    // Regular file viewing (removed isNoteFile check since we filtered out JSON files)
+    viewBtn.onclick = () => window.open(viewerUrlFor(f.key, f.contentType || ''), '_blank');
     
     // Download button
     const dlBtn = document.createElement('button');
-    dlBtn.innerHTML = '⬇️ Download';
+    dlBtn.innerHTML = 'Download';
     dlBtn.style.cssText = `
       border: 1px solid #ddd;
       background: white;
       color: #333;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 12px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 14px;
       cursor: pointer;
       transition: all 0.2s ease;
+      font-weight: 500;
     `;
     dlBtn.addEventListener('mouseenter', () => {
       dlBtn.style.background = '#f8f9fa';
@@ -302,16 +331,17 @@ export async function renderFilesList(prefix) {
     // Delete button (only for admin)
     if (isAdmin()) {
       const del = document.createElement('button');
-      del.innerHTML = '🗑️ Delete';
+      del.innerHTML = 'Delete';
       del.style.cssText = `
         border: 1px solid #dc3545;
         background: #fff5f5;
         color: #dc3545;
-        padding: 6px 12px;
-        border-radius: 6px;
-        font-size: 12px;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 14px;
         cursor: pointer;
         transition: all 0.2s ease;
+        font-weight: 500;
       `;
       del.addEventListener('mouseenter', () => {
         del.style.background = '#dc3545';

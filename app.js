@@ -873,7 +873,7 @@ function showFileActions(url, name, isLocalStorage = false) {
   // Delete button for admin users only
   if (currentUser && currentUser.role === 'admin') {
     const deleteBtn = document.createElement('button');
-    deleteBtn.textContent = '🗑️ Delete File';
+    deleteBtn.textContent = 'Delete File';
     deleteBtn.className = 'action-btn delete-btn';
     deleteBtn.style.cssText = `
       display: inline-block;
@@ -1182,7 +1182,7 @@ async function tryCustomDocumentViewer(container, fileUrl, name, docType) {
       <div style="padding: 20px; text-align: center;">
         <div style="margin-bottom: 16px;">
           <div style="display: inline-block; padding: 8px 16px; background: #17a2b8; color: white; border-radius: 4px; margin-bottom: 8px;">
-            📄 ${docType} Document
+            ${docType} Document
           </div>
           <h4 style="margin: 8px 0; color: #333;">${name}</h4>
         </div>
@@ -1237,7 +1237,7 @@ function showPreviewNotAvailableFallback(container, name, downloadUrl) {
     <div style="padding: 20px; text-align: center;">
       <div style="margin-bottom: 16px;">
         <div style="display: inline-block; padding: 8px 16px; background: #6c757d; color: white; border-radius: 4px; margin-bottom: 8px;">
-          📄 Office Document
+          Office Document
         </div>
         <h4 style="margin: 8px 0; color: #333;">${name}</h4>
       </div>
@@ -1267,7 +1267,7 @@ function showEnhancedFallback(container, name, docType, rawUrl, pagesUrl) {
   container.innerHTML = `
     <div style="padding: 24px; text-align: center; background: white;">
       <div style="margin-bottom: 20px;">
-        <div style="font-size: 48px; margin-bottom: 12px;">📄</div>
+        <div style="width: 48px; height: 48px; margin: 0 auto 12px; background: #e5e7eb; border: 1px solid #d1d5db; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: #6b7280;">FILE</div>
         <h3 style="margin: 0 0 8px 0; color: #333; font-size: 18px;">${name}</h3>
         <p style="margin: 0; color: #666; font-size: 14px;">${docType} Document</p>
       </div>
@@ -2264,7 +2264,7 @@ async function loadMechanicsNotes(container) {
           <div style="font-weight: 600; margin-bottom: 4px;">${note.title}</div>
           <div style="font-size: 12px; color: #666;">
             by ${note.author} • ${new Date(note.createdAt).toLocaleDateString()}
-            ${currentUser && currentUser.role === 'admin' ? `<button onclick="deleteMechanicNote('${note.id}', '${machinePrefix}')" style="float: right; color: #dc3545; border: none; background: none; cursor: pointer;">🗑️</button>` : ''}
+            ${currentUser && currentUser.role === 'admin' ? `<button onclick="deleteMechanicNote('${note.id}', '${machinePrefix}')" style="float: right; color: #dc3545; border: none; background: none; cursor: pointer; font-size: 12px;">Delete</button>` : ''}
           </div>
         `;
         

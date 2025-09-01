@@ -468,8 +468,8 @@ async function startServer() {
   app.listen(PORT, () => {
     console.log(`Mechanic's Best Friend server running on port ${PORT}`);
     console.log(`Open http://localhost:${PORT} to access the application`);
-    console.log('📝 Server-side uploads disabled - using client-side GitHub API uploads');
-    console.log('🔒 Configure GitHub Personal Access Token in admin settings for uploads');
+    console.log('NOTE: Server-side uploads disabled - using client-side GitHub API uploads');
+    console.log('SECURITY: Configure GitHub Personal Access Token in admin settings for uploads');
   });
 }
 

@@ -52,18 +52,18 @@
         background: #ffffff;
         color: #000000;
         border-bottom: 1px solid #000000;
-        font-size: 32px;
+        font-size: 4rem; /* Increased from 32px */
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 16px;
+        gap: 12px;
         line-height: 1;
       }
       
       .header-logo{
-        width: 120px;
-        height: 120px;
-        max-height: 120px;
+        width: 64px; /* Increased from original ~48px equivalent */
+        height: 64px;
+        max-height: 64px;
         object-fit: contain;
         border-radius: 4px;
         flex-shrink: 0;
@@ -72,14 +72,27 @@
       /* Responsive scaling for smaller screens */
       @media (max-width: 768px) {
         header {
-          font-size: 28px;
-          gap: 12px;
+          font-size: 3.2rem; /* Increased from 28px */
+          gap: 10px;
           padding: 12px;
         }
         .header-logo{
-          width: 100px;
-          height: 100px;
-          max-height: 100px;
+          width: 56px; /* Increased from original */
+          height: 56px;
+          max-height: 56px;
+        }
+      }
+      
+      @media (max-width: 480px) {
+        header {
+          font-size: 2.4rem; /* Increased from 24px */
+          gap: 8px;
+          padding: 8px;
+        }
+        .header-logo{
+          width: 48px; /* Increased from original */
+          height: 48px;
+          max-height: 48px;
         }
       }
       

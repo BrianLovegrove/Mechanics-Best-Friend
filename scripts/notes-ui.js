@@ -89,12 +89,13 @@ export async function renderNotes(prefix) {
         align-items: center;
         justify-content: space-between;
         border: 1px solid #ddd;
-        border-radius: 12px;
-        padding: 12px;
+        border-radius: 16px;
+        padding: 16px 20px;
         margin-bottom: 8px;
         background: white;
         cursor: pointer;
         transition: all 0.2s ease;
+        min-height: 72px;
       `;
       
       row.addEventListener('mouseenter', () => {
@@ -112,21 +113,24 @@ export async function renderNotes(prefix) {
       
       const iconDiv = document.createElement('div');
       iconDiv.style.cssText = `
-        width: 36px;
-        height: 36px;
-        background: #f8f9fa;
+        width: 32px;
+        height: 32px;
+        background: #f0f9ff;
+        border: 1px solid #0ea5e9;
         border-radius: 8px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 16px;
+        font-size: 12px;
+        font-weight: bold;
+        color: #0ea5e9;
       `;
-      iconDiv.textContent = '📄';
+      iconDiv.textContent = 'NOTE';
       
       const textDiv = document.createElement('div');
       textDiv.innerHTML = `
-        <div style="font-weight: 600; color: #333; margin-bottom: 2px;">${n.title}</div>
-        <div style="font-size: 13px; color: #666; font-style: italic;">
+        <div style="font-weight: 600; color: #333; margin-bottom: 4px; font-size: 18px;">${n.title}</div>
+        <div style="font-size: 14px; color: #666; font-style: italic;">
           ${n.author} — ${new Date(n.createdAt).toLocaleString()}
         </div>
       `;
@@ -139,16 +143,17 @@ export async function renderNotes(prefix) {
       
       // Download button
       const downloadBtn = document.createElement('button');
-      downloadBtn.innerHTML = '⬇️ Download';
+      downloadBtn.innerHTML = 'Download';
       downloadBtn.style.cssText = `
         border: 1px solid #ddd;
         background: white;
         color: #333;
-        padding: 6px 12px;
-        border-radius: 6px;
-        font-size: 12px;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 14px;
         cursor: pointer;
         transition: all 0.2s ease;
+        font-weight: 500;
       `;
       downloadBtn.addEventListener('mouseenter', () => {
         downloadBtn.style.background = '#f8f9fa';
@@ -175,16 +180,17 @@ export async function renderNotes(prefix) {
       // Delete button (only for admin)
       if (isAdmin()) {
         const deleteBtn = document.createElement('button');
-        deleteBtn.innerHTML = '🗑️ Delete';
+        deleteBtn.innerHTML = 'Delete';
         deleteBtn.style.cssText = `
           border: 1px solid #dc3545;
           background: #fff5f5;
           color: #dc3545;
-          padding: 6px 12px;
-          border-radius: 6px;
-          font-size: 12px;
+          padding: 8px 16px;
+          border-radius: 8px;
+          font-size: 14px;
           cursor: pointer;
           transition: all 0.2s ease;
+          font-weight: 500;
         `;
         deleteBtn.addEventListener('mouseenter', () => {
           deleteBtn.style.background = '#dc3545';
