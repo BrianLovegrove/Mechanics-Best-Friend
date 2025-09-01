@@ -26,7 +26,7 @@
   frame-src 'self' https://view.officeapps.live.com;
   style-src 'self' 'unsafe-inline';
   font-src 'self' data:;
-  script-src 'self';
+  script-src 'self' 'unsafe-inline';
   worker-src 'self' blob:;
   child-src 'self' blob:;
   object-src 'none';
@@ -35,6 +35,27 @@
 ">
   
   <link rel="stylesheet" href="styles.css" />
+
+  <!-- Asset helper for immediate use -->
+  <script>
+    function getBasePath() {
+      const path = window.location.pathname;
+      if (path.startsWith('/Mechanics-Best-Friend/')) {
+        return '/Mechanics-Best-Friend/';
+      }
+      return '/';
+    }
+    
+    function asset(path) {
+      const basePath = getBasePath();
+      const cleanPath = path.replace(/^\//, '');
+      return basePath + cleanPath;
+    }
+    
+    // Make available globally
+    window.asset = asset;
+    window.getBasePath = getBasePath;
+  </script>
 
     <style>
       body{
@@ -335,7 +356,7 @@
       </div>
       <header id="appHeader" style="display:none" class="w-full flex items-center justify-center py-3 md:py-4">
         <img 
-          src="/assets/icons/headertitle.png" 
+          id="headerTitleImage"
           alt="Mechanic's Best Friend" 
           style="width: 100%; max-width: 1000px; height: auto;"
         />
@@ -350,6 +371,7 @@
       </div>
 <!-- Auto-setup for streamlined user experience -->
 <script src="auto-setup.js"></script>
+<script type="module" src="scripts/asset.js"></script>
 <script type="module" src="scripts/config.js"></script>
 <script type="module" src="scripts/admin.js"></script>
 <script type="module" src="scripts/utils.js"></script>
@@ -358,5 +380,16 @@
 <script type="module" src="scripts/notes-ui.js"></script>
 <script type="module" src="scripts/folder-page.js"></script>
 <script src="app.js"></script>
+
+<!-- Initialize dynamic asset references -->
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Set header image source
+    const headerImg = document.getElementById('headerTitleImage');
+    if (headerImg) {
+      headerImg.src = asset('assets/icons/headertitle.png');
+    }
+  });
+</script>
 </body>
 </html>
