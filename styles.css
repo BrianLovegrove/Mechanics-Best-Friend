@@ -196,6 +196,41 @@ main{padding:16px;}
   border-bottom:none;
 }
 
+/* Mobile responsive styles for files list */
+@media (max-width: 768px) {
+  .mbf-files {
+    max-height: 300px;
+  }
+  
+  .mbf-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 12px 8px;
+  }
+  
+  /* Stack file info and buttons vertically on mobile */
+  .mbf-row .file-info {
+    order: 1;
+  }
+  
+  .mbf-row .file-actions {
+    order: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
+  
+  .mbf-row button {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 12px !important;
+    font-size: 16px !important;
+    min-height: 44px;
+  }
+}
+
 .mbf-empty{
   padding:16px;
   opacity:.7;
@@ -221,8 +256,50 @@ main{padding:16px;}
   padding:6px 8px;
   border-bottom:1px dashed #eee;
   cursor:pointer;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .mbf-note-row:last-child{
   border-bottom:none;
+}
+
+/* Mobile responsive styles for mechanic notes */
+@media (max-width: 768px) {
+  .mbf-notes-list {
+    max-height: 400px; /* Increase height on mobile */
+    padding: 4px;
+  }
+  
+  .mbf-note-row {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 8px;
+    gap: 12px;
+  }
+  
+  /* Ensure buttons scale properly on mobile */
+  .mbf-note-row button {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 4px 0 !important;
+    padding: 12px !important;
+    font-size: 16px !important;
+    min-height: 44px; /* Minimum touch target size */
+  }
+  
+  /* Make note content readable on mobile */
+  .mbf-note-row .note-content {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+  }
+  
+  /* Adjust button containers */
+  .mbf-note-row .actions-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
 }

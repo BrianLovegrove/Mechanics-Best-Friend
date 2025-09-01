@@ -15,8 +15,13 @@ export function isAdmin() {
     return true;
   }
   
-  // Fallback to token check for backward compatibility
-  return !!getAdminKey(); 
+  // Only allow fallback token check if no user is logged in or user role is undefined
+  // This prevents MECH users from getting admin access via stored tokens
+  if (!window.currentUser || window.currentUser.role === undefined) {
+    return !!getAdminKey(); 
+  }
+  
+  return false;
 }
 
 export function clearAdminKey() { 
