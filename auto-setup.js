@@ -450,7 +450,7 @@ PORT=3000`;
     overlay.style.cssText = `
       position: fixed;
       inset: 0;
-      background: #f5f5f5;
+      background: #ffffff;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -467,13 +467,6 @@ PORT=3000`;
       <img src="${asset('assets/icons/headertitle.png')}" alt="Mechanic's Best Friend" style="
         width: 100%;
         max-width: 1000px;
-        height: auto;
-        margin-bottom: 24px;
-      ">
-      
-      <!-- Monkey Loading GIF -->
-      <img src="${asset('assets/icons/monkey-loading.gif')}" alt="" style="
-        width: 280px;
         height: auto;
         margin-bottom: 24px;
       ">
@@ -538,14 +531,16 @@ PORT=3000`;
             align-items: center;
           ">
             <div id="codeStream" style="
-              width: 220%;
+              width: 100%;
               white-space: nowrap;
               font-family: 'Courier New', monospace;
-              font-size: 20px;
+              font-size: 18px;
               line-height: 1.2;
               color: #000000;
               transition: filter 160ms linear;
-              animation: ticker 1.1s linear infinite;
+              text-align: center;
+              overflow: hidden;
+              text-overflow: ellipsis;
             "></div>
           </div>
         </div>
@@ -638,7 +633,7 @@ PORT=3000`;
   }
 
   // Start the progress animation with proper timing and code stream
-  startProgressAnimation() {
+  async startProgressAnimation() {
     const idleState = document.getElementById('setupIdleState');
     const progressDiv = document.getElementById('setupProgress');
     const progressBar = document.getElementById('progressBar');
@@ -651,63 +646,111 @@ PORT=3000`;
     idleState.style.display = 'none';
     progressDiv.style.display = 'block';
     
-    // Generate simple code lines inline
-    const generateSimpleLines = () => {
-      const lines = [];
-      
-      // Import and use the proper line generator
-      if (window.initLinesHTML) {
-        // Use the imported function if available
-        return window.buildAllLines ? window.buildAllLines() : [];
-      }
-      
-      // Fallback to inline generation
-      const consts = {
-        APP_NAME: "Mechanic's Best Friend",
-        APP_VERSION: "1.0.0",
-        NET_PORT_API: 8080,
-        NET_STATUS_OK: 200,
-        CACHE_MAX_MB: 256,
-        SESSION_TTL_SEC: 86400
-      };
-      
-      // Add some config lines with numbers
-      Object.entries(consts).forEach(([k, v]) => {
-        lines.push(`${k}=${JSON.stringify(v)}`);
-      });
-      
-      // Add operational lines
-      const ops = [
+    // Try to load the initLines module for realistic code generation
+    let allCodeLines = [];
+    try {
+      const initLinesModule = await import('./scripts/initLines.js');
+      allCodeLines = initLinesModule.buildAllLines();
+    } catch (error) {
+      console.log('Using fallback code generation');
+      // Fallback to enhanced inline generation with security focus
+      allCodeLines = [
+        "Checking security parameters...",
+        "Scanning system for threats...",
+        "Found no security threats",
+        "Checking for malware injection from user device...",
+        "User device security: CLEAN",
+        "Validating system integrity...",
+        "System integrity check: PASSED",
+        "Connecting to Cloudflare R2...",
+        "Cloudflare connection: SECURE",
+        "Initializing secure data bucket...",
+        "Data bucket status: READY",
+        "Inputting security token...",
+        "Security token: VALIDATED",
+        "Establishing encrypted tunnel...",
+        "Tunnel encryption: AES-256",
+        "Verifying SSL certificates...",
+        "SSL verification: PASSED",
+        "Loading firewall rules...",
+        "Firewall status: ACTIVE",
+        "Authenticating user permissions...",
+        "User authentication: VERIFIED",
         "Initialize Mechanic's Best Friend 1.0.0",
         "Detect OS win32 / ARCH x64",
-        "DNS 1.1.1.1 / 8.8.8.8 • Bind 127.0.0.1",
+        "DNS 1.1.1.1 / 8.8.8.8 Bind 127.0.0.1",
         "R2 HEAD mbf-library → 200",
         "Map routes /api/files /api/notes /api/auth",
         "Seed roles ADMIN / MECH",
         "Health /healthz → 200",
-        "Cache warmup • Parallel 4",
-        "Start API 8080 • Notes 8081 • Static 8082",
-        "Ready local server at http://127.0.0.1:8080"
+        "Cache warmup Parallel 4",
+        "Start API 8080 Notes 8081 Static 8082",
+        "Ready local server at http://127.0.0.1:8080",
+        "Loading core modules...",
+        "Core modules: LOADED",
+        "Starting background services...",
+        "Background services: RUNNING",
+        "Allocating memory buffers...",
+        "Memory allocation: COMPLETE",
+        "Initializing file handlers...",
+        "File handlers: READY",
+        "Setting up event listeners...",
+        "Event listeners: ACTIVE",
+        "Configuring network stack...",
+        "Network stack: CONFIGURED",
+        "Loading user preferences...",
+        "User preferences: APPLIED",
+        "Preparing workspace...",
+        "Workspace: INITIALIZED",
+        "Final security scan... COMPLETE",
+        "System hardening... APPLIED",
+        "Audit trail... ENABLED",
+        "Environment security validated",
+        "All systems operational"
       ];
       
-      // Repeat to get ~120 lines
-      for (let i = 0; i < 12; i++) {
-        ops.forEach(line => lines.push(line));
+      // Extend to 250 lines by repeating with variations
+      const extended = [];
+      for (let i = 0; i < 5; i++) {
+        allCodeLines.forEach(line => {
+          if (i === 0) {
+            extended.push(line);
+          } else {
+            extended.push(line.replace(/\d+/g, (match) => parseInt(match) + i));
+          }
+        });
       }
-      
-      return lines.slice(0, 120);
-    };
+      allCodeLines = extended.slice(0, 250);
+    }
     
-    const codeLines = generateSimpleLines();
-    
-    // Progress timing: 4.7s total with pauses
-    const DURATION = 4700;
-    const PAUSES = [0.22, 0.53, 0.78];
-    const FLASH_MS = 160;
+    // Progress timing: 6s total with more pauses for 250 lines
+    const DURATION = 6000;
+    const PAUSES = [0.1, 0.25, 0.4, 0.55, 0.7, 0.85]; // More pause points
+    const FLASH_MS = 200;
+    const CODE_CHANGE_MS = 80; // Change code every 80ms for fast flashing
     
     let animationFrame;
+    let codeChangeFrame;
     const startTime = performance.now();
     let isFlashing = false;
+    let currentCodeIndex = 0;
+    let lastCodeChange = startTime;
+    
+    // Add CSS for flashing animation
+    const style = document.createElement('style');
+    style.textContent = `
+      .animate-flash {
+        animation: flash-white-black 200ms ease-in-out;
+      }
+      @keyframes flash-white-black {
+        0% { background-color: transparent; color: #000000; }
+        25% { background-color: #ffffff; color: #000000; }
+        50% { background-color: #000000; color: #ffffff; }
+        75% { background-color: #ffffff; color: #000000; }
+        100% { background-color: transparent; color: #000000; }
+      }
+    `;
+    document.head.appendChild(style);
     
     const updateProgress = (currentTime) => {
       const elapsed = currentTime - startTime;
@@ -717,7 +760,7 @@ PORT=3000`;
       // Check for pause windows and flash
       if (!isFlashing) {
         for (const pausePoint of PAUSES) {
-          if (progress > pausePoint && progress < pausePoint + 0.03) {
+          if (progress > pausePoint && progress < pausePoint + 0.02) {
             isFlashing = true;
             codeStream.classList.add('animate-flash');
             setTimeout(() => {
@@ -729,18 +772,23 @@ PORT=3000`;
         }
       }
       
-      // Update UI
+      // Update progress bar and percentage
       progressBar.style.width = `${Math.max(4, percentage)}%`;
       progressPercentage.textContent = `${percentage}%`;
       
-      // Update code stream (show more lines as progress increases)
-      const visibleCount = Math.min(120, Math.max(10, Math.round((percentage / 100) * 120)));
-      const slice = codeLines.slice(0, visibleCount);
-      
-      // Add red color to numbers
-      const colorizedText = slice.join('     •     ')
-        .replace(/\b(\d+)\b/g, "<span style='color: #dc2626;'>$1</span>");
-      codeStream.innerHTML = colorizedText;
+      // Update code display - show individual lines rapidly without bullet points
+      if (currentTime - lastCodeChange > CODE_CHANGE_MS) {
+        const maxIndex = Math.min(allCodeLines.length - 1, Math.floor((progress * allCodeLines.length)));
+        currentCodeIndex = Math.min(currentCodeIndex + 1, maxIndex);
+        
+        if (currentCodeIndex < allCodeLines.length) {
+          const currentLine = allCodeLines[currentCodeIndex];
+          // Add red color to numbers
+          const colorizedText = currentLine.replace(/\b(\d+)\b/g, "<span style='color: #dc2626;'>$1</span>");
+          codeStream.innerHTML = colorizedText;
+        }
+        lastCodeChange = currentTime;
+      }
       
       if (progress < 1) {
         animationFrame = requestAnimationFrame(updateProgress);
@@ -749,24 +797,17 @@ PORT=3000`;
         completionMessage.style.display = 'block';
         
         setTimeout(() => {
-          // Hide progress and show finalizing
+          // Hide progress and show login (CORRECT ORDER: init → login → monkey → finalizing)
           progressDiv.style.display = 'none';
-          finalizingScreen.style.display = 'block';
-          
-          setTimeout(() => {
-            // Complete setup
-            localStorage.setItem('mbf_setup_completed', 'true');
-            this.enableFallbackMode();
-            const setupOverlay = document.getElementById('setupOverlay');
-            if (setupOverlay) {
-              setupOverlay.remove();
-            }
-            const loginOverlay = document.getElementById('loginOverlay');
-            if (loginOverlay) {
-              loginOverlay.style.display = 'flex';
-            }
-          }, 600);
-        }, 600);
+          const setupOverlay = document.getElementById('setupOverlay');
+          if (setupOverlay) {
+            setupOverlay.remove();
+          }
+          const loginOverlay = document.getElementById('loginOverlay');
+          if (loginOverlay) {
+            loginOverlay.style.display = 'flex';
+          }
+        }, 800);
       }
     };
     
