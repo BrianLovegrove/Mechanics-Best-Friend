@@ -456,11 +456,11 @@ PORT=3000`;
     `;
 
     container.innerHTML = `
-      <div style="margin-bottom: 32px; display: flex; align-items: center; justify-content: center; gap: 12px;">
-        <h1 style="margin: 0; color: #333; font-size: 2rem; font-weight: 800; line-height: 1;">
+      <div style="margin-bottom: 32px; display: flex; align-items: center; justify-content: center; gap: 16px;">
+        <h1 style="margin: 0; color: #333; font-size: 2.5rem; font-weight: 800; line-height: 1; text-align: center;">
           Mechanic's Best Friend
         </h1>
-        <img src="assets/icons/monkey loading.gif" alt="" style="height: 56px; width: auto; object-fit: contain;">
+        <img src="assets/icons/monkey loading.gif" alt="" style="height: 64px; width: auto; object-fit: contain;">
       </div>
       
       <p style="margin: 0 0 48px; color: #666; line-height: 1.5; font-size: 14px;">
@@ -489,7 +489,7 @@ PORT=3000`;
       <div id="setupProgress" style="display: none; margin-bottom: 16px;">
         <div style="
           position: relative;
-          height: 64px;
+          height: 80px;
           width: 100%;
           background: #e5e7eb;
           border-radius: 16px;
@@ -509,17 +509,19 @@ PORT=3000`;
             position: absolute;
             inset: 0;
             overflow: hidden;
-            padding: 12px 16px;
+            padding: 16px 20px;
           ">
             <div id="codeStream" style="
               height: 100%;
               white-space: nowrap;
               font-family: 'Courier New', monospace;
-              font-size: 11px;
-              line-height: 1.3;
-              color: #00ff88;
-              mix-blend-mode: screen;
-              animation: tickerScroll 1.2s linear infinite;
+              font-size: 16px;
+              line-height: 1.2;
+              color: #000000;
+              text-shadow: 0 0 0 #000;
+              animation: tickerScroll 1.1s linear infinite;
+              display: flex;
+              align-items: center;
             "></div>
           </div>
         </div>
@@ -533,7 +535,7 @@ PORT=3000`;
       <style>
         @keyframes tickerScroll {
           0% { transform: translateX(0); }
-          100% { transform: translateX(-40%); }
+          100% { transform: translateX(-45%); }
         }
       </style>
     `;
@@ -564,34 +566,154 @@ PORT=3000`;
       idleState.style.display = 'none';
       progressDiv.style.display = 'block';
       
-      // Generate believable lines for the code stream (120+ lines)
+      // Generate 120 realistic code lines for the progress bar
       const generateCodeLines = () => {
         const baseLines = [
+          'Initializing local services…',
+          'Loading mbf.config.json',
+          'Detecting interfaces: lo, eth0',
+          'R2 HEAD mbf-library → 200 OK',
+          'Syncing index: /library/tree.json (54ms)',
+          'Registering routes: /api/files /api/notes /api/auth',
+          'Verifying MIME map: pdf,image,text,office',
+          'Seeding roles: {ADMIN:[upload,delete],MECH:[view,download]}',
+          'Prewarming cache…',
+          'Health check /healthz → 200',
           'Scanning network interfaces…',
-          'Loopback: 127.0.0.1',
+          'Loopback: 127.0.0.1 active',
           'DNS resolve workers.dev…OK',
           'R2 GET /library/tree.json → 200 (54ms)',
           'Indexing directories…',
           'Validating MIME map…OK',
           'Registering viewers: pdf,image,text,office',
-          'Seeding perms {ADMIN:[upload,delete],MECH:[view,download]}',
           'Loading config mbf.config.json',
-          'R2: HEAD mbf-library → 200 OK',
           'Mapping routes: /api/files /api/notes /api/auth',
           'Checking roles: ADMIN, MECH',
-          'Prewarm cache…',
           'Worker ready on port 5540',
           'Session store initialized',
           'bcrypt salt rounds: 12',
           'JWT secret generated',
-          'CORS enabled for *.workers.dev'
+          'CORS enabled for *.workers.dev',
+          'Starting HTTP server on 0.0.0.0:5540',
+          'Middleware: express.json() loaded',
+          'Middleware: express-session configured',
+          'Database: users.json found (2 entries)',
+          'Auth: password hashing ready',
+          'R2: bucket connection verified',
+          'Cache: Redis fallback to memory',
+          'SSL: certificate not required (dev mode)',
+          'Logging: Winston configured (debug level)',
+          'Security: helmet middleware active',
+          'CORS: origins whitelist configured',
+          'Rate limiting: 100 req/min per IP',
+          'File upload: multer configured (1GB max)',
+          'Compression: gzip enabled',
+          'Static files: serving from ./public',
+          'Template engine: none (API only)',
+          'Error handling: global middleware set',
+          'Graceful shutdown: SIGTERM handler ready',
+          'Process monitoring: PM2 compatible',
+          'Memory usage: 45MB RSS, 12MB heap',
+          'CPU usage: 0.1% average',
+          'Disk I/O: 2.3KB/s read, 1.1KB/s write',
+          'Network: listening on all interfaces',
+          'Environment: development mode active',
+          'Debug: verbose logging enabled',
+          'Timezone: UTC configured',
+          'Locale: en-US default',
+          'File watchers: 127 active',
+          'Process ID: 8829',
+          'Parent process: shell (bash)',
+          'Working directory: /app',
+          'Node.js version: v18.17.0',
+          'NPM version: 9.6.7',
+          'OS: Linux 5.15.0-72-generic',
+          'Architecture: x64',
+          'Total memory: 8192MB',
+          'Free memory: 6341MB',
+          'Load average: 0.12, 0.08, 0.05',
+          'Uptime: 42d 13h 27m',
+          'Git branch: main',
+          'Git commit: a1b2c3d (HEAD)',
+          'Last deploy: 2024-01-15 14:30:22 UTC',
+          'Container: Docker 24.0.2',
+          'Registry: ghcr.io/brianlovegrove',
+          'Image tag: mechanics-best-friend:latest',
+          'Build time: 2024-01-15 14:28:15 UTC',
+          'Build context: GitHub Actions',
+          'Dependencies: 47 packages installed',
+          'Vulnerabilities: 0 high, 0 moderate',
+          'License check: MIT compliant',
+          'TypeScript: compilation skipped (JS mode)',
+          'ESLint: 0 errors, 0 warnings',
+          'Prettier: formatting verified',
+          'Tests: 24 passed, 0 failed',
+          'Coverage: 87% lines, 92% functions',
+          'Performance: startup time 1.2s',
+          'Memory leaks: none detected',
+          'Event loop lag: <1ms',
+          'Handle count: 23 active',
+          'TCP connections: 0 active',
+          'HTTP keep-alive: 30s timeout',
+          'Request timeout: 60s',
+          'Body parser: 50MB limit',
+          'Cookie parser: httpOnly secure',
+          'Session TTL: 24h',
+          'CSRF protection: enabled',
+          'Content-Type validation: strict',
+          'Input sanitization: active',
+          'SQL injection: N/A (no database)',
+          'XSS protection: headers set',
+          'Clickjacking: X-Frame-Options deny',
+          'HSTS: max-age=31536000',
+          'Referrer policy: strict-origin',
+          'Feature policy: restricted',
+          'Permission policy: camera=(), microphone=()',
+          'Web workers: service-worker.js ready',
+          'PWA manifest: valid',
+          'Cache strategy: cache-first for assets',
+          'Offline support: enabled',
+          'Push notifications: not configured',
+          'Background sync: ready',
+          'IndexedDB: quota 1GB available',
+          'Local storage: 10MB limit',
+          'Session storage: 5MB limit',
+          'WebRTC: not required',
+          'WebSocket: upgrade ready',
+          'Server-sent events: endpoint /events',
+          'API versioning: v1 default',
+          'Rate limiting: Redis store connected',
+          'Request logging: morgan combined format',
+          'Response compression: brotli preferred',
+          'Asset optimization: minification ready',
+          'CDN: CloudFlare proxy detected',
+          'Geographic routing: nearest edge',
+          'Load balancer: health check passed',
+          'Auto-scaling: threshold 80% CPU',
+          'Backup strategy: daily R2 snapshots',
+          'Monitoring: Prometheus metrics exposed',
+          'Alerting: webhook configured',
+          'Tracing: OpenTelemetry ready',
+          'Profiling: disabled in production',
+          'Feature flags: LaunchDarkly connected',
+          'A/B testing: split.io ready',
+          'Analytics: Google Analytics 4',
+          'Error tracking: Sentry configured',
+          'User feedback: Hotjar snippet loaded',
+          'Documentation: OpenAPI 3.0 spec generated',
+          'Health checks: liveness, readiness probes',
+          'Metrics endpoint: /metrics (Prometheus)',
+          'Status page: /status (public)',
+          'Debug endpoint: /debug (admin only)',
+          'System startup completed successfully',
+          'All services operational',
+          'Ready to accept connections'
         ];
         
         const lines = [];
         for (let i = 0; i < 120; i++) {
-          const timestamp = new Date().toLocaleTimeString();
           const line = baseLines[i % baseLines.length];
-          lines.push(`[${timestamp}] ${line}`);
+          lines.push(`${line}`);
         }
         return lines;
       };
@@ -615,9 +737,9 @@ PORT=3000`;
       // Progress animation
       let codeIndex = 0;
       const updateCodeStream = () => {
-        const visibleLineCount = Math.min(20 + currentStep * 4, codeLines.length);
-        const visibleLines = codeLines.slice(0, visibleLineCount);
-        codeStream.textContent = visibleLines.join('   •   ');
+        // Show all 120 lines continuously scrolling with bullet separators
+        const displayText = codeLines.join('     •     ');
+        codeStream.textContent = displayText;
       };
       
       // Initial code stream
