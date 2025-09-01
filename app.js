@@ -130,6 +130,11 @@ function fileUrlFromKey(key) {
 // Auto-store admin token on successful admin login
 function onAdminLoginSuccess() {
   localStorage.setItem('mbf_admin_token', '124rfgsdfw3r3trhfjghju8475623edsfsfffwefsd33');
+  
+  // Call seedAdminOnLogin if the modular admin system is available
+  if (window.seedAdminOnLogin) {
+    window.seedAdminOnLogin();
+  }
 }
 
 // Helper functions for upload
@@ -358,13 +363,18 @@ function render(){
 
 // Initialize folder page with new modular components
 async function initFolderPage() {
-  await loadConfig();
   const crumbs = pathBreadcrumbs(); // you already have this array of labels
-  const prefix = prefixFromBreadcrumbs(crumbs);            // ALWAYS ends with "/"
-
-  await renderFolderToolbar(prefix);   // admin-only Upload
-  await renderFilesList(prefix);       // list with view/download/(admin) delete
-  await renderNotes(prefix);           // mechanic notes for this machine
+  
+  // Use modular folder page system if available, otherwise fallback to inline
+  if (window.initModularFolderPage) {
+    await window.initModularFolderPage(crumbs);
+  } else {
+    // Fallback to inline implementation
+    const prefix = prefixFromBreadcrumbs(crumbs);
+    await renderFolderToolbar(prefix);
+    await renderFilesList(prefix);
+    await renderNotes(prefix);
+  }
 }
 
 // Files UI functions (inline implementations)

@@ -1,6 +1,7 @@
 // Files UI component for Mechanic's Best Friend
+import { loadConfig, CONFIG } from './config.js';
 import { isAdmin, getAdminKey } from './admin.js';
-import { encodeKey, fileUrlFromKey } from './utils.js';
+import { encodeKey, fileUrlFromKey, api } from './utils.js';
 
 function viewerUrlFor(key, contentType = '') {
   const url = fileUrlFromKey(key);
@@ -23,8 +24,7 @@ function viewerUrlFor(key, contentType = '') {
 }
 
 async function listFiles(prefix) {
-  await loadConfig();
-  const r = await fetch(`${CONFIG.WORKER_BASE_URL}/files?prefix=${encodeURIComponent(prefix)}`);
+  const r = await fetch(await api(`/files?prefix=${encodeURIComponent(prefix)}`));
   if (!r.ok) return [];
   return r.json();
 }
@@ -72,7 +72,7 @@ export async function renderFilesList(prefix) {
       del.textContent = 'Delete';
       del.onclick = async () => {
         if (!confirm(`Delete "${name}"?`)) return;
-        const r = await fetch(`${CONFIG.WORKER_BASE_URL}/object?key=${encodeURIComponent(f.key)}`, {
+        const r = await fetch(await api(`/object?key=${encodeURIComponent(f.key)}`), {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${getAdminKey()}` }
         });
@@ -109,8 +109,7 @@ export async function renderFolderToolbar(prefix) {
     const files = Array.from(e.target.files || []);
     for (const file of files) {
       const key = `${prefix}${file.name}`.replace(/\/+$/, '');   // full key
-      const url = `${CONFIG.WORKER_BASE_URL}/upload?key=${encodeURIComponent(key)}&mkparents=true`;
-      const res = await fetch(url, {
+      const res = await fetch(await api(`/upload?key=${encodeURIComponent(key)}&mkparents=true`), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${getAdminKey()}`,

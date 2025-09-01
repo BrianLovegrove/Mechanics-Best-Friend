@@ -1,16 +1,15 @@
 // Mechanic Notes component for Mechanic's Best Friend
+import { loadConfig, CONFIG } from './config.js';
 import { isAdmin, getAdminKey } from './admin.js';
-import { fileUrlFromKey } from './utils.js';
+import { fileUrlFromKey, api } from './utils.js';
 
 async function fetchNotes(prefix) {
-  await loadConfig();
-  const r = await fetch(`${CONFIG.WORKER_BASE_URL}/notes/list?machinePrefix=${encodeURIComponent(prefix)}`);
+  const r = await fetch(await api(`/notes/list?machinePrefix=${encodeURIComponent(prefix)}`));
   return r.ok ? r.json() : { notes: [] };
 }
 
 async function createNote(prefix, author, title, body) {
-  await loadConfig();
-  const r = await fetch(`${CONFIG.WORKER_BASE_URL}/notes/create`, {
+  const r = await fetch(await api(`/notes/create`), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ machinePrefix: prefix, author, title, body })
@@ -19,8 +18,7 @@ async function createNote(prefix, author, title, body) {
 }
 
 async function deleteNote(prefix, id) {
-  await loadConfig();
-  const r = await fetch(`${CONFIG.WORKER_BASE_URL}/notes/delete?id=${encodeURIComponent(id)}&machinePrefix=${encodeURIComponent(prefix)}`, {
+  const r = await fetch(await api(`/notes/delete?id=${encodeURIComponent(id)}&machinePrefix=${encodeURIComponent(prefix)}`), {
     method: 'DELETE',
     headers: { 'Authorization': `Bearer ${getAdminKey()}` }
   });
@@ -54,7 +52,6 @@ function openNoteModal(onSubmit) {
 }
 
 export async function renderNotes(prefix) {
-  await loadConfig();
   const host = document.getElementById('notes-panel');
   if (!host) return;
 
