@@ -6,7 +6,9 @@ const BRANCH='Base';
 // User session state
 let currentUser = null;
 
-// Removed GitHub token logic - static web app only
+// GitHub API token management
+let githubToken = null;
+let githubUserInfo = null;
 
 let tree=null;
 const stack=[];
@@ -23,9 +25,197 @@ const $c=document.getElementById('content');
 const $bc=document.getElementById('breadcrumbs');
 const $back=document.getElementById('backBtn');
 
-// Removed GitHub token management functions - static web app only
+// GitHub token management functions
+function getGitHubToken() {
+  if (!githubToken) {
+    githubToken = localStorage.getItem('mbf.githubToken');
+  }
+  return githubToken;
+}
 
-// Removed admin settings panel and GitHub token management - static web app only
+function setGitHubToken(token) {
+  githubToken = token;
+  if (token) {
+    localStorage.setItem('mbf.githubToken', token);
+  } else {
+    localStorage.removeItem('mbf.githubToken');
+    githubUserInfo = null;
+  }
+}
+
+async function validateGitHubToken(token) {
+  try {
+    const response = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github+json'
+      }
+    });
+    
+    if (response.ok) {
+      const userResponse = await fetch('https://api.github.com/user', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github+json'
+        }
+      });
+      
+      if (userResponse.ok) {
+        githubUserInfo = await userResponse.json();
+        return true;
+      }
+    }
+    return false;
+  } catch (error) {
+    console.error('GitHub token validation failed:', error);
+    return false;
+  }
+}
+
+function isGitHubConnected() {
+  return !!(getGitHubToken() && githubUserInfo);
+}
+
+// Admin settings panel
+function createAdminSettingsPanel() {
+  const panel = document.createElement('div');
+  panel.className = 'admin-settings-panel';
+  panel.style.cssText = `
+    margin: 16px 0;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: #f8f9fa;
+  `;
+
+  const title = document.createElement('h3');
+  title.textContent = 'Admin Settings';
+  title.style.cssText = 'margin: 0 0 16px 0; font-size: 18px; color: #333;';
+  panel.appendChild(title);
+
+  // GitHub connection status
+  const statusDiv = document.createElement('div');
+  statusDiv.style.cssText = 'margin-bottom: 16px;';
+  updateGitHubStatus(statusDiv);
+  panel.appendChild(statusDiv);
+
+  // Token input (only show if not connected)
+  if (!isGitHubConnected()) {
+    const tokenSection = document.createElement('div');
+    tokenSection.style.cssText = 'margin-bottom: 16px;';
+
+    const tokenLabel = document.createElement('label');
+    tokenLabel.textContent = 'GitHub Personal Access Token:';
+    tokenLabel.style.cssText = 'display: block; margin-bottom: 8px; font-weight: 600;';
+    tokenSection.appendChild(tokenLabel);
+
+    const tokenInput = document.createElement('input');
+    tokenInput.type = 'password';
+    tokenInput.placeholder = 'ghp_xxxxxxxxxxxxxxxxxxxx';
+    tokenInput.style.cssText = `
+      width: 300px;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-family: monospace;
+      margin-right: 8px;
+    `;
+    tokenSection.appendChild(tokenInput);
+
+    const connectBtn = document.createElement('button');
+    connectBtn.textContent = 'Connect';
+    connectBtn.className = 'btn';
+    connectBtn.style.cssText = `
+      padding: 8px 16px;
+      border: 1px solid #007bff;
+      background: #007bff;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+    `;
+    connectBtn.onclick = () => connectGitHub(tokenInput.value, statusDiv);
+    tokenSection.appendChild(connectBtn);
+
+    const helpText = document.createElement('div');
+    helpText.innerHTML = `
+      <small style="color: #666;">
+        Create a fine-grained personal access token at 
+        <a href="https://github.com/settings/personal-access-tokens/new" target="_blank">GitHub Settings</a>
+        with Contents: write permission for this repository.
+      </small>
+    `;
+    helpText.style.cssText = 'margin-top: 8px;';
+    tokenSection.appendChild(helpText);
+
+    panel.appendChild(tokenSection);
+  } else {
+    // Sign out button
+    const signOutBtn = document.createElement('button');
+    signOutBtn.textContent = 'Sign Out';
+    signOutBtn.className = 'btn';
+    signOutBtn.style.cssText = `
+      padding: 8px 16px;
+      border: 1px solid #dc3545;
+      background: #dc3545;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+    `;
+    signOutBtn.onclick = () => {
+      setGitHubToken(null);
+      render(); // Refresh the panel
+    };
+    panel.appendChild(signOutBtn);
+  }
+
+  return panel;
+}
+
+function updateGitHubStatus(statusDiv) {
+  if (isGitHubConnected()) {
+    statusDiv.innerHTML = `
+      <div style="color: #28a745; font-weight: 600;">
+        Connected to GitHub as <strong>${githubUserInfo.login}</strong>
+      </div>
+      <div style="font-size: 14px; color: #666; margin-top: 4px;">
+        Repository: ${OWNER}/${REPO} • Branch: ${BRANCH}
+      </div>
+    `;
+  } else {
+    statusDiv.innerHTML = `
+      <div style="color: #dc3545; font-weight: 600;">
+        Not connected to GitHub
+      </div>
+      <div style="font-size: 14px; color: #666; margin-top: 4px;">
+        Configure your Personal Access Token to enable file uploads
+      </div>
+    `;
+  }
+}
+
+async function connectGitHub(token, statusDiv) {
+  if (!token) {
+    alert('Please enter a GitHub Personal Access Token');
+    return;
+  }
+
+  statusDiv.innerHTML = '<div style="color: #007bff;">🔄 Validating token...</div>';
+
+  const isValid = await validateGitHubToken(token);
+  if (isValid) {
+    setGitHubToken(token);
+    render(); // Refresh the entire UI
+  } else {
+    statusDiv.innerHTML = `
+      <div style="color: #dc3545; font-weight: 600;">
+        Invalid token or insufficient permissions
+      </div>
+      <div style="font-size: 14px; color: #666; margin-top: 4px;">
+        Make sure the token has Contents: write permission for ${OWNER}/${REPO}
+      </div>
+    `;
+  }
+}
 
 // Authentication functions
 async function checkAuth() {
@@ -137,7 +327,12 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function initApp(){
-  // Static web app - no token initialization needed
+  // Initialize GitHub token if available
+  const token = getGitHubToken();
+  if (token && currentUser && currentUser.role === 'admin') {
+    await validateGitHubToken(token);
+  }
+
   try{
     const res=await fetch('data/tree.json?v='+(Date.now()%1e7));
     if(!res.ok) throw new Error('tree.json missing');
@@ -158,7 +353,11 @@ function render(){
   renderBack(); renderCrumbs();
   const n=current(); $c.innerHTML='';
 
-  // No admin settings panel needed in static mode
+  // Admin settings panel (only at root level for admin users)
+  if (currentUser && currentUser.role === 'admin' && stack.length === 0) {
+    const adminPanel = createAdminSettingsPanel();
+    $c.appendChild(adminPanel);
+  }
 
   if(n.children && n.children.length){
     const list=document.createElement('div'); list.className='list';
@@ -181,13 +380,35 @@ function render(){
   if(repoPath && !(n.children && n.children.length)){
     const title=document.createElement('div'); title.className='sectionTitle'; title.textContent='Files'; $c.appendChild(title);
     
-    // No upload controls in static mode - just show existing files
+    // Add upload controls for admin users with GitHub token
+    if (currentUser && currentUser.role === 'admin' && isGitHubConnected()) {
+      const uploadSection = createUploadSection(repoPath);
+      $c.appendChild(uploadSection);
+    } else if (currentUser && currentUser.role === 'admin' && !isGitHubConnected()) {
+      const noTokenMsg = document.createElement('div');
+      noTokenMsg.style.cssText = `
+        margin: 16px 0;
+        padding: 16px;
+        border: 1px solid #ffc107;
+        border-radius: 4px;
+        background: #fff3cd;
+        color: #856404;
+      `;
+      noTokenMsg.innerHTML = `
+        <strong>Upload Disabled</strong><br>
+        Configure your GitHub Personal Access Token in Admin Settings to enable file uploads.
+      `;
+      $c.appendChild(noTokenMsg);
+    }
+    
     const list=document.createElement('div'); list.className='list'; $c.appendChild(list);
     listFiles(repoPath).then(items=>{
       if(!items.length){ 
         const p=document.createElement('p'); 
         p.className='empty'; 
-        p.textContent = 'No files in this folder yet.';
+        p.textContent = currentUser && currentUser.role === 'admin' 
+          ? 'No files yet. Use the upload button above to add files.' 
+          : 'No files yet. Contact administrator to upload files to '+repoPath;
         $c.appendChild(p); 
         return; 
       }
@@ -218,32 +439,22 @@ function renderCrumbs(){ const parts=['<a href="#" data-i="-1">Home</a>']; let n
 }
 function renderBack(){ if(stack.length===0){ $back.style.display='none'; return; } $back.style.display='inline-block'; $back.onclick=()=>{ stack.pop(); render(); }; }
 
-// URL helper functions that encode per segment but keep /
-function encodePath(p) { 
-  return p.replace(/^\/+/, '').split('/').map(encodeURIComponent).join('/'); 
-}
-
-function pagesUrlFromRepoPath(repoPath) {
-  return `https://brianlovegrove.github.io/Mechanics-Best-Friend/${encodePath(repoPath)}`;
-}
-
-function rawUrlFromRepoPath(repoPath) {
-  // NOTE: encode the branch and the path; branch is 'Base'
-  return `https://raw.githubusercontent.com/BrianLovegrove/Mechanics-Best-Friend/${encodeURIComponent('Base')}/${encodePath(repoPath)}`;
-}
-
-function apiUrl(path){ 
-  const clean=path.replace(/^\/+|\/+$/g,''); 
-  return `https://api.github.com/repos/${OWNER}/${REPO}/contents/${encodeURIComponent(clean)}?ref=${encodeURIComponent(BRANCH)}`; 
-}
-
+function apiUrl(path){ const clean=path.replace(/^\/+|\/+$/g,''); return `https://api.github.com/repos/${OWNER}/${REPO}/contents/${encodeURIComponent(clean)}?ref=${encodeURIComponent(BRANCH)}`; }
 function rawUrl(path){ 
   const clean=path.replace(/^\/+/, ''); 
   // For local development, try local path first
   if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
     return clean; // Use relative path for local files
   }
-  return rawUrlFromRepoPath(clean); 
+  return `https://raw.githubusercontent.com/${OWNER}/${REPO}/${encodeURIComponent(BRANCH)}/${clean}`; 
+}
+
+// Build GitHub Pages URL from repository relative path
+// Encodes each path segment but keeps the / separators
+function pagesUrlFromRepoPath(repoRelativePath) {
+  const clean = repoRelativePath.replace(/^\/+/, ''); // no leading slash
+  const encoded = clean.split('/').map(encodeURIComponent).join('/');
+  return `https://brianlovegrove.github.io/Mechanics-Best-Friend/${encoded}`;
 }
 
 // Legacy function - use pagesUrlFromRepoPath instead
@@ -251,9 +462,13 @@ function getGitHubPagesUrl(path) {
   return pagesUrlFromRepoPath(path);
 }
 
+// Removed: checkFileExists() preflight that blocked Office viewer rendering
+// Pages URLs fail CORS on HEAD even when files are public, so we render directly
+
 // Always return the public GitHub raw URL for external services like Office Web Viewer
 function getPublicRawUrl(path) {
-  return rawUrlFromRepoPath(path);
+  const clean = path.replace(/^\/+/, ''); 
+  return `https://raw.githubusercontent.com/${OWNER}/${REPO}/${encodeURIComponent(BRANCH)}/${clean}`;
 }
 async function listFiles(path){ 
   try {
@@ -607,24 +822,16 @@ async function renderOfficeDocument(url, name, loadingDiv, docType) {
   await tryDocumentViewing(viewerContainer, url, name, docType, pagesUrl, fileRawUrl);
 }
 
-// Render Office documents with RAW → Pages fallback strategy
+// Render Office documents directly via Office Web Viewer - no preflight checks
 async function tryDocumentViewing(container, url, name, docType, pagesUrl, rawUrl) {
-  // First try with RAW URL (usually available immediately after commit)
-  const rawViewerUrl = rawUrlFromRepoPath(url);
-  console.log('Trying Office Web Viewer with RAW URL:', { name, rawViewerUrl });
-  
-  if (await tryOfficeWebViewer(container, rawViewerUrl, name, docType)) {
-    return; // Success with RAW URL!
-  }
-  
-  // If RAW fails, try with Pages URL (may lag until Pages finishes build)
-  console.log('RAW URL failed, trying Office Web Viewer with Pages URL:', { name, pagesUrl });
+  // Render Office Web Viewer directly with GitHub Pages URL
+  console.log('Rendering Office Web Viewer for:', { name, pagesUrl });
   
   if (await tryOfficeWebViewer(container, pagesUrl, name, docType)) {
-    return; // Success with Pages URL!
+    return; // Success!
   }
   
-  // Only show fallback if both RAW and Pages fail
+  // Only show fallback if the viewer itself fails to load
   showPreviewNotAvailableFallback(container, name, pagesUrl);
 }
 
@@ -671,7 +878,7 @@ async function tryOfficeWebViewer(container, fileUrl, name, docType) {
         iframe.remove();
         resolve(false);
       }
-    }, 5000); // 5 second timeout for faster fallback
+    }, 10000); // 10 second timeout
     
     container.innerHTML = ''; // Clear previous content
     container.appendChild(iframe);
@@ -890,54 +1097,18 @@ function renderPDFDocument(url, name, loadingDiv) {
     loadingDiv.remove();
   }
   
-  // Build Pages URL for the PDF file
-  const pdfSrc = pagesUrlFromRepoPath(url);
+  // Try to embed the PDF first
+  const pdfContainer = document.createElement('div');
+  pdfContainer.style.cssText = 'margin: 16px 0;';
   
-  // Create header with filename and download link
-  const header = document.createElement('div');
-  header.style.cssText = `
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 6px 6px 0 0;
-    padding: 12px 16px;
-    border-bottom: 1px solid #dee2e6;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  `;
+  const embed = document.createElement('embed');
+  embed.type = 'application/pdf';
+  embed.src = url;
+  embed.style.cssText = 'width: 100%; height: 70vh; border: 2px solid #007cba; border-radius: 8px;';
   
-  header.innerHTML = `
-    <h3 style="margin: 0; color: #DC3545; font-size: 16px;">📄 ${name}</h3>
-    <a href="${pdfSrc}" download="${name}" style="
-      padding: 8px 16px;
-      background: #DC3545;
-      color: white;
-      text-decoration: none;
-      border-radius: 4px;
-      font-weight: 600;
-      font-size: 14px;
-    ">Download</a>
-  `;
-  
-  const container = document.createElement('div');
-  container.style.cssText = 'margin: 16px 0;';
-  container.appendChild(header);
-  
-  // Create iframe for PDF.js viewer
-  const iframe = document.createElement('iframe');
-  iframe.style.cssText = `
-    width: 100%;
-    height: 70vh;
-    border: 1px solid #dee2e6;
-    border-top: none;
-    border-radius: 0 0 6px 6px;
-    background: white;
-  `;
-  iframe.src = `/Mechanics-Best-Friend/assets/pdfjs/web/viewer.html?file=${encodeURIComponent(pdfSrc)}`;
-  
-  // Add error handling for iframe
-  iframe.onerror = () => {
-    container.innerHTML = `
+  // Add error handling for PDF embed
+  embed.onerror = () => {
+    pdfContainer.innerHTML = `
       <div style="
         background: linear-gradient(135deg, #DC354520, #DC354510);
         border: 2px solid #DC3545;
@@ -948,9 +1119,9 @@ function renderPDFDocument(url, name, loadingDiv) {
         <h3 style="margin: 0 0 12px 0; color: #DC3545; font-size: 24px;">PDF Document</h3>
         <p style="margin: 0 0 8px 0; font-size: 16px; color: #333; font-weight: 500;">${name}</p>
         <p style="margin: 0 0 24px 0; color: #666; line-height: 1.5;">
-          PDF viewer failed to load. Download the document to view with your preferred PDF reader.
+          This PDF document couldn't be displayed in the browser. Download it to view with your preferred PDF reader.
         </p>
-        <a href="${pdfSrc}" download="${name}" style="
+        <a href="${url}" download="${name}" style="
           display: inline-block;
           padding: 14px 28px;
           background: #DC3545;
@@ -964,8 +1135,8 @@ function renderPDFDocument(url, name, loadingDiv) {
     `;
   };
   
-  container.appendChild(iframe);
-  $c.appendChild(container);
+  pdfContainer.appendChild(embed);
+  $c.appendChild(pdfContainer);
 }
 
 // Generic document viewer for unsupported types
@@ -1424,7 +1595,140 @@ function showOfficeViewerFallback(container, name, fileUrl, docType, publicUrl =
   container.appendChild(buttonContainer);
 }
 
-// Upload functionality removed - static web app only
+// Upload functionality for admin users
+function createUploadSection(targetPath) {
+  const uploadDiv = document.createElement('div');
+  uploadDiv.className = 'upload-section';
+  uploadDiv.style.cssText = `
+    margin: 16px 0;
+    padding: 20px;
+    border: 2px dashed #000;
+    border-radius: 8px;
+    background: #f9f9f9;
+    text-align: center;
+    position: relative;
+  `;
+
+  const uploadTitle = document.createElement('h3');
+  uploadTitle.textContent = 'Upload Files';
+  uploadTitle.style.cssText = 'margin: 0 0 16px 0; font-size: 18px;';
+  uploadDiv.appendChild(uploadTitle);
+
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.multiple = true;
+  fileInput.style.display = 'none';
+  fileInput.accept = '*/*';
+  uploadDiv.appendChild(fileInput);
+
+  const uploadButton = document.createElement('button');
+  uploadButton.className = 'btn';
+  uploadButton.textContent = 'Choose Files';
+  uploadButton.style.cssText = `
+    display: inline-block;
+    padding: 12px 24px;
+    margin: 8px;
+    border: 1px solid #000;
+    border-radius: 4px;
+    background: #fff;
+    color: #000;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  `;
+  uploadButton.onmouseover = () => {
+    uploadButton.style.background = '#000';
+    uploadButton.style.color = '#fff';
+  };
+  uploadButton.onmouseout = () => {
+    uploadButton.style.background = '#fff';
+    uploadButton.style.color = '#000';
+  };
+  uploadButton.onclick = () => fileInput.click();
+  uploadDiv.appendChild(uploadButton);
+
+  const uploadStatus = document.createElement('div');
+  uploadStatus.className = 'upload-status';
+  uploadStatus.style.cssText = 'margin: 16px 0; font-size: 14px;';
+  uploadDiv.appendChild(uploadStatus);
+
+  const selectedFiles = document.createElement('div');
+  selectedFiles.className = 'selected-files';
+  selectedFiles.style.cssText = 'margin: 12px 0; text-align: left;';
+  uploadDiv.appendChild(selectedFiles);
+
+  // File selection handling
+  fileInput.onchange = () => {
+    const files = Array.from(fileInput.files);
+    if (files.length === 0) {
+      selectedFiles.innerHTML = '';
+      return;
+    }
+
+    selectedFiles.innerHTML = '<strong>Selected files:</strong><br>';
+    files.forEach(file => {
+      const fileDiv = document.createElement('div');
+      fileDiv.style.cssText = 'margin: 4px 0; padding: 4px; font-size: 13px;';
+      fileDiv.textContent = `• ${file.name} (${formatFileSize(file.size)})`;
+      selectedFiles.appendChild(fileDiv);
+    });
+
+    // Show upload button
+    if (uploadDiv.querySelector('.upload-submit')) {
+      uploadDiv.removeChild(uploadDiv.querySelector('.upload-submit'));
+    }
+
+    const submitButton = document.createElement('button');
+    submitButton.className = 'btn upload-submit';
+    submitButton.textContent = `Upload ${files.length} file${files.length > 1 ? 's' : ''}`;
+    submitButton.style.cssText = `
+      display: inline-block;
+      padding: 12px 24px;
+      margin: 8px;
+      border: 1px solid #000;
+      border-radius: 4px;
+      background: #000;
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    `;
+    submitButton.onclick = () => uploadFiles(files, targetPath, uploadStatus);
+    uploadDiv.appendChild(submitButton);
+  };
+
+  // Drag and drop functionality
+  uploadDiv.ondragover = (e) => {
+    e.preventDefault();
+    uploadDiv.style.borderColor = '#000';
+    uploadDiv.style.background = '#f0f0f0';
+  };
+
+  uploadDiv.ondragleave = (e) => {
+    e.preventDefault();
+    uploadDiv.style.borderColor = '#000';
+    uploadDiv.style.background = '#f9f9f9';
+  };
+
+  uploadDiv.ondrop = (e) => {
+    e.preventDefault();
+    uploadDiv.style.borderColor = '#000';
+    uploadDiv.style.background = '#f9f9f9';
+    
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      fileInput.files = e.dataTransfer.files;
+      fileInput.onchange();
+    }
+  };
+
+  const dropText = document.createElement('p');
+  dropText.textContent = 'Or drag and drop files here';
+  dropText.style.cssText = 'margin: 8px 0; color: #666; font-size: 14px;';
+  uploadDiv.appendChild(dropText);
+
+  return uploadDiv;
+}
 
 function formatFileSize(bytes) {
   if (bytes === 0) return '0 Bytes';
@@ -1434,4 +1738,219 @@ function formatFileSize(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-// Upload functions removed for static operation
+async function uploadFiles(files, targetPath, statusDiv) {
+  statusDiv.innerHTML = '';
+  
+  // Validate GitHub connection
+  if (!isGitHubConnected()) {
+    statusDiv.innerHTML = `
+      <div style="color: #cc0000; font-weight: 600; margin: 8px 0;">
+        GitHub connection required
+      </div>
+      <div style="font-size: 12px; color: #666;">
+        Configure your GitHub Personal Access Token in Admin Settings
+      </div>
+    `;
+    return;
+  }
+
+  const token = getGitHubToken();
+  
+  // Validate files
+  for (const file of files) {
+    if (file.size > 100 * 1024 * 1024) { // 100MB limit
+      statusDiv.innerHTML = `
+        <div style="color: #cc0000; font-weight: 600; margin: 8px 0;">
+          File too large: ${file.name}
+        </div>
+        <div style="font-size: 12px; color: #666;">
+          Maximum file size is 100MB. Use Git LFS for larger files.
+        </div>
+      `;
+      return;
+    }
+  }
+
+  // Sanitize target path
+  const cleanPath = targetPath.replace(/^\/+/, '').replace(/\/+$/, '');
+  if (cleanPath.includes('..') || cleanPath.includes('\\')) {
+    statusDiv.innerHTML = `
+      <div style="color: #cc0000; font-weight: 600; margin: 8px 0;">
+        Invalid path
+      </div>
+      <div style="font-size: 12px; color: #666;">
+        Path contains illegal characters
+      </div>
+    `;
+    return;
+  }
+
+  // Show progress
+  statusDiv.innerHTML = `
+    <div style="margin: 8px 0;">
+      <div style="color: #000; font-weight: 600;">Uploading ${files.length} file${files.length > 1 ? 's' : ''} to GitHub...</div>
+      <div style="margin: 8px 0; background: #e0e0e0; border-radius: 4px; height: 6px; overflow: hidden;">
+        <div style="background: #000; height: 100%; width: 0%; transition: width 0.3s ease;" class="progress-bar"></div>
+      </div>
+      <div style="font-size: 12px; color: #666; margin-top: 4px;" class="progress-text">Preparing...</div>
+    </div>
+  `;
+
+  const progressBar = statusDiv.querySelector('.progress-bar');
+  const progressText = statusDiv.querySelector('.progress-text');
+  
+  try {
+    const results = [];
+    const errors = [];
+    
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const progress = ((i / files.length) * 100);
+      progressBar.style.width = progress + '%';
+      progressText.textContent = `Uploading ${file.name}...`;
+      
+      try {
+        const result = await uploadFileToGitHub(file, cleanPath, token);
+        results.push(result);
+      } catch (error) {
+        console.error(`Failed to upload ${file.name}:`, error);
+        errors.push({ filename: file.name, error: error.message });
+      }
+    }
+    
+    progressBar.style.width = '100%';
+    progressText.textContent = 'Complete!';
+    
+    // Show results
+    let message = '';
+    
+    if (results.length > 0) {
+      message += `<div style="color: #28a745; font-weight: 600; margin: 8px 0;">Successfully uploaded ${results.length} file${results.length > 1 ? 's' : ''}!</div>`;
+      message += '<div style="margin: 8px 0;"><strong>Uploaded files:</strong></div>';
+      
+      results.forEach(result => {
+        message += `
+          <div style="margin: 4px 0; padding: 8px; background: #f0f8f0; border-radius: 4px; font-size: 13px;">
+            • ${result.filename}
+            <br><a href="${result.html_url}" target="_blank" style="color: #0066cc; text-decoration: none;">View in GitHub</a>
+            <span style="color: #666; margin-left: 8px;">| ${result.commit_sha.substring(0, 7)}</span>
+          </div>
+        `;
+      });
+    }
+    
+    if (errors.length > 0) {
+      message += '<div style="margin: 8px 0;"><strong>Errors:</strong></div>';
+      errors.forEach(error => {
+        message += `
+          <div style="margin: 4px 0; padding: 8px; background: #fff0f0; border-radius: 4px; font-size: 13px; color: #cc0000;">
+            • ${error.filename}: ${error.error}
+          </div>
+        `;
+      });
+    }
+
+    if (results.length === 0 && errors.length > 0) {
+      message = `<div style="color: #cc0000; font-weight: 600; margin: 8px 0;">All uploads failed</div>` + message;
+    }
+
+    statusDiv.innerHTML = message;
+    
+    // Refresh file listing after successful uploads
+    if (results.length > 0) {
+      setTimeout(() => {
+        render(); // Refresh the current view
+      }, 1000);
+    }
+
+  } catch (error) {
+    console.error('Upload error:', error);
+    statusDiv.innerHTML = `
+      <div style="color: #cc0000; font-weight: 600; margin: 8px 0;">
+        Upload failed: ${error.message}
+      </div>
+      <div style="font-size: 12px; color: #666;">
+        Check your GitHub token permissions and try again.
+      </div>
+    `;
+  }
+}
+
+async function uploadFileToGitHub(file, targetPath, token) {
+  // Convert file to base64
+  const arrayBuffer = await file.arrayBuffer();
+  const uint8Array = new Uint8Array(arrayBuffer);
+  const content = btoa(String.fromCharCode.apply(null, uint8Array));
+  
+  // Sanitize filename
+  let filename = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  
+  const repoPath = `${targetPath}/${filename}`;
+  
+  // Check if file exists first
+  let existingSha = null;
+  try {
+    const checkResponse = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${repoPath}?ref=${BRANCH}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github+json'
+      }
+    });
+    
+    if (checkResponse.ok) {
+      const existingFile = await checkResponse.json();
+      existingSha = existingFile.sha;
+      
+      // If file exists, create a versioned filename
+      const timestamp = Date.now();
+      const nameParts = filename.split('.');
+      if (nameParts.length > 1) {
+        const extension = nameParts.pop();
+        const basename = nameParts.join('.');
+        filename = `${basename}_${timestamp}.${extension}`;
+      } else {
+        filename = `${filename}_${timestamp}`;
+      }
+    }
+  } catch (error) {
+    // File doesn't exist, continue with original filename
+  }
+  
+  const finalPath = `${targetPath}/${filename}`;
+  
+  // Upload file
+  const uploadData = {
+    message: `feat(upload): ${filename} uploaded by ADMIN via app`,
+    content: content,
+    branch: BRANCH
+  };
+  
+  if (existingSha) {
+    uploadData.sha = existingSha;
+  }
+  
+  const response = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${finalPath}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/vnd.github+json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(uploadData)
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(`GitHub API error (${response.status}): ${errorData.message || 'Upload failed'}`);
+  }
+  
+  const result = await response.json();
+  
+  return {
+    filename: filename,
+    path: finalPath,
+    html_url: result.content.html_url,
+    download_url: result.content.download_url,
+    commit_sha: result.commit.sha
+  };
+}
