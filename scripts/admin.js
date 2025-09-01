@@ -25,16 +25,4 @@ export function seedAdminOnLogin(){
 // Expose to global scope for app.js compatibility
 window.seedAdminOnLogin = seedAdminOnLogin;
 
-// Dev helper: Alt+A toggles admin on/off while testing
-window.addEventListener('keydown', e => {
-  if (e.altKey && e.key.toLowerCase() === 'a') {
-    if (isAdmin()) { 
-      clearAdminKey(); 
-      alert('Admin OFF'); 
-    } else { 
-      setAdminKey('124rfgsdfw3r3trhfjghju8475623edsfsfffwefsd33'); 
-      alert('Admin ON'); 
-    }
-    location.reload();
-  }
-});
+// Alt+A admin toggle feature removed as requested
