@@ -13,16 +13,19 @@ export function encodeKey(p) {
 export function prefixFromBreadcrumbs(crumbs) {
   // e.g. ['Home','Line 2','Depalletizer',...,'Electrical Schematics']
   const segs = crumbs.map(slug);
-  return `${CONFIG.ROOT_PREFIX}/${segs.join('/')}/`;          // always end with "/"
+  const rootPrefix = CONFIG.ROOT_PREFIX || 'library'; // fallback to 'library'
+  return `${rootPrefix}/${segs.join('/')}/`;          // always end with "/"
 }
 
 export function fileUrlFromKey(key) {
-  return `${CONFIG.FILES_BASE_URL}/${encodeKey(key)}`;
+  const baseUrl = CONFIG.FILES_BASE_URL || 'https://pub-d8f89cb648cd4a35a8635d47997501f2.r2.dev/mbf-library';
+  return `${baseUrl}/${encodeKey(key)}`;
 }
 
 export async function api(path){
-  await loadConfig();
-  return `${CONFIG.WORKER_BASE_URL}${path}`;
+  await loadConfig().catch(() => {}); // ignore config loading errors
+  const baseUrl = CONFIG.WORKER_BASE_URL || 'https://mbf-api.factoryflowdynamics.workers.dev';
+  return `${baseUrl}${path}`;
 }
 
 // detect if the current breadcrumbs end with "Mechanic Notes"

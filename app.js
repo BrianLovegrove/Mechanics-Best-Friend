@@ -98,19 +98,7 @@ function clearAdminKey() {
   localStorage.removeItem('mbf_admin_token'); 
 }
 
-// Dev helper: Alt+A toggles admin on/off while testing
-window.addEventListener('keydown', e => {
-  if (e.altKey && e.key.toLowerCase() === 'a') {
-    if (isAdmin()) { 
-      clearAdminKey(); 
-      alert('Admin OFF'); 
-    } else { 
-      setAdminKey('124rfgsdfw3r3trhfjghju8475623edsfsfffwefsd33'); 
-      alert('Admin ON'); 
-    }
-    location.reload();
-  }
-});
+// Alt+A admin toggle feature removed as requested
 
 // Utility functions (inline)
 function encodeKey(p) {
@@ -351,13 +339,25 @@ function render(){
       } else {
         b.textContent = ch.name;
       }
-      b.onclick=()=>{ stack.push(i); render(); }; 
+      // Use addEventListener instead of onclick for better reliability
+      b.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log(`Navigating to ${ch.name} (index ${i})`);
+        stack.push(i); 
+        render(); 
+      }); 
       list.appendChild(b); 
     });
     $c.appendChild(list);
   } else {
     // This is a folder page - use the new modular UI components
-    initFolderPage();
+    console.log('Initializing folder page for:', pathBreadcrumbs());
+    initFolderPage().catch(err => {
+      console.error('Error initializing folder page:', err);
+      // Fallback to basic message
+      $c.innerHTML = '<div class="empty">Loading folder contents...</div>';
+    });
   }
 }
 
