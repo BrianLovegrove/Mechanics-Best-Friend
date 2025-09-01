@@ -424,6 +424,16 @@ PORT=3000`;
           cursor: pointer;
           margin-right: 10px;
         ">Connect to System</button>
+        <button id="skipSetupBtn" style="
+          background: #6c757d;
+          color: white;
+          border: none;
+          padding: 12px 30px;
+          border-radius: 6px;
+          font-size: 16px;
+          font-weight: 600;
+          cursor: pointer;
+        ">Skip (Limited Mode)</button>
       </div>
       <div id="setupProgress" style="display: none; margin: 20px 0;">
         <img src="assets/icons/monkey loading.gif" alt="Setting up..." style="width: 120px; height: auto; margin-bottom: 15px;">
@@ -715,6 +725,12 @@ PORT=3000`;
       this.enableFallbackMode();
       
       await new Promise(resolve => setTimeout(resolve, 1500));
+      overlay.remove();
+    };
+
+    // Skip button handler
+    document.getElementById('skipSetupBtn').onclick = () => {
+      this.enableFallbackMode();
       overlay.remove();
     };
 
