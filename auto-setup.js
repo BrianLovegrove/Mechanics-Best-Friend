@@ -1,6 +1,21 @@
 // Auto-setup script for Mechanic's Best Friend
 // This script handles automatic setup and server management
 
+// Simple asset helper for auto-setup (since this is not a module)
+function getBasePath() {
+  const path = window.location.pathname;
+  if (path.startsWith('/Mechanics-Best-Friend/')) {
+    return '/Mechanics-Best-Friend/';
+  }
+  return '/';
+}
+
+function asset(path) {
+  const basePath = getBasePath();
+  const cleanPath = path.replace(/^\//, '');
+  return `${basePath}${cleanPath}`;
+}
+
 class AutoSetup {
   constructor() {
     this.serverProcess = null;
@@ -449,7 +464,7 @@ PORT=3000`;
 
     overlay.innerHTML = `
       <!-- Header Image -->
-      <img src="/assets/icons/headertitle.png" alt="Mechanic's Best Friend" style="
+      <img src="${asset('assets/icons/headertitle.png')}" alt="Mechanic's Best Friend" style="
         width: 100%;
         max-width: 1000px;
         height: auto;
@@ -457,7 +472,7 @@ PORT=3000`;
       ">
       
       <!-- Monkey Loading GIF -->
-      <img src="/assets/icons/monkey loading.gif" alt="" style="
+      <img src="${asset('assets/icons/monkey-loading.gif')}" alt="" style="
         width: 280px;
         height: auto;
         margin-bottom: 24px;
@@ -530,6 +545,7 @@ PORT=3000`;
               line-height: 1.2;
               color: #000000;
               transition: filter 160ms linear;
+              animation: ticker 1.1s linear infinite;
             "></div>
           </div>
         </div>
@@ -553,7 +569,7 @@ PORT=3000`;
       
       <!-- Finalizing screen -->
       <div id="finalizingScreen" style="display: none; text-align: center;">
-        <img src="/assets/icons/monkey loading.gif" alt="" style="
+        <img src="${asset('assets/icons/monkey-loading.gif')}" alt="" style="
           width: 180px;
           height: auto;
           margin-bottom: 12px;
@@ -568,6 +584,12 @@ PORT=3000`;
       </div>
       
       <style>
+        @keyframes ticker { 
+          0% { transform: translateX(0); } 
+          100% { transform: translateX(-45%); } 
+        }
+        .animate-ticker { animation: ticker 1.1s linear infinite; }
+        
         @keyframes flash { 
           0% { filter: invert(0); } 
           50% { filter: invert(1); } 
@@ -632,6 +654,14 @@ PORT=3000`;
     // Generate simple code lines inline
     const generateSimpleLines = () => {
       const lines = [];
+      
+      // Import and use the proper line generator
+      if (window.initLinesHTML) {
+        // Use the imported function if available
+        return window.buildAllLines ? window.buildAllLines() : [];
+      }
+      
+      // Fallback to inline generation
       const consts = {
         APP_NAME: "Mechanic's Best Friend",
         APP_VERSION: "1.0.0",

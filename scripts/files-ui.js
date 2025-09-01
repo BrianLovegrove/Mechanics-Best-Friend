@@ -19,9 +19,9 @@ function viewerUrlFor(key, contentType = '') {
     return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`;
   }
   
-  // PDF (use PDF.js bundled in the repo)
+  // PDF (open directly - avoid relative path issues on GitHub Pages)
   if (lower.endsWith('.pdf')) {
-    return `/assets/pdfjs/web/viewer.html?file=${encodeURIComponent(url)}`;
+    return url; // Open the R2 URL directly
   }
   
   // Images / text / others → open directly

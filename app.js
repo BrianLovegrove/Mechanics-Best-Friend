@@ -1382,50 +1382,46 @@ function renderLegacyDocument(url, name, loadingDiv, docType) {
   $c.appendChild(legacyInfo);
 }
 
-// Render PDF documents with improved fallback
+// Render PDF documents - open directly to avoid GitHub Pages 404
 function renderPDFDocument(url, name, loadingDiv) {
   if (loadingDiv.parentNode) {
     loadingDiv.remove();
   }
   
-  // Use local PDF.js viewer
+  // Open PDF directly in new tab instead of using embedded viewer
+  window.open(url, '_blank');
+  
+  // Show info message in the current view
   const pdfContainer = document.createElement('div');
   pdfContainer.style.cssText = 'margin: 16px 0;';
   
-  const iframe = document.createElement('iframe');
-  iframe.src = `/assets/pdfjs/web/viewer.html?file=${encodeURIComponent(url)}`;
-  iframe.style.cssText = 'width: 100%; height: 70vh; border: 2px solid #007cba; border-radius: 8px;';
-  
-  // Add error handling for PDF viewer
-  iframe.onerror = () => {
-    pdfContainer.innerHTML = `
-      <div style="
-        background: linear-gradient(135deg, #DC354520, #DC354510);
-        border: 2px solid #DC3545;
-        border-radius: 12px;
-        padding: 30px;
-        text-align: center;
-      ">
-        <h3 style="margin: 0 0 12px 0; color: #DC3545; font-size: 24px;">PDF Document</h3>
-        <p style="margin: 0 0 8px 0; font-size: 16px; color: #333; font-weight: 500;">${name}</p>
-        <p style="margin: 0 0 24px 0; color: #666; line-height: 1.5;">
-          This PDF document couldn't be displayed in the browser. Download it to view with your preferred PDF reader.
-        </p>
-        <a href="${url}" download="${name}" style="
-          display: inline-block;
-          padding: 14px 28px;
-          background: #DC3545;
-          color: white;
-          text-decoration: none;
-          border-radius: 6px;
-          font-weight: 600;
-          font-size: 16px;
-        ">Download PDF</a>
-      </div>
-    `;
-  };
-  
-  pdfContainer.appendChild(iframe);
+  pdfContainer.innerHTML = `
+    <div style="
+      background: linear-gradient(135deg, #007cba20, #007cba10);
+      border: 2px solid #007cba;
+      border-radius: 12px;
+      padding: 30px;
+      text-align: center;
+    ">
+      <h3 style="margin: 0 0 12px 0; color: #007cba; font-size: 24px;">PDF Document Opened</h3>
+      <p style="margin: 0 0 8px 0; font-size: 16px; color: #333; font-weight: 500;">${name}</p>
+      <p style="margin: 0 0 24px 0; color: #666; line-height: 1.5;">
+        The PDF document has been opened in a new tab. If it didn't open automatically, click the link below.
+      </p>
+      <a href="${url}" target="_blank" style="
+        display: inline-block;
+        padding: 14px 28px;
+        background: #007cba;
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 16px;
+        transition: background 0.2s ease;
+      " onmouseover="this.style.background='#005a9e'" onmouseout="this.style.background='#007cba'">
+        Open PDF Document
+      </a>
+    </div>
   $c.appendChild(pdfContainer);
 }
 
