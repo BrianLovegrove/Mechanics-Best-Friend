@@ -775,19 +775,19 @@ PORT=3000`;
 
   // Initialize auto-setup
   async initialize() {
-    // Check if setup has been completed before
-    const setupCompleted = localStorage.getItem('mbf_setup_completed');
+    // Always show the initialization screen, regardless of previous completion
+    console.log('Starting initialization screen');
     
-    if (!setupCompleted) {
-      // For static GitHub Pages deployment, skip popup and enable fallback mode directly
-      console.log('Enabling fallback mode for static operation');
-      this.enableFallbackMode();
-      
-      // Mark setup as completed to avoid showing popup again
-      localStorage.setItem('mbf_setup_completed', 'true');
-    } else {
-      // Setup already completed, enable fallback mode
-      this.enableFallbackMode();
+    // Create and show the setup popup
+    this.createSetupPopup();
+    document.body.appendChild(document.getElementById('setupOverlay'));
+    
+    // Set up the initialization button click handler
+    const autoSetupBtn = document.getElementById('autoSetupBtn');
+    if (autoSetupBtn) {
+      autoSetupBtn.addEventListener('click', () => {
+        this.startProgressAnimation();
+      });
     }
   }
 }
