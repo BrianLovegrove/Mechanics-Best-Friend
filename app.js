@@ -1,14 +1,9 @@
-// Mechanic's Best Friend - full login gate + auto file listing
-const OWNER='BrianLovegrove';
-const REPO='Mechanics-Best-Friend';
-const BRANCH='Base';
-
+// Mechanic's Best Friend - Cloudflare R2 + Worker integration
 // User session state
 let currentUser = null;
 
-// GitHub API token management
-let githubToken = null;
-let githubUserInfo = null;
+// Application configuration
+let config = null;
 
 let tree=null;
 const stack=[];
@@ -25,55 +20,63 @@ const $c=document.getElementById('content');
 const $bc=document.getElementById('breadcrumbs');
 const $back=document.getElementById('backBtn');
 
-// GitHub token management functions
-function getGitHubToken() {
-  if (!githubToken) {
-    githubToken = localStorage.getItem('mbf.githubToken');
-  }
-  return githubToken;
-}
-
-function setGitHubToken(token) {
-  githubToken = token;
-  if (token) {
-    localStorage.setItem('mbf.githubToken', token);
-  } else {
-    localStorage.removeItem('mbf.githubToken');
-    githubUserInfo = null;
-  }
-}
-
-async function validateGitHubToken(token) {
+// Load configuration from data/config.json
+async function loadConfig() {
+  if (config) return config;
+  
   try {
-    const response = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/vnd.github+json'
-      }
-    });
-    
+    const response = await fetch('/data/config.json?v=' + (Date.now() % 1e7));
     if (response.ok) {
-      const userResponse = await fetch('https://api.github.com/user', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/vnd.github+json'
-        }
-      });
-      
-      if (userResponse.ok) {
-        githubUserInfo = await userResponse.json();
-        return true;
-      }
+      config = await response.json();
+      return config;
     }
-    return false;
   } catch (error) {
-    console.error('GitHub token validation failed:', error);
-    return false;
+    console.error('Failed to load config:', error);
   }
+  
+  // Fallback config
+  config = {
+    "FILES_BASE_URL": "https://pub-d8f89cb648cd4a35a8635d47997501f2.r2.dev/mbf-library",
+    "WORKER_BASE_URL": "https://mbf-api.factoryflowdynamics.workers.dev",
+    "ROOT_PREFIX": "library",
+    "ALLOWED_ROOTS": ["library", "docs", "assets"],
+    "STRICT_FOLDERS": true
+  };
+  return config;
 }
 
-function isGitHubConnected() {
-  return !!(getGitHubToken() && githubUserInfo);
+// Generate slug from text: lowercase, trim, spaces→_, remove non [a-z0-9._-], collapse _
+function slug(text) {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '_')
+    .replace(/[^a-z0-9._-]/g, '')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+// Convert breadcrumbs to R2 key path
+function breadcrumbsToKey(breadcrumbs) {
+  if (!breadcrumbs || breadcrumbs.length === 0) return 'library';
+  
+  const keyParts = ['library'];
+  for (const crumb of breadcrumbs) {
+    keyParts.push(slug(crumb));
+  }
+  
+  return keyParts.join('/');
+}
+
+// URL-encode each path segment for links/iframes
+function encodeKey(keyPath) {
+  return keyPath.replace(/^\/+/, '').split('/').map(encodeURIComponent).join('/');
+}
+
+// Build file URL from R2 key
+async function buildFileUrl(key) {
+  const cfg = await loadConfig();
+  return `${cfg.FILES_BASE_URL}/${encodeKey(key)}`;
 }
 
 // Admin settings panel
@@ -93,125 +96,34 @@ function createAdminSettingsPanel() {
   title.style.cssText = 'margin: 0 0 16px 0; font-size: 18px; color: #333;';
   panel.appendChild(title);
 
-  // GitHub connection status
+  // System status
   const statusDiv = document.createElement('div');
   statusDiv.style.cssText = 'margin-bottom: 16px;';
-  updateGitHubStatus(statusDiv);
+  updateSystemStatus(statusDiv);
   panel.appendChild(statusDiv);
-
-  // Token input (only show if not connected)
-  if (!isGitHubConnected()) {
-    const tokenSection = document.createElement('div');
-    tokenSection.style.cssText = 'margin-bottom: 16px;';
-
-    const tokenLabel = document.createElement('label');
-    tokenLabel.textContent = 'GitHub Personal Access Token:';
-    tokenLabel.style.cssText = 'display: block; margin-bottom: 8px; font-weight: 600;';
-    tokenSection.appendChild(tokenLabel);
-
-    const tokenInput = document.createElement('input');
-    tokenInput.type = 'password';
-    tokenInput.placeholder = 'ghp_xxxxxxxxxxxxxxxxxxxx';
-    tokenInput.style.cssText = `
-      width: 300px;
-      padding: 8px 12px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      font-family: monospace;
-      margin-right: 8px;
-    `;
-    tokenSection.appendChild(tokenInput);
-
-    const connectBtn = document.createElement('button');
-    connectBtn.textContent = 'Connect';
-    connectBtn.className = 'btn';
-    connectBtn.style.cssText = `
-      padding: 8px 16px;
-      border: 1px solid #007bff;
-      background: #007bff;
-      color: white;
-      border-radius: 4px;
-      cursor: pointer;
-    `;
-    connectBtn.onclick = () => connectGitHub(tokenInput.value, statusDiv);
-    tokenSection.appendChild(connectBtn);
-
-    const helpText = document.createElement('div');
-    helpText.innerHTML = `
-      <small style="color: #666;">
-        Create a fine-grained personal access token at 
-        <a href="https://github.com/settings/personal-access-tokens/new" target="_blank">GitHub Settings</a>
-        with Contents: write permission for this repository.
-      </small>
-    `;
-    helpText.style.cssText = 'margin-top: 8px;';
-    tokenSection.appendChild(helpText);
-
-    panel.appendChild(tokenSection);
-  } else {
-    // Sign out button
-    const signOutBtn = document.createElement('button');
-    signOutBtn.textContent = 'Sign Out';
-    signOutBtn.className = 'btn';
-    signOutBtn.style.cssText = `
-      padding: 8px 16px;
-      border: 1px solid #dc3545;
-      background: #dc3545;
-      color: white;
-      border-radius: 4px;
-      cursor: pointer;
-    `;
-    signOutBtn.onclick = () => {
-      setGitHubToken(null);
-      render(); // Refresh the panel
-    };
-    panel.appendChild(signOutBtn);
-  }
 
   return panel;
 }
 
-function updateGitHubStatus(statusDiv) {
-  if (isGitHubConnected()) {
+async function updateSystemStatus(statusDiv) {
+  try {
+    const cfg = await loadConfig();
     statusDiv.innerHTML = `
       <div style="color: #28a745; font-weight: 600;">
-        Connected to GitHub as <strong>${githubUserInfo.login}</strong>
+        Connected to Cloudflare Worker
       </div>
       <div style="font-size: 14px; color: #666; margin-top: 4px;">
-        Repository: ${OWNER}/${REPO} • Branch: ${BRANCH}
+        Worker: ${cfg.WORKER_BASE_URL}<br>
+        Storage: ${cfg.FILES_BASE_URL}
       </div>
     `;
-  } else {
+  } catch (error) {
     statusDiv.innerHTML = `
       <div style="color: #dc3545; font-weight: 600;">
-        Not connected to GitHub
+        Configuration Error
       </div>
       <div style="font-size: 14px; color: #666; margin-top: 4px;">
-        Configure your Personal Access Token to enable file uploads
-      </div>
-    `;
-  }
-}
-
-async function connectGitHub(token, statusDiv) {
-  if (!token) {
-    alert('Please enter a GitHub Personal Access Token');
-    return;
-  }
-
-  statusDiv.innerHTML = '<div style="color: #007bff;">🔄 Validating token...</div>';
-
-  const isValid = await validateGitHubToken(token);
-  if (isValid) {
-    setGitHubToken(token);
-    render(); // Refresh the entire UI
-  } else {
-    statusDiv.innerHTML = `
-      <div style="color: #dc3545; font-weight: 600;">
-        Invalid token or insufficient permissions
-      </div>
-      <div style="font-size: 14px; color: #666; margin-top: 4px;">
-        Make sure the token has Contents: write permission for ${OWNER}/${REPO}
+        Failed to load application configuration
       </div>
     `;
   }
@@ -327,11 +239,8 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function initApp(){
-  // Initialize GitHub token if available
-  const token = getGitHubToken();
-  if (token && currentUser && currentUser.role === 'admin') {
-    await validateGitHubToken(token);
-  }
+  // Load application configuration and tree
+  await loadConfig();
 
   try{
     const res=await fetch('data/tree.json?v='+(Date.now()%1e7));
@@ -342,12 +251,6 @@ async function initApp(){
 function current(){ let n=tree; for(const i of stack){ n=(n.children||[])[i]; } return n; }
 function pathBreadcrumbs(){ const names=[]; let n=tree; stack.forEach(i=>{ n=n.children[i]; names.push(n.name); }); return names; }
 function slugify(label){ return label.toLowerCase().replace(/&/g,' and ').replace(/[^a-z0-9]+/g,'_').replace(/_+/g,'_').replace(/^_+|_+$/g,''); }
-function nodeRepoPath(){ 
-  const names=pathBreadcrumbs(); 
-  if(names.length===0) return null; 
-  const slugs=names.map(slugify); 
-  return '/library/'+slugs.join('/')+'/'; 
-}
 
 function render(){
   renderBack(); renderCrumbs();
@@ -380,50 +283,43 @@ function render(){
   if(repoPath && !(n.children && n.children.length)){
     const title=document.createElement('div'); title.className='sectionTitle'; title.textContent='Files'; $c.appendChild(title);
     
-    // Add upload controls for admin users with GitHub token
-    if (currentUser && currentUser.role === 'admin' && isGitHubConnected()) {
+    // Add upload controls for admin users
+    if (currentUser && currentUser.role === 'admin') {
       const uploadSection = createUploadSection(repoPath);
       $c.appendChild(uploadSection);
-    } else if (currentUser && currentUser.role === 'admin' && !isGitHubConnected()) {
-      const noTokenMsg = document.createElement('div');
-      noTokenMsg.style.cssText = `
-        margin: 16px 0;
-        padding: 16px;
-        border: 1px solid #ffc107;
-        border-radius: 4px;
-        background: #fff3cd;
-        color: #856404;
-      `;
-      noTokenMsg.innerHTML = `
-        <strong>Upload Disabled</strong><br>
-        Configure your GitHub Personal Access Token in Admin Settings to enable file uploads.
-      `;
-      $c.appendChild(noTokenMsg);
     }
     
+    // Add Mechanics Notes section
+    createMechanicsNotesSection().then(notesSection => {
+      if (notesSection) {
+        $c.appendChild(notesSection);
+      }
+    });
+    
     const list=document.createElement('div'); list.className='list'; $c.appendChild(list);
-    listFiles(repoPath).then(items=>{
+    listFiles(repoPath).then(async items=>{
       if(!items.length){ 
         const p=document.createElement('p'); 
         p.className='empty'; 
         p.textContent = currentUser && currentUser.role === 'admin' 
-          ? 'No files yet. Use the upload button above to add files.' 
+          ? 'Folder not initialized—contact admin.' 
           : 'No files yet. Contact administrator to upload files to '+repoPath;
         $c.appendChild(p); 
         return; 
       }
-      items.forEach(it=>{ 
+      
+      const cfg = await loadConfig();
+      items.forEach(async it=>{ 
         if(it.type==='file'){ 
           const a=document.createElement('a'); 
           a.className='item'; 
           a.href='#'; 
-          a.onclick=(e)=>{ 
+          a.onclick=async (e)=>{ 
             e.preventDefault(); 
-            const url = it.isLocalStorage ? `#fallback-upload-${it.name}` : 
-                        it.storage === 'local' ? it.download_url : 
-                        rawUrl(repoPath+it.name);
-            const isLocal = it.isLocalStorage || it.storage === 'local';
-            showFileActions(url, it.name, isLocal); 
+            const folderKey = breadcrumbsToKey(stack.map(s => s.name));
+            const fileKey = `${folderKey}/${it.name}`;
+            const url = await buildFileUrl(fileKey);
+            showFileActions(url, it.name, false); 
           }; 
           a.textContent=prettyName(it.name); 
           list.appendChild(a); 
@@ -439,107 +335,37 @@ function renderCrumbs(){ const parts=['<a href="#" data-i="-1">Home</a>']; let n
 }
 function renderBack(){ if(stack.length===0){ $back.style.display='none'; return; } $back.style.display='inline-block'; $back.onclick=()=>{ stack.pop(); render(); }; }
 
-function apiUrl(path){ const clean=path.replace(/^\/+|\/+$/g,''); return `https://api.github.com/repos/${OWNER}/${REPO}/contents/${encodeURIComponent(clean)}?ref=${encodeURIComponent(BRANCH)}`; }
-function rawUrl(path){ 
-  const clean=path.replace(/^\/+/, ''); 
-  // For local development, try local path first
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    return clean; // Use relative path for local files
-  }
-  return `https://raw.githubusercontent.com/${OWNER}/${REPO}/${encodeURIComponent(BRANCH)}/${clean}`; 
+// Get current folder path from navigation stack
+function nodeRepoPath(){ 
+  if (stack.length === 0) return '/library/';
+  return '/library/' + stack.map(s => slug(s.name)).join('/') + '/';
 }
 
-// Build GitHub Pages URL from repository relative path
-// Encodes each path segment but keeps the / separators
-function pagesUrlFromRepoPath(repoRelativePath) {
-  const clean = repoRelativePath.replace(/^\/+/, ''); // no leading slash
-  const encoded = clean.split('/').map(encodeURIComponent).join('/');
-  return `https://brianlovegrove.github.io/Mechanics-Best-Friend/${encoded}`;
-}
-
-// Legacy function - use pagesUrlFromRepoPath instead
-function getGitHubPagesUrl(path) {
-  return pagesUrlFromRepoPath(path);
-}
-
-// Removed: checkFileExists() preflight that blocked Office viewer rendering
-// Pages URLs fail CORS on HEAD even when files are public, so we render directly
-
-// Always return the public GitHub raw URL for external services like Office Web Viewer
-function getPublicRawUrl(path) {
-  const clean = path.replace(/^\/+/, ''); 
-  return `https://raw.githubusercontent.com/${OWNER}/${REPO}/${encodeURIComponent(BRANCH)}/${clean}`;
-}
 async function listFiles(path){ 
   try {
-    // Try GitHub API first
-    const res=await fetch(apiUrl(path), { headers:{ 'Accept':'application/vnd.github+json' } }); 
-    if(!res.ok) throw new Error('GitHub API '+res.status); 
-    const items=await res.json(); 
-    return Array.isArray(items)?items:[];
+    const cfg = await loadConfig();
+    const folderKey = breadcrumbsToKey(stack.map(s => s.name));
+    
+    const res = await fetch(`${cfg.WORKER_BASE_URL}/files?prefix=${encodeURIComponent(folderKey)}`);
+    if (!res.ok) throw new Error('Worker API ' + res.status);
+    
+    const items = await res.json();
+    if (!Array.isArray(items)) return [];
+    
+    // Filter out .keep files and convert to expected format
+    return items
+      .filter(item => !item.key.endsWith('/.keep'))
+      .map(item => ({
+        name: item.key.split('/').pop(),
+        type: item.kind === 'prefix' ? 'dir' : 'file',
+        size: item.size || 0,
+        lastModified: item.lastModified || new Date().toISOString(),
+        contentType: item.contentType || 'application/octet-stream'
+      }));
+      
   } catch (error) {
-    console.log('GitHub API failed, trying server local storage...');
-    
-    // Try server local storage next
-    try {
-      const serverRes = await fetch(`/api/files${path}`);
-      if (serverRes.ok) {
-        const serverFiles = await serverRes.json();
-        if (serverFiles.length > 0) {
-          console.log(`Found ${serverFiles.length} files in server storage for path: ${path}`);
-          return serverFiles;
-        }
-      }
-    } catch (serverError) {
-      console.log('Server storage check failed:', serverError);
-    }
-    
-    // Check localStorage for uploaded files in fallback mode
-    const storageKey = `mbf_files_${path.replace(/[^a-zA-Z0-9]/g, '_')}`;
-    let storedFiles = [];
-    try {
-      storedFiles = JSON.parse(localStorage.getItem(storageKey) || '[]');
-      if (storedFiles.length > 0) {
-        console.log(`Found ${storedFiles.length} stored files for path: ${path}`);
-        return storedFiles.map(file => ({
-          name: file.filename,
-          type: 'file',
-          size: file.size,
-          uploadDate: file.uploadDate,
-          isLocalStorage: true // Flag to indicate this is stored in localStorage
-        }));
-      }
-    } catch (e) {
-      console.error('Error reading stored files:', e);
-    }
-
-    // Fallback to check for known files when GitHub API fails and no stored files
-    const knownFiles = [
-      'sample_schematic.txt',
-      'fault_codes_reference.txt',
-      'manual.pdf',
-      'troubleshooting_guide.txt',
-      'procedures.txt',
-      'adjustment_guide.txt',
-      'pm_schedule.txt',
-      'maintenance_log.txt',
-      'wiring_diagram.pdf',
-      'parts_list.txt'
-    ];
-    
-    const foundFiles = [];
-    for (const file of knownFiles) {
-      try {
-        const fileRes = await fetch(path + file, { method: 'HEAD' });
-        if (fileRes.ok) {
-          foundFiles.push({ name: file, type: 'file' });
-        }
-      } catch (e) {
-        // File doesn't exist, continue silently
-      }
-    }
-    
-    return foundFiles;
+    console.log('Worker API failed:', error);
+    return [];
   }
 }
 function prettyName(filename){ const noExt=filename.replace(/\.[^.]+$/,''); return noExt.replace(/[_-]+/g,' ').replace(/\s+/g,' ').replace(/\b\w/g,c=>c.toUpperCase()); }
@@ -706,28 +532,35 @@ async function deleteFile(url, name, isLocalStorage = false) {
     return;
   }
   
-  if (isLocalStorage) {
-    // Handle localStorage file deletion
-    const currentPath = nodeRepoPath();
-    const storageKey = `mbf_files_${currentPath.replace(/[^a-zA-Z0-9]/g, '_')}`;
-    try {
-      const storedFiles = JSON.parse(localStorage.getItem(storageKey) || '[]');
-      const filteredFiles = storedFiles.filter(f => f.filename !== name);
-      localStorage.setItem(storageKey, JSON.stringify(filteredFiles));
-      
-      alert(`File "${name}" has been deleted.`);
-      render(); // Refresh the file list
-      return;
-    } catch (e) {
-      console.error('Error deleting stored file:', e);
-      alert('Error deleting file.');
-      return;
-    }
+  try {
+    const cfg = await loadConfig();
+    const folderKey = breadcrumbsToKey(stack.map(s => s.name));
+    const fileKey = `${folderKey}/${name}`;
+    
+    // TODO: Admin API key would be needed for deletion
+    // For now, show that deletion requires admin authentication
+    alert('File deletion requires admin API key. Contact system administrator.');
+    
+    // When admin API key is available:
+    // const response = await fetch(`${cfg.WORKER_BASE_URL}/object?key=${encodeURIComponent(fileKey)}`, {
+    //   method: 'DELETE',
+    //   headers: {
+    //     'Authorization': 'Bearer ' + ADMIN_API_KEY
+    //   }
+    // });
+    // 
+    // if (response.ok) {
+    //   alert(`File "${name}" has been deleted.`);
+    //   render(); // Refresh the file list
+    // } else {
+    //   const error = await response.json();
+    //   alert(`Error deleting file: ${error.message || 'Unknown error'}`);
+    // }
+    
+  } catch (error) {
+    console.error('Error deleting file:', error);
+    alert('Error deleting file.');
   }
-  
-  // For GitHub files, we would need to implement GitHub API deletion
-  // For now, just show a message
-  alert('GitHub file deletion will be implemented when server mode is available.');
 }
 
 // Custom file viewer that handles various file types without external dependencies
@@ -765,15 +598,9 @@ async function renderOfficeDocument(url, name, loadingDiv, docType) {
     loadingDiv.remove();
   }
   
-  // Build both GitHub Pages URL and raw URL for the file
-  const pagesUrl = pagesUrlFromRepoPath(url);
-  const fileRawUrl = rawUrl(url);
-  
   console.log(`${docType} document viewing:`, {
     originalUrl: url,
-    fileName: name,
-    pagesUrl: pagesUrl,
-    rawUrl: fileRawUrl
+    fileName: name
   });
   
   // Create header with filename and download link
@@ -791,7 +618,7 @@ async function renderOfficeDocument(url, name, loadingDiv, docType) {
   
   header.innerHTML = `
     <h3 style="margin: 0; color: #2B579A; font-size: 16px;">${name}</h3>
-    <a href="${pagesUrl}" download="${name}" style="
+    <a href="${url}" download="${name}" style="
       padding: 8px 16px;
       background: #2B579A;
       color: white;
@@ -818,8 +645,35 @@ async function renderOfficeDocument(url, name, loadingDiv, docType) {
   container.appendChild(viewerContainer);
   $c.appendChild(container);
   
-  // Try multiple viewing strategies
-  await tryDocumentViewing(viewerContainer, url, name, docType, pagesUrl, fileRawUrl);
+  // Use Office Web Viewer for Office documents
+  const ext = name.split('.').pop().toLowerCase();
+  if (['docx', 'pptx', 'xlsx'].includes(ext)) {
+    const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`;
+    
+    const iframe = document.createElement('iframe');
+    iframe.src = officeViewerUrl;
+    iframe.style.cssText = `
+      width: 100%;
+      height: 600px;
+      border: none;
+      border-radius: 0 0 6px 6px;
+    `;
+    
+    // Handle iframe load errors
+    iframe.onload = () => {
+      console.log('Office viewer loaded successfully');
+    };
+    
+    iframe.onerror = () => {
+      console.log('Office viewer failed to load');
+      showOfficeViewerFallback(viewerContainer, name, url, docType, url);
+    };
+    
+    viewerContainer.appendChild(iframe);
+  } else {
+    // For other document types, show fallback
+    showOfficeViewerFallback(viewerContainer, name, url, docType, url);
+  }
 }
 
 // Render Office documents directly via Office Web Viewer - no preflight checks
@@ -1097,17 +951,16 @@ function renderPDFDocument(url, name, loadingDiv) {
     loadingDiv.remove();
   }
   
-  // Try to embed the PDF first
+  // Use local PDF.js viewer
   const pdfContainer = document.createElement('div');
   pdfContainer.style.cssText = 'margin: 16px 0;';
   
-  const embed = document.createElement('embed');
-  embed.type = 'application/pdf';
-  embed.src = url;
-  embed.style.cssText = 'width: 100%; height: 70vh; border: 2px solid #007cba; border-radius: 8px;';
+  const iframe = document.createElement('iframe');
+  iframe.src = `/assets/pdfjs/web/viewer.html?file=${encodeURIComponent(url)}`;
+  iframe.style.cssText = 'width: 100%; height: 70vh; border: 2px solid #007cba; border-radius: 8px;';
   
-  // Add error handling for PDF embed
-  embed.onerror = () => {
+  // Add error handling for PDF viewer
+  iframe.onerror = () => {
     pdfContainer.innerHTML = `
       <div style="
         background: linear-gradient(135deg, #DC354520, #DC354510);
@@ -1135,7 +988,7 @@ function renderPDFDocument(url, name, loadingDiv) {
     `;
   };
   
-  pdfContainer.appendChild(embed);
+  pdfContainer.appendChild(iframe);
   $c.appendChild(pdfContainer);
 }
 
@@ -1741,21 +1594,6 @@ function formatFileSize(bytes) {
 async function uploadFiles(files, targetPath, statusDiv) {
   statusDiv.innerHTML = '';
   
-  // Validate GitHub connection
-  if (!isGitHubConnected()) {
-    statusDiv.innerHTML = `
-      <div style="color: #cc0000; font-weight: 600; margin: 8px 0;">
-        GitHub connection required
-      </div>
-      <div style="font-size: 12px; color: #666;">
-        Configure your GitHub Personal Access Token in Admin Settings
-      </div>
-    `;
-    return;
-  }
-
-  const token = getGitHubToken();
-  
   // Validate files
   for (const file of files) {
     if (file.size > 100 * 1024 * 1024) { // 100MB limit
@@ -1764,193 +1602,342 @@ async function uploadFiles(files, targetPath, statusDiv) {
           File too large: ${file.name}
         </div>
         <div style="font-size: 12px; color: #666;">
-          Maximum file size is 100MB. Use Git LFS for larger files.
+          Maximum file size is 100MB.
         </div>
       `;
       return;
     }
   }
 
-  // Sanitize target path
-  const cleanPath = targetPath.replace(/^\/+/, '').replace(/\/+$/, '');
-  if (cleanPath.includes('..') || cleanPath.includes('\\')) {
+  try {
+    const cfg = await loadConfig();
     statusDiv.innerHTML = `
-      <div style="color: #cc0000; font-weight: 600; margin: 8px 0;">
-        Invalid path
-      </div>
-      <div style="font-size: 12px; color: #666;">
-        Path contains illegal characters
+      <div style="color: #007bff; font-weight: 600; margin: 8px 0;">
+        Uploading ${files.length} file${files.length > 1 ? 's' : ''}...
       </div>
     `;
-    return;
-  }
 
-  // Show progress
-  statusDiv.innerHTML = `
-    <div style="margin: 8px 0;">
-      <div style="color: #000; font-weight: 600;">Uploading ${files.length} file${files.length > 1 ? 's' : ''} to GitHub...</div>
-      <div style="margin: 8px 0; background: #e0e0e0; border-radius: 4px; height: 6px; overflow: hidden;">
-        <div style="background: #000; height: 100%; width: 0%; transition: width 0.3s ease;" class="progress-bar"></div>
-      </div>
-      <div style="font-size: 12px; color: #666; margin-top: 4px;" class="progress-text">Preparing...</div>
-    </div>
-  `;
-
-  const progressBar = statusDiv.querySelector('.progress-bar');
-  const progressText = statusDiv.querySelector('.progress-text');
-  
-  try {
     const results = [];
-    const errors = [];
-    
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const progress = ((i / files.length) * 100);
-      progressBar.style.width = progress + '%';
-      progressText.textContent = `Uploading ${file.name}...`;
-      
+    for (const file of files) {
       try {
-        const result = await uploadFileToGitHub(file, cleanPath, token);
-        results.push(result);
+        const folderKey = breadcrumbsToKey(stack.map(s => s.name));
+        const fileKey = `${folderKey}/${file.name}`;
+        
+        // TODO: Admin API key would be needed for upload
+        // For now, show that upload requires admin authentication
+        statusDiv.innerHTML = `
+          <div style="color: #cc0000; font-weight: 600; margin: 8px 0;">
+            Upload requires admin API key
+          </div>
+          <div style="font-size: 12px; color: #666;">
+            Contact system administrator to configure upload permissions.
+          </div>
+        `;
+        return;
+        
+        // When admin API key is available:
+        // const response = await fetch(`${cfg.WORKER_BASE_URL}/upload?key=${encodeURIComponent(fileKey)}`, {
+        //   method: 'POST',
+        //   headers: {
+        //     'Authorization': 'Bearer ' + ADMIN_API_KEY,
+        //     'Content-Type': file.type || 'application/octet-stream'
+        //   },
+        //   body: file
+        // });
+        //
+        // if (response.ok) {
+        //   const result = await response.json();
+        //   results.push({ success: true, file: file.name, result });
+        // } else {
+        //   const error = await response.json();
+        //   if (response.status === 409 && error.message === 'FolderNotReady') {
+        //     results.push({ success: false, file: file.name, error: 'Folder not initialized—contact admin.' });
+        //   } else {
+        //     results.push({ success: false, file: file.name, error: error.message || 'Upload failed' });
+        //   }
+        // }
+        
       } catch (error) {
-        console.error(`Failed to upload ${file.name}:`, error);
-        errors.push({ filename: file.name, error: error.message });
+        console.error(`Upload failed for ${file.name}:`, error);
+        results.push({ success: false, file: file.name, error: error.message });
       }
     }
+
+    // Display results
+    let successCount = results.filter(r => r.success).length;
+    let errorCount = results.filter(r => !r.success).length;
     
-    progressBar.style.width = '100%';
-    progressText.textContent = 'Complete!';
+    let statusHtml = '';
+    if (successCount > 0) {
+      statusHtml += `
+        <div style="color: #28a745; font-weight: 600; margin: 8px 0;">
+          ✓ ${successCount} file${successCount > 1 ? 's' : ''} uploaded successfully
+        </div>
+      `;
+    }
     
-    // Show results
-    let message = '';
-    
-    if (results.length > 0) {
-      message += `<div style="color: #28a745; font-weight: 600; margin: 8px 0;">Successfully uploaded ${results.length} file${results.length > 1 ? 's' : ''}!</div>`;
-      message += '<div style="margin: 8px 0;"><strong>Uploaded files:</strong></div>';
-      
-      results.forEach(result => {
-        message += `
-          <div style="margin: 4px 0; padding: 8px; background: #f0f8f0; border-radius: 4px; font-size: 13px;">
-            • ${result.filename}
-            <br><a href="${result.html_url}" target="_blank" style="color: #0066cc; text-decoration: none;">View in GitHub</a>
-            <span style="color: #666; margin-left: 8px;">| ${result.commit_sha.substring(0, 7)}</span>
+    if (errorCount > 0) {
+      statusHtml += `
+        <div style="color: #cc0000; font-weight: 600; margin: 8px 0;">
+          ✗ ${errorCount} file${errorCount > 1 ? 's' : ''} failed to upload
+        </div>
+      `;
+      results.filter(r => !r.success).forEach(result => {
+        statusHtml += `
+          <div style="font-size: 12px; color: #666; margin: 4px 0;">
+            ${result.file}: ${result.error}
           </div>
         `;
       });
     }
     
-    if (errors.length > 0) {
-      message += '<div style="margin: 8px 0;"><strong>Errors:</strong></div>';
-      errors.forEach(error => {
-        message += `
-          <div style="margin: 4px 0; padding: 8px; background: #fff0f0; border-radius: 4px; font-size: 13px; color: #cc0000;">
-            • ${error.filename}: ${error.error}
-          </div>
-        `;
-      });
-    }
-
-    if (results.length === 0 && errors.length > 0) {
-      message = `<div style="color: #cc0000; font-weight: 600; margin: 8px 0;">All uploads failed</div>` + message;
-    }
-
-    statusDiv.innerHTML = message;
+    statusDiv.innerHTML = statusHtml;
     
-    // Refresh file listing after successful uploads
-    if (results.length > 0) {
-      setTimeout(() => {
-        render(); // Refresh the current view
-      }, 1000);
+    if (successCount > 0) {
+      setTimeout(() => render(), 1000); // Refresh file list
     }
-
+    
   } catch (error) {
     console.error('Upload error:', error);
     statusDiv.innerHTML = `
       <div style="color: #cc0000; font-weight: 600; margin: 8px 0;">
         Upload failed: ${error.message}
       </div>
-      <div style="font-size: 12px; color: #666;">
-        Check your GitHub token permissions and try again.
-      </div>
     `;
   }
 }
 
-async function uploadFileToGitHub(file, targetPath, token) {
-  // Convert file to base64
-  const arrayBuffer = await file.arrayBuffer();
-  const uint8Array = new Uint8Array(arrayBuffer);
-  const content = btoa(String.fromCharCode.apply(null, uint8Array));
-  
-  // Sanitize filename
-  let filename = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-  
-  const repoPath = `${targetPath}/${filename}`;
-  
-  // Check if file exists first
-  let existingSha = null;
+// Mechanics Notes functionality
+async function createMechanicsNotesSection() {
+  if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'mechanic')) {
+    return null;
+  }
+
+  const notesDiv = document.createElement('div');
+  notesDiv.className = 'mechanics-notes-section';
+  notesDiv.style.cssText = `
+    margin: 16px 0;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: #f8f9fa;
+  `;
+
+  const title = document.createElement('h3');
+  title.textContent = 'Mechanic Notes';
+  title.style.cssText = 'margin: 0 0 16px 0; font-size: 18px; color: #333;';
+  notesDiv.appendChild(title);
+
+  // Create note button (admin and mechanic only)
+  const createBtn = document.createElement('button');
+  createBtn.textContent = '+ Create Note';
+  createBtn.className = 'btn';
+  createBtn.style.cssText = `
+    padding: 8px 16px;
+    margin: 0 8px 16px 0;
+    border: 1px solid #007bff;
+    background: #007bff;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+  `;
+  createBtn.onclick = () => showCreateNoteModal();
+  notesDiv.appendChild(createBtn);
+
+  // Notes list container
+  const notesList = document.createElement('div');
+  notesList.className = 'notes-list';
+  notesDiv.appendChild(notesList);
+
+  // Load and display notes
+  await loadMechanicsNotes(notesList);
+
+  return notesDiv;
+}
+
+async function loadMechanicsNotes(container) {
   try {
-    const checkResponse = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${repoPath}?ref=${BRANCH}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/vnd.github+json'
-      }
-    });
+    const cfg = await loadConfig();
+    const folderKey = breadcrumbsToKey(stack.map(s => s.name));
+    const machinePrefix = folderKey;
+
+    const response = await fetch(`${cfg.WORKER_BASE_URL}/notes/list?machinePrefix=${encodeURIComponent(machinePrefix)}`);
     
-    if (checkResponse.ok) {
-      const existingFile = await checkResponse.json();
-      existingSha = existingFile.sha;
+    if (response.ok) {
+      const data = await response.json();
+      const notes = data.notes || [];
       
-      // If file exists, create a versioned filename
-      const timestamp = Date.now();
-      const nameParts = filename.split('.');
-      if (nameParts.length > 1) {
-        const extension = nameParts.pop();
-        const basename = nameParts.join('.');
-        filename = `${basename}_${timestamp}.${extension}`;
-      } else {
-        filename = `${filename}_${timestamp}`;
+      if (notes.length === 0) {
+        container.innerHTML = '<p style="color: #666; font-style: italic;">No notes yet for this machine.</p>';
+        return;
       }
+
+      container.innerHTML = '';
+      notes.forEach(note => {
+        const noteItem = document.createElement('div');
+        noteItem.style.cssText = `
+          margin: 8px 0;
+          padding: 12px;
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          background: white;
+          cursor: pointer;
+        `;
+        
+        noteItem.innerHTML = `
+          <div style="font-weight: 600; margin-bottom: 4px;">${note.title}</div>
+          <div style="font-size: 12px; color: #666;">
+            by ${note.author} • ${new Date(note.createdAt).toLocaleDateString()}
+            ${currentUser && currentUser.role === 'admin' ? `<button onclick="deleteMechanicNote('${note.id}', '${machinePrefix}')" style="float: right; color: #dc3545; border: none; background: none; cursor: pointer;">🗑️</button>` : ''}
+          </div>
+        `;
+        
+        noteItem.onclick = () => showNoteDetail(note.key);
+        container.appendChild(noteItem);
+      });
+    } else {
+      container.innerHTML = '<p style="color: #666; font-style: italic;">No notes yet for this machine.</p>';
     }
   } catch (error) {
-    // File doesn't exist, continue with original filename
+    console.error('Failed to load notes:', error);
+    container.innerHTML = '<p style="color: #dc3545;">Failed to load notes.</p>';
   }
-  
-  const finalPath = `${targetPath}/${filename}`;
-  
-  // Upload file
-  const uploadData = {
-    message: `feat(upload): ${filename} uploaded by ADMIN via app`,
-    content: content,
-    branch: BRANCH
-  };
-  
-  if (existingSha) {
-    uploadData.sha = existingSha;
+}
+
+function showCreateNoteModal() {
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  `;
+
+  const modalContent = document.createElement('div');
+  modalContent.style.cssText = `
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+  `;
+
+  modalContent.innerHTML = `
+    <h3 style="margin-top: 0;">Create Mechanic Note</h3>
+    <div style="margin: 16px 0;">
+      <label style="display: block; margin-bottom: 4px; font-weight: 600;">Author:</label>
+      <input type="text" id="noteAuthor" value="${currentUser?.username || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+    </div>
+    <div style="margin: 16px 0;">
+      <label style="display: block; margin-bottom: 4px; font-weight: 600;">Title:</label>
+      <input type="text" id="noteTitle" placeholder="Brief description of the note" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+    </div>
+    <div style="margin: 16px 0;">
+      <label style="display: block; margin-bottom: 4px; font-weight: 600;">Note:</label>
+      <textarea id="noteBody" placeholder="Detailed notes about maintenance, issues, procedures, etc." style="width: 100%; height: 120px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"></textarea>
+    </div>
+    <div style="text-align: right; margin-top: 20px;">
+      <button onclick="this.parentElement.parentElement.parentElement.remove()" style="padding: 8px 16px; margin-right: 8px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">Cancel</button>
+      <button onclick="submitMechanicNote(this)" style="padding: 8px 16px; border: 1px solid #007bff; background: #007bff; color: white; border-radius: 4px; cursor: pointer;">Create Note</button>
+    </div>
+  `;
+
+  modal.appendChild(modalContent);
+  document.body.appendChild(modal);
+
+  // Focus on title field
+  setTimeout(() => document.getElementById('noteTitle').focus(), 100);
+}
+
+async function submitMechanicNote(button) {
+  const author = document.getElementById('noteAuthor').value.trim();
+  const title = document.getElementById('noteTitle').value.trim();
+  const body = document.getElementById('noteBody').value.trim();
+
+  if (!author || !title || !body) {
+    alert('Please fill in all fields.');
+    return;
   }
-  
-  const response = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${finalPath}`, {
-    method: 'PUT',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Accept': 'application/vnd.github+json',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(uploadData)
-  });
-  
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(`GitHub API error (${response.status}): ${errorData.message || 'Upload failed'}`);
+
+  try {
+    // TODO: Admin API key would be needed for note creation
+    alert('Note creation requires admin API key. Contact system administrator.');
+    
+    // Close modal for now
+    button.closest('[style*="position: fixed"]').remove();
+
+  } catch (error) {
+    console.error('Error creating note:', error);
+    alert('Error creating note.');
   }
-  
-  const result = await response.json();
-  
-  return {
-    filename: filename,
-    path: finalPath,
-    html_url: result.content.html_url,
-    download_url: result.content.download_url,
-    commit_sha: result.commit.sha
-  };
+}
+
+async function showNoteDetail(noteKey) {
+  try {
+    const noteUrl = await buildFileUrl(noteKey);
+    
+    const response = await fetch(noteUrl);
+    if (response.ok) {
+      const note = await response.json();
+      
+      const modal = document.createElement('div');
+      modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+      `;
+
+      const modalContent = document.createElement('div');
+      modalContent.style.cssText = `
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        width: 90%;
+        max-width: 600px;
+        max-height: 80vh;
+        overflow-y: auto;
+      `;
+
+      modalContent.innerHTML = `
+        <h3 style="margin-top: 0;">${note.title}</h3>
+        <div style="margin-bottom: 16px; font-size: 14px; color: #666;">
+          by ${note.author} • ${new Date(note.createdAt).toLocaleDateString()}
+        </div>
+        <div style="white-space: pre-wrap; line-height: 1.6; margin: 16px 0;">${note.body}</div>
+        <div style="text-align: right; margin-top: 20px;">
+          <button onclick="this.parentElement.parentElement.parentElement.remove()" style="padding: 8px 16px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">Close</button>
+        </div>
+      `;
+
+      modal.appendChild(modalContent);
+      document.body.appendChild(modal);
+    }
+  } catch (error) {
+    console.error('Error loading note detail:', error);
+    alert('Error loading note details.');
+  }
+}
+
+function deleteMechanicNote(noteId, machinePrefix) {
+  if (!confirm('Are you sure you want to delete this note?')) {
+    return;
+  }
+
+  // TODO: Admin API key would be needed for note deletion
+  alert('Note deletion requires admin API key. Contact system administrator.');
 }
