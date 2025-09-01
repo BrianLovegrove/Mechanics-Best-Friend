@@ -712,14 +712,14 @@ PORT=3000`;
     // Progress timing: 8.5s total with strategic pauses for realism
     const DURATION = 8500;
     const PAUSES = [
-      { point: 0.15, duration: 1000 }, // 15% - complex calculation pause
-      { point: 0.35, duration: 1200 }, // 35% - equipment verification pause  
-      { point: 0.65, duration: 1000 }, // 65% - system integration pause
-      { point: 0.85, duration: 800 }   // 85% - final validation pause
+      { point: 0.15, duration: 1500 }, // 15% - complex calculation pause (1.5s)
+      { point: 0.35, duration: 1500 }, // 35% - equipment verification pause (1.5s)
+      { point: 0.65, duration: 1800 }, // 65% - system integration pause (1.8s with flash)
+      { point: 0.85, duration: 1500 }   // 85% - final validation pause (1.5s)
     ];
     const FLASH_MS = 1000; // 1 second flash during pauses
     const CODE_CHANGE_MS = 60; // Faster code changes for more dynamic effect
-    const COLOR_CYCLE_INTERVAL = 2000; // Change colors every 2 seconds
+    const COLOR_CYCLE_INTERVAL = 1500; // Change colors every 1.5 seconds for 2-3 changes
     
     let animationFrame;
     const startTime = performance.now();
@@ -740,6 +740,9 @@ PORT=3000`;
       .animate-flash {
         animation: flash-black-white 1000ms ease-in-out;
       }
+      .animate-flash-long {
+        animation: flash-black-white-long 1800ms ease-in-out;
+      }
       @keyframes flash-black-white {
         0% { background-color: transparent; color: #000000; }
         12.5% { background-color: #ffffff; color: #000000; }
@@ -749,6 +752,21 @@ PORT=3000`;
         62.5% { background-color: #ffffff; color: #000000; }
         75% { background-color: #000000; color: #ffffff; }
         87.5% { background-color: #ffffff; color: #000000; }
+        100% { background-color: transparent; color: #000000; }
+      }
+      @keyframes flash-black-white-long {
+        0% { background-color: transparent; color: #000000; }
+        8.33% { background-color: #ffffff; color: #000000; }
+        16.66% { background-color: #000000; color: #ffffff; }
+        25% { background-color: #ffffff; color: #000000; }
+        33.33% { background-color: #000000; color: #ffffff; }
+        41.66% { background-color: #ffffff; color: #000000; }
+        50% { background-color: #000000; color: #ffffff; }
+        58.33% { background-color: #ffffff; color: #000000; }
+        66.66% { background-color: #000000; color: #ffffff; }
+        75% { background-color: #ffffff; color: #000000; }
+        83.33% { background-color: #000000; color: #ffffff; }
+        91.66% { background-color: #ffffff; color: #000000; }
         100% { background-color: transparent; color: #000000; }
       }
     `;
@@ -763,6 +781,7 @@ PORT=3000`;
         if (currentTime >= pauseEndTime) {
           isPaused = false;
           codeStream.classList.remove('animate-flash');
+          codeStream.classList.remove('animate-flash-long');
           isFlashing = false;
         } else {
           // Stay at same progress during pause
@@ -779,7 +798,12 @@ PORT=3000`;
             isFlashing = true;
             pauseEndTime = currentTime + pause.duration;
             currentPauseIndex = i + 1;
-            codeStream.classList.add('animate-flash');
+            // Use special long flash animation for the 65% pause (index 2)
+            if (i === 2) {
+              codeStream.classList.add('animate-flash-long');
+            } else {
+              codeStream.classList.add('animate-flash');
+            }
             break;
           }
         }
