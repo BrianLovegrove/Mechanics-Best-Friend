@@ -1,7 +1,5 @@
 {
-  "FILES_BASE_URL": "https://pub-d8f89cb648cd4a35a8635d47997501f2.r2.dev/mbf-library",
   "WORKER_BASE_URL": "https://mbf-api.factoryflowdynamics.workers.dev",
-  "ROOT_PREFIX": "library",
-  "ALLOWED_ROOTS": ["library", "docs", "assets"],
-  "STRICT_FOLDERS": false
+  "FILES_BASE_URL": "https://pub-d8f89cb648cd4a35a8635d47997501f2.r2.dev/mbf-library",
+  "ROOT_PREFIX": "library"
 }

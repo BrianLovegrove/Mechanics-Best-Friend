@@ -19,7 +19,20 @@
   <meta name="theme-color" content="#ffffff" />
   
   <!-- Content Security Policy for Office Web Viewer and Cloudflare Integration -->
-  <meta http-equiv="Content-Security-Policy" content="frame-src 'self' https://view.officeapps.live.com; img-src 'self' data: https://pub-d8f89cb648cd4a35a8635d47997501f2.r2.dev; connect-src 'self' https://mbf-api.factoryflowdynamics.workers.dev;">
+  <meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  connect-src 'self' https://mbf-api.factoryflowdynamics.workers.dev;
+  img-src 'self' data: https://pub-d8f89cb648cd4a35a8635d47997501f2.r2.dev;
+  frame-src 'self' https://view.officeapps.live.com;
+  style-src 'self' 'unsafe-inline';
+  font-src 'self' data:;
+  script-src 'self';
+  worker-src 'self' blob:;
+  child-src 'self' blob:;
+  object-src 'none';
+  base-uri 'self';
+  form-action 'self';
+">
   
   <link rel="stylesheet" href="styles.css" />
 
@@ -346,6 +359,12 @@
       </div>
 <!-- Auto-setup for streamlined user experience -->
 <script src="auto-setup.js"></script>
+<script type="module" src="scripts/config.js"></script>
+<script type="module" src="scripts/admin.js"></script>
+<script type="module" src="scripts/utils.js"></script>
+<script type="module" src="scripts/files-ui.js"></script>
+<script type="module" src="scripts/notes-ui.js"></script>
+<script type="module" src="scripts/folder-page.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
