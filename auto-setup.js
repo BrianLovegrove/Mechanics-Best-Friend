@@ -471,6 +471,14 @@ PORT=3000`;
         margin-bottom: 24px;
       ">
       
+      <!-- Loading Monkey Image (Large) -->
+      <img src="${asset('assets/icons/monkey-loading.gif')}" alt="Loading..." style="
+        width: 300px;
+        height: auto;
+        margin-bottom: 32px;
+        display: none;
+      " id="loadingMonkey">
+      
       <!-- Setup Content -->
       <div id="setupIdleState" style="max-width: 980px; width: 100%; text-align: center;">
         <p style="
@@ -632,6 +640,47 @@ PORT=3000`;
     };
   }
 
+  // Generate fallback lines when module import fails
+  generateFallbackLines() {
+    const lines = [
+      "Checking security parameters...",
+      "Scanning system for threats...",
+      "Found no security threats",
+      "Checking for malware injection from user device...",
+      "User device security: CLEAN",
+      "Validating system integrity...",
+      "System integrity check: PASSED",
+      "Connecting to Cloudflare R2...",
+      "Cloudflare connection: SECURE",
+      "Initializing secure data bucket...",
+      "Data bucket status: READY",
+      "Loading Refresco-Tempe production line configurations...",
+      "Depalletizer system status: ONLINE",
+      "Filler line pressure: 45 PSI nominal",
+      "Pasteurizer temperature: 185°F operational",
+      "Palletizer stack count: 24 units per layer",
+      "Conveyor belt speed: 120 FPM standard",
+      "Can crusher capacity: 2400 cans/minute",
+      "Steam generator pressure: 150 PSI",
+      "RO system flow rate: 500 GPM",
+      "VFD Powerflex 40 frequency: 60 Hz",
+      "VFD Powerflex 525 torque: 98% available",
+      "Line 2 throughput: 1200 units/minute",
+      "Line 3 throughput: 1100 units/minute", 
+      "Line 4 throughput: 1350 units/minute"
+    ];
+    
+    // Expand to 500+ lines with variations
+    const extended = [];
+    for (let i = 0; i < 20; i++) {
+      lines.forEach(line => {
+        const variant = line.replace(/\d+/g, (match) => String(parseInt(match) + i * 3 + Math.floor(Math.random() * 10)));
+        extended.push(variant);
+      });
+    }
+    return extended.slice(0, 500);
+  }
+
   // Start the progress animation with proper timing and code stream
   async startProgressAnimation() {
     const idleState = document.getElementById('setupIdleState');
@@ -641,112 +690,65 @@ PORT=3000`;
     const codeStream = document.getElementById('codeStream');
     const completionMessage = document.getElementById('completionMessage');
     const finalizingScreen = document.getElementById('finalizingScreen');
+    const loadingMonkey = document.getElementById('loadingMonkey');
     
-    // Hide idle state and show progress
+    // Hide idle state, show monkey and progress
     idleState.style.display = 'none';
+    loadingMonkey.style.display = 'block';
     progressDiv.style.display = 'block';
     
     // Try to load the initLines module for realistic code generation
     let allCodeLines = [];
+    let initLinesModule = null;
     try {
-      const initLinesModule = await import('./scripts/initLines.js');
+      initLinesModule = await import('./scripts/initLines.js');
       allCodeLines = initLinesModule.buildAllLines();
     } catch (error) {
       console.log('Using fallback code generation');
-      // Fallback to enhanced inline generation with security focus
-      allCodeLines = [
-        "Checking security parameters...",
-        "Scanning system for threats...",
-        "Found no security threats",
-        "Checking for malware injection from user device...",
-        "User device security: CLEAN",
-        "Validating system integrity...",
-        "System integrity check: PASSED",
-        "Connecting to Cloudflare R2...",
-        "Cloudflare connection: SECURE",
-        "Initializing secure data bucket...",
-        "Data bucket status: READY",
-        "Inputting security token...",
-        "Security token: VALIDATED",
-        "Establishing encrypted tunnel...",
-        "Tunnel encryption: AES-256",
-        "Verifying SSL certificates...",
-        "SSL verification: PASSED",
-        "Loading firewall rules...",
-        "Firewall status: ACTIVE",
-        "Authenticating user permissions...",
-        "User authentication: VERIFIED",
-        "Initialize Mechanic's Best Friend 1.0.0",
-        "Detect OS win32 / ARCH x64",
-        "DNS 1.1.1.1 / 8.8.8.8 Bind 127.0.0.1",
-        "R2 HEAD mbf-library → 200",
-        "Map routes /api/files /api/notes /api/auth",
-        "Seed roles ADMIN / MECH",
-        "Health /healthz → 200",
-        "Cache warmup Parallel 4",
-        "Start API 8080 Notes 8081 Static 8082",
-        "Ready local server at http://127.0.0.1:8080",
-        "Loading core modules...",
-        "Core modules: LOADED",
-        "Starting background services...",
-        "Background services: RUNNING",
-        "Allocating memory buffers...",
-        "Memory allocation: COMPLETE",
-        "Initializing file handlers...",
-        "File handlers: READY",
-        "Setting up event listeners...",
-        "Event listeners: ACTIVE",
-        "Configuring network stack...",
-        "Network stack: CONFIGURED",
-        "Loading user preferences...",
-        "User preferences: APPLIED",
-        "Preparing workspace...",
-        "Workspace: INITIALIZED",
-        "Final security scan... COMPLETE",
-        "System hardening... APPLIED",
-        "Audit trail... ENABLED",
-        "Environment security validated",
-        "All systems operational"
-      ];
-      
-      // Extend to 250 lines by repeating with variations
-      const extended = [];
-      for (let i = 0; i < 5; i++) {
-        allCodeLines.forEach(line => {
-          if (i === 0) {
-            extended.push(line);
-          } else {
-            extended.push(line.replace(/\d+/g, (match) => parseInt(match) + i));
-          }
-        });
-      }
-      allCodeLines = extended.slice(0, 250);
+      // Enhanced fallback with 500+ lines
+      allCodeLines = this.generateFallbackLines();
     }
     
-    // Progress timing: 6s total with more pauses for 250 lines
-    const DURATION = 6000;
-    const PAUSES = [0.1, 0.25, 0.4, 0.55, 0.7, 0.85]; // More pause points
-    const FLASH_MS = 200;
-    const CODE_CHANGE_MS = 80; // Change code every 80ms for fast flashing
+    // Progress timing: 8.5s total with strategic pauses for realism
+    const DURATION = 8500;
+    const PAUSES = [
+      { point: 0.15, duration: 1000 }, // 15% - complex calculation pause
+      { point: 0.35, duration: 1200 }, // 35% - equipment verification pause  
+      { point: 0.65, duration: 1000 }, // 65% - system integration pause
+      { point: 0.85, duration: 800 }   // 85% - final validation pause
+    ];
+    const FLASH_MS = 1000; // 1 second flash during pauses
+    const CODE_CHANGE_MS = 60; // Faster code changes for more dynamic effect
+    const COLOR_CYCLE_INTERVAL = 2000; // Change colors every 2 seconds
     
     let animationFrame;
-    let codeChangeFrame;
     const startTime = performance.now();
     let isFlashing = false;
+    let isPaused = false;
+    let pauseEndTime = 0;
     let currentCodeIndex = 0;
     let lastCodeChange = startTime;
+    let lastColorChange = startTime;
+    let currentPauseIndex = 0;
+    let currentNumberColor = '#dc2626'; // Start with red
+    const colorCycle = ['#dc2626', '#9333ea']; // red -> purple
+    let colorCycleIndex = 0;
     
-    // Add CSS for flashing animation
+    // Add CSS for enhanced flashing animation
     const style = document.createElement('style');
     style.textContent = `
       .animate-flash {
-        animation: flash-white-black 200ms ease-in-out;
+        animation: flash-black-white 1000ms ease-in-out;
       }
-      @keyframes flash-white-black {
+      @keyframes flash-black-white {
         0% { background-color: transparent; color: #000000; }
-        25% { background-color: #ffffff; color: #000000; }
+        12.5% { background-color: #ffffff; color: #000000; }
+        25% { background-color: #000000; color: #ffffff; }
+        37.5% { background-color: #ffffff; color: #000000; }
         50% { background-color: #000000; color: #ffffff; }
-        75% { background-color: #ffffff; color: #000000; }
+        62.5% { background-color: #ffffff; color: #000000; }
+        75% { background-color: #000000; color: #ffffff; }
+        87.5% { background-color: #ffffff; color: #000000; }
         100% { background-color: transparent; color: #000000; }
       }
     `;
@@ -754,37 +756,64 @@ PORT=3000`;
     
     const updateProgress = (currentTime) => {
       const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / DURATION, 1);
-      const percentage = Math.max(1, Math.round(progress * 100));
+      let adjustedElapsed = elapsed;
       
-      // Check for pause windows and flash
-      if (!isFlashing) {
-        for (const pausePoint of PAUSES) {
-          if (progress > pausePoint && progress < pausePoint + 0.02) {
+      // Handle pauses
+      if (isPaused) {
+        if (currentTime >= pauseEndTime) {
+          isPaused = false;
+          codeStream.classList.remove('animate-flash');
+          isFlashing = false;
+        } else {
+          // Stay at same progress during pause
+          adjustedElapsed = pauseEndTime - startTime - PAUSES[currentPauseIndex - 1].duration;
+        }
+      } else {
+        // Check for pause triggers
+        const progress = Math.min(adjustedElapsed / DURATION, 1);
+        
+        for (let i = currentPauseIndex; i < PAUSES.length; i++) {
+          const pause = PAUSES[i];
+          if (progress >= pause.point && !isPaused) {
+            isPaused = true;
             isFlashing = true;
+            pauseEndTime = currentTime + pause.duration;
+            currentPauseIndex = i + 1;
             codeStream.classList.add('animate-flash');
-            setTimeout(() => {
-              codeStream.classList.remove('animate-flash');
-              isFlashing = false;
-            }, FLASH_MS);
             break;
           }
         }
       }
       
-      // Update progress bar and percentage
-      progressBar.style.width = `${Math.max(4, percentage)}%`;
-      progressPercentage.textContent = `${percentage}%`;
+      const progress = Math.min(adjustedElapsed / DURATION, 1);
+      const percentage = Math.max(1, Math.round(progress * 100));
       
-      // Update code display - show individual lines rapidly without bullet points
-      if (currentTime - lastCodeChange > CODE_CHANGE_MS) {
+      // Update progress bar and percentage (only when not paused)
+      if (!isPaused) {
+        progressBar.style.width = `${Math.max(4, percentage)}%`;
+        progressPercentage.textContent = `${percentage}%`;
+      }
+      
+      // Cycle colors every COLOR_CYCLE_INTERVAL
+      if (currentTime - lastColorChange > COLOR_CYCLE_INTERVAL) {
+        colorCycleIndex = (colorCycleIndex + 1) % colorCycle.length;
+        currentNumberColor = colorCycle[colorCycleIndex];
+        if (initLinesModule && initLinesModule.cycleNumberColor) {
+          initLinesModule.cycleNumberColor();
+        }
+        lastColorChange = currentTime;
+      }
+      
+      // Update code display - vary speed for realism
+      const codeChangeSpeed = isPaused ? CODE_CHANGE_MS * 3 : CODE_CHANGE_MS; // Slower during pauses
+      if (currentTime - lastCodeChange > codeChangeSpeed) {
         const maxIndex = Math.min(allCodeLines.length - 1, Math.floor((progress * allCodeLines.length)));
         currentCodeIndex = Math.min(currentCodeIndex + 1, maxIndex);
         
         if (currentCodeIndex < allCodeLines.length) {
           const currentLine = allCodeLines[currentCodeIndex];
-          // Add red color to numbers
-          const colorizedText = currentLine.replace(/\b(\d+)\b/g, "<span style='color: #dc2626;'>$1</span>");
+          // Color numbers with current color (red/purple cycling)
+          const colorizedText = currentLine.replace(/\b(\d+)\b/g, `<span style='color: ${currentNumberColor};'>$1</span>`);
           codeStream.innerHTML = colorizedText;
         }
         lastCodeChange = currentTime;
@@ -797,8 +826,9 @@ PORT=3000`;
         completionMessage.style.display = 'block';
         
         setTimeout(() => {
-          // Hide progress and show login (CORRECT ORDER: init → login → monkey → finalizing)
+          // Hide progress and monkey, show login
           progressDiv.style.display = 'none';
+          loadingMonkey.style.display = 'none';
           
           // Enable fallback mode for static operation
           this.enableFallbackMode();
