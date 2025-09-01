@@ -799,6 +799,10 @@ PORT=3000`;
         setTimeout(() => {
           // Hide progress and show login (CORRECT ORDER: init → login → monkey → finalizing)
           progressDiv.style.display = 'none';
+          
+          // Enable fallback mode for static operation
+          this.enableFallbackMode();
+          
           const setupOverlay = document.getElementById('setupOverlay');
           if (setupOverlay) {
             setupOverlay.remove();
