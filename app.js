@@ -449,30 +449,21 @@ function rawUrl(path){
   return `https://raw.githubusercontent.com/${OWNER}/${REPO}/${encodeURIComponent(BRANCH)}/${clean}`; 
 }
 
-// URL-encode each path segment, then join with / (preserve slashes)
-function encodePath(path) {
-  const clean = path.replace(/^\/+/, '');
-  const segments = clean.split('/');
-  return segments.map(segment => encodeURIComponent(segment)).join('/');
+// Build GitHub Pages URL from repository relative path
+// Encodes each path segment but keeps the / separators
+function pagesUrlFromRepoPath(repoRelativePath) {
+  const clean = repoRelativePath.replace(/^\/+/, ''); // no leading slash
+  const encoded = clean.split('/').map(encodeURIComponent).join('/');
+  return `https://brianlovegrove.github.io/Mechanics-Best-Friend/${encoded}`;
 }
 
-// Build GitHub Pages URL for public access (not raw)
+// Legacy function - use pagesUrlFromRepoPath instead
 function getGitHubPagesUrl(path) {
-  const clean = path.replace(/^\/+/, '');
-  const encodedPath = encodePath(clean);
-  return `https://brianlovegrove.github.io/Mechanics-Best-Friend/${encodedPath}`;
+  return pagesUrlFromRepoPath(path);
 }
 
-// Preflight check for file existence using HEAD request
-async function checkFileExists(url) {
-  try {
-    const response = await fetch(url, { method: 'HEAD' });
-    return response.status === 200;
-  } catch (error) {
-    console.log('Preflight check failed:', error);
-    return false;
-  }
-}
+// Removed: checkFileExists() preflight that blocked Office viewer rendering
+// Pages URLs fail CORS on HEAD even when files are public, so we render directly
 
 // Always return the public GitHub raw URL for external services like Office Web Viewer
 function getPublicRawUrl(path) {
@@ -775,7 +766,7 @@ async function renderOfficeDocument(url, name, loadingDiv, docType) {
   }
   
   // Build both GitHub Pages URL and raw URL for the file
-  const pagesUrl = getGitHubPagesUrl(url);
+  const pagesUrl = pagesUrlFromRepoPath(url);
   const fileRawUrl = rawUrl(url);
   
   console.log(`${docType} document viewing:`, {
@@ -800,7 +791,7 @@ async function renderOfficeDocument(url, name, loadingDiv, docType) {
   
   header.innerHTML = `
     <h3 style="margin: 0; color: #2B579A; font-size: 16px;">${name}</h3>
-    <a href="${fileRawUrl}" download="${name}" style="
+    <a href="${pagesUrl}" download="${name}" style="
       padding: 8px 16px;
       background: #2B579A;
       color: white;
@@ -831,20 +822,17 @@ async function renderOfficeDocument(url, name, loadingDiv, docType) {
   await tryDocumentViewing(viewerContainer, url, name, docType, pagesUrl, fileRawUrl);
 }
 
-// Try multiple strategies to view documents
+// Render Office documents directly via Office Web Viewer - no preflight checks
 async function tryDocumentViewing(container, url, name, docType, pagesUrl, rawUrl) {
-  // Primary strategy: Try Office Web Viewer with GitHub Pages URL
-  // First check if the file exists on GitHub Pages with HEAD request
-  const pagesAccessible = await checkFileExists(pagesUrl);
-  if (pagesAccessible) {
-    console.log('GitHub Pages URL accessible, trying Office Web Viewer...');
-    if (await tryOfficeWebViewer(container, pagesUrl, name, docType)) {
-      return; // Success!
-    }
+  // Render Office Web Viewer directly with GitHub Pages URL
+  console.log('Rendering Office Web Viewer for:', { name, pagesUrl });
+  
+  if (await tryOfficeWebViewer(container, pagesUrl, name, docType)) {
+    return; // Success!
   }
   
-  // If Pages URL is not accessible (HEAD != 200), show fallback message
-  showPreviewNotAvailableFallback(container, name, rawUrl);
+  // Only show fallback if the viewer itself fails to load
+  showPreviewNotAvailableFallback(container, name, pagesUrl);
 }
 
 // Try Office Web Viewer with timeout and error handling
@@ -1040,7 +1028,7 @@ function showEnhancedFallback(container, name, docType, rawUrl, pagesUrl) {
       
       <div style="margin-top: 24px; padding: 16px; background: #e3f2fd; border-radius: 6px; border-left: 4px solid #2196f3;">
         <p style="margin: 0; color: #1565c0; font-size: 14px; text-align: left;">
-          <strong>💡 Pro Tip:</strong> For the best viewing experience, download the file and open it in Microsoft Office, LibreOffice, or Google Docs.
+          <strong>💡 Pro Tip:</strong> For the best viewing experience, download the file and open it in Microsoft Office or LibreOffice.
         </p>
       </div>
     </div>
@@ -1069,8 +1057,8 @@ function renderLegacyDocument(url, name, loadingDiv, docType) {
     loadingDiv.remove();
   }
   
-  // Build raw URL for the file using the proper rawUrl function
-  const fileRawUrl = rawUrl(url);
+  // Build Pages URL for the file download
+  const filePagesUrl = pagesUrlFromRepoPath(url);
   
   const legacyInfo = document.createElement('div');
   legacyInfo.style.cssText = `
@@ -1088,7 +1076,7 @@ function renderLegacyDocument(url, name, loadingDiv, docType) {
     <p style="margin: 0 0 20px 0; color: #666; line-height: 1.5;">
       Preview not available. Use Download.
     </p>
-    <a href="${fileRawUrl}" download="${name}" style="
+    <a href="${filePagesUrl}" download="${name}" style="
       display: inline-block;
       padding: 12px 24px;
       background: #6c757d;
