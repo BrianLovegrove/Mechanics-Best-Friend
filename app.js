@@ -79,6 +79,21 @@ async function buildFileUrl(key) {
   return `${cfg.FILES_BASE_URL}/${encodeKey(key)}`;
 }
 
+// Admin token management
+const getAdminToken = () => localStorage.getItem('mbf_admin_token') || '';
+const isAdmin = () => !!getAdminToken();
+
+// Auto-store admin token on successful admin login
+function onAdminLoginSuccess() {
+  localStorage.setItem('mbf_admin_token', '124rfgsdfw3r3trhfjghju8475623edsfsfffwefsd33');
+}
+
+// Helper functions for upload
+function keyFromBreadcrumbs(breadcrumbs, filename) {
+  const parts = breadcrumbs.map(slug);
+  return ['library', ...parts, slug(filename)].join('/');
+}
+
 // Admin settings panel
 function createAdminSettingsPanel() {
   const panel = document.createElement('div');
@@ -216,6 +231,12 @@ $loginBtn.onclick = async () => {
     
     if (response.ok) {
       currentUser = result.user;
+      
+      // Auto-store admin token if this is an admin login
+      if (currentUser && currentUser.role === 'admin') {
+        onAdminLoginSuccess();
+      }
+      
       showLoadingAnimation();
     } else {
       $err.textContent = result.error || 'Login failed';
@@ -284,7 +305,7 @@ function render(){
     const title=document.createElement('div'); title.className='sectionTitle'; title.textContent='Files'; $c.appendChild(title);
     
     // Add upload controls for admin users
-    if (currentUser && currentUser.role === 'admin') {
+    if (isAdmin()) {
       const uploadSection = createUploadSection(repoPath);
       $c.appendChild(uploadSection);
     }
@@ -1448,8 +1469,68 @@ function showOfficeViewerFallback(container, name, fileUrl, docType, publicUrl =
   container.appendChild(buttonContainer);
 }
 
+// Handle upload files according to requirements
+async function handleUploadFiles(e) {
+  const files = Array.from(e.target.files || []);
+  if (!files.length) return;
+  
+  const token = getAdminToken();
+  if (!token) {
+    alert('Admin authentication required for uploads');
+    return;
+  }
+
+  try {
+    const cfg = await loadConfig();
+    
+    for (const file of files) {
+      // Build key from current breadcrumbs (navigation stack) 
+      const currentBreadcrumbs = stack.map(index => {
+        let node = tree;
+        for (let i = 0; i <= index; i++) {
+          if (stack[i] !== undefined) {
+            node = node.children[stack[i]];
+          }
+        }
+        return node.name;
+      });
+      
+      const key = keyFromBreadcrumbs(currentBreadcrumbs, file.name);
+      const url = `${cfg.WORKER_BASE_URL}/upload?key=${encodeURIComponent(key)}&mkparents=true`;
+      
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': file.type || 'application/octet-stream'
+        },
+        body: file
+      });
+      
+      const data = await res.json();
+      if (!res.ok) {
+        console.error('Upload failed', data);
+        alert(data.error || 'Upload failed');
+        break;
+      }
+    }
+    
+    await refreshListing(); // re-fetch GET /files?prefix=<currentFolderKey>
+    e.target.value = ''; // reset input
+  } catch (error) {
+    console.error('Upload error:', error);
+    alert('Upload failed: ' + error.message);
+    e.target.value = '';
+  }
+}
+
 // Upload functionality for admin users
 function createUploadSection(targetPath) {
+  // Only show for admin users
+  if (!isAdmin()) {
+    return document.createElement('div'); // Return empty div if not admin
+  }
+
   const uploadDiv = document.createElement('div');
   uploadDiv.className = 'upload-section';
   uploadDiv.style.cssText = `
@@ -1467,16 +1548,19 @@ function createUploadSection(targetPath) {
   uploadTitle.style.cssText = 'margin: 0 0 16px 0; font-size: 18px;';
   uploadDiv.appendChild(uploadTitle);
 
+  // Hidden file input with multiple support
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
   fileInput.multiple = true;
   fileInput.style.display = 'none';
   fileInput.accept = '*/*';
+  fileInput.onchange = handleUploadFiles;
   uploadDiv.appendChild(fileInput);
 
+  // Upload button that triggers hidden input
   const uploadButton = document.createElement('button');
   uploadButton.className = 'btn';
-  uploadButton.textContent = 'Choose Files';
+  uploadButton.textContent = 'Upload';
   uploadButton.style.cssText = `
     display: inline-block;
     padding: 12px 24px;
@@ -1500,56 +1584,6 @@ function createUploadSection(targetPath) {
   uploadButton.onclick = () => fileInput.click();
   uploadDiv.appendChild(uploadButton);
 
-  const uploadStatus = document.createElement('div');
-  uploadStatus.className = 'upload-status';
-  uploadStatus.style.cssText = 'margin: 16px 0; font-size: 14px;';
-  uploadDiv.appendChild(uploadStatus);
-
-  const selectedFiles = document.createElement('div');
-  selectedFiles.className = 'selected-files';
-  selectedFiles.style.cssText = 'margin: 12px 0; text-align: left;';
-  uploadDiv.appendChild(selectedFiles);
-
-  // File selection handling
-  fileInput.onchange = () => {
-    const files = Array.from(fileInput.files);
-    if (files.length === 0) {
-      selectedFiles.innerHTML = '';
-      return;
-    }
-
-    selectedFiles.innerHTML = '<strong>Selected files:</strong><br>';
-    files.forEach(file => {
-      const fileDiv = document.createElement('div');
-      fileDiv.style.cssText = 'margin: 4px 0; padding: 4px; font-size: 13px;';
-      fileDiv.textContent = `• ${file.name} (${formatFileSize(file.size)})`;
-      selectedFiles.appendChild(fileDiv);
-    });
-
-    // Show upload button
-    if (uploadDiv.querySelector('.upload-submit')) {
-      uploadDiv.removeChild(uploadDiv.querySelector('.upload-submit'));
-    }
-
-    const submitButton = document.createElement('button');
-    submitButton.className = 'btn upload-submit';
-    submitButton.textContent = `Upload ${files.length} file${files.length > 1 ? 's' : ''}`;
-    submitButton.style.cssText = `
-      display: inline-block;
-      padding: 12px 24px;
-      margin: 8px;
-      border: 1px solid #000;
-      border-radius: 4px;
-      background: #000;
-      color: #fff;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    `;
-    submitButton.onclick = () => uploadFiles(files, targetPath, uploadStatus);
-    uploadDiv.appendChild(submitButton);
-  };
-
   // Drag and drop functionality
   uploadDiv.ondragover = (e) => {
     e.preventDefault();
@@ -1570,8 +1604,14 @@ function createUploadSection(targetPath) {
     
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
-      fileInput.files = e.dataTransfer.files;
-      fileInput.onchange();
+      // Create a synthetic event for handleUploadFiles
+      const syntheticEvent = {
+        target: {
+          files: e.dataTransfer.files,
+          value: ''
+        }
+      };
+      handleUploadFiles(syntheticEvent);
     }
   };
 
@@ -1609,6 +1649,19 @@ async function uploadFiles(files, targetPath, statusDiv) {
     }
   }
 
+  const token = getAdminToken();
+  if (!token) {
+    statusDiv.innerHTML = `
+      <div style="color: #cc0000; font-weight: 600; margin: 8px 0;">
+        Upload requires admin authentication
+      </div>
+      <div style="font-size: 12px; color: #666;">
+        Please log in as admin to upload files.
+      </div>
+    `;
+    return;
+  }
+
   try {
     const cfg = await loadConfig();
     statusDiv.innerHTML = `
@@ -1620,46 +1673,43 @@ async function uploadFiles(files, targetPath, statusDiv) {
     const results = [];
     for (const file of files) {
       try {
-        const folderKey = breadcrumbsToKey(stack.map(s => s.name));
-        const fileKey = `${folderKey}/${file.name}`;
+        // Build key from current breadcrumbs (navigation stack)
+        const currentBreadcrumbs = stack.map(index => {
+          let node = tree;
+          for (let i = 0; i <= index; i++) {
+            if (stack[i] !== undefined) {
+              node = node.children[stack[i]];
+            }
+          }
+          return node.name;
+        });
         
-        // TODO: Admin API key would be needed for upload
-        // For now, show that upload requires admin authentication
-        statusDiv.innerHTML = `
-          <div style="color: #cc0000; font-weight: 600; margin: 8px 0;">
-            Upload requires admin API key
-          </div>
-          <div style="font-size: 12px; color: #666;">
-            Contact system administrator to configure upload permissions.
-          </div>
-        `;
-        return;
+        const key = keyFromBreadcrumbs(currentBreadcrumbs, file.name);
+        const url = `${cfg.WORKER_BASE_URL}/upload?key=${encodeURIComponent(key)}&mkparents=true`;
         
-        // When admin API key is available:
-        // const response = await fetch(`${cfg.WORKER_BASE_URL}/upload?key=${encodeURIComponent(fileKey)}`, {
-        //   method: 'POST',
-        //   headers: {
-        //     'Authorization': 'Bearer ' + ADMIN_API_KEY,
-        //     'Content-Type': file.type || 'application/octet-stream'
-        //   },
-        //   body: file
-        // });
-        //
-        // if (response.ok) {
-        //   const result = await response.json();
-        //   results.push({ success: true, file: file.name, result });
-        // } else {
-        //   const error = await response.json();
-        //   if (response.status === 409 && error.message === 'FolderNotReady') {
-        //     results.push({ success: false, file: file.name, error: 'Folder not initialized—contact admin.' });
-        //   } else {
-        //     results.push({ success: false, file: file.name, error: error.message || 'Upload failed' });
-        //   }
-        // }
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': file.type || 'application/octet-stream'
+          },
+          body: file
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          results.push({ success: true, file: file.name, result: data });
+        } else {
+          console.error('Upload failed', data);
+          results.push({ success: false, file: file.name, error: data.error || 'Upload failed' });
+          break; // Stop on first error as specified in requirements
+        }
         
       } catch (error) {
         console.error(`Upload failed for ${file.name}:`, error);
         results.push({ success: false, file: file.name, error: error.message });
+        break; // Stop on first error
       }
     }
 
@@ -1694,7 +1744,10 @@ async function uploadFiles(files, targetPath, statusDiv) {
     statusDiv.innerHTML = statusHtml;
     
     if (successCount > 0) {
-      setTimeout(() => render(), 1000); // Refresh file list
+      // Refresh file list after upload
+      setTimeout(async () => {
+        await refreshListing();
+      }, 1000);
     }
     
   } catch (error) {
@@ -1704,6 +1757,15 @@ async function uploadFiles(files, targetPath, statusDiv) {
         Upload failed: ${error.message}
       </div>
     `;
+  }
+}
+
+// Refresh current folder listing
+async function refreshListing() {
+  try {
+    render(); // Re-render the current view
+  } catch (error) {
+    console.error('Failed to refresh listing:', error);
   }
 }
 
