@@ -3,6 +3,41 @@ import { loadConfig, CONFIG } from './config.js';
 import { isAdmin, getAdminKey } from './admin.js';
 import { encodeKey, r2PublicUrl, isMechanicNotesCrumbs, api } from './utils.js';
 
+// Utility function to format file sizes
+function humanSize(b) {
+  if (b == null) return "";
+  const u = ["B", "KB", "MB", "GB"];
+  let i = 0;
+  let n = b;
+  while (n >= 1024 && i < u.length - 1) {
+    n /= 1024;
+    i++;
+  }
+  return `${n.toFixed(n < 10 && i ? 1 : 0)} ${u[i]}`;
+}
+
+// File type badge component
+function FileBadge({ ext }) {
+  const base = "inline-flex h-8 w-8 items-center justify-center rounded-md border text-xs font-bold";
+  if (/docx?$/.test(ext)) {
+    return `<span class="${base} border-blue-200 text-blue-700" style="border: 1px solid #dbeafe; color: #1d4ed8; background: #f8fafc;">W</span>`;
+  }
+  if (/pdf$/.test(ext)) {
+    return `<span class="${base} border-red-200 text-red-700" style="border: 1px solid #fecaca; color: #dc2626; background: #fef2f2;">PDF</span>`;
+  }
+  if (/(png|jpe?g|gif|webp)$/.test(ext)) {
+    return `<span class="${base} border-emerald-200 text-emerald-700" style="border: 1px solid #a7f3d0; color: #047857; background: #ecfdf5;">IMG</span>`;
+  }
+  if (/xlsx?$/.test(ext)) {
+    return `<span class="${base} border-green-200 text-green-700" style="border: 1px solid #bbf7d0; color: #15803d; background: #f0fdf4;">XL</span>`;
+  }
+  if (/pptx?$/.test(ext)) {
+    return `<span class="${base} border-orange-200 text-orange-700" style="border: 1px solid #fed7aa; color: #c2410c; background: #fff7ed;">PP</span>`;
+  }
+  // For .txt and other files, return empty string (no badge)
+  return "";
+}
+
 function viewerUrlFor(key, contentType = '') {
   const url = r2PublicUrl(key);
   const lower = key.toLowerCase();
@@ -184,15 +219,16 @@ export async function renderFilesList(prefix) {
       align-items: center;
       justify-content: space-between;
       border: 1px solid #ddd;
-      border-radius: 12px;
-      padding: 12px;
-      margin-bottom: 8px;
+      border-radius: 16px;
+      padding: 16px 20px;
+      margin-bottom: 12px;
       background: white;
       transition: all 0.2s ease;
+      min-height: 64px;
     `;
     
     row.addEventListener('mouseenter', () => {
-      row.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+      row.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
       row.style.borderColor = '#ccc';
     });
     
@@ -202,56 +238,61 @@ export async function renderFilesList(prefix) {
     });
     
     const name = f.key.split('/').pop();
+    const ext = (name.split('.').pop() || '').toLowerCase();
+    const size = humanSize(f.size);
     const isNoteFile = f.key.toLowerCase().endsWith('.json') && f.key.includes('/mechanic_notes/');
 
     const contentDiv = document.createElement('div');
-    contentDiv.style.cssText = 'display: flex; align-items: center; gap: 12px; flex: 1;';
+    contentDiv.style.cssText = 'display: flex; align-items: center; gap: 16px; flex: 1;';
     
+    // File badge/icon
+    const badgeHtml = FileBadge({ ext });
     const iconDiv = document.createElement('div');
-    iconDiv.style.cssText = `
-      width: 36px;
-      height: 36px;
-      background: #f8f9fa;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-    `;
+    iconDiv.style.cssText = 'display: flex; align-items: center; justify-content: center;';
+    if (badgeHtml) {
+      iconDiv.innerHTML = badgeHtml;
+    } else {
+      // For files without badges, show a simple generic icon
+      iconDiv.innerHTML = `<div style="width: 32px; height: 32px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #64748b; font-weight: 600;">${ext.toUpperCase() || 'FILE'}</div>`;
+    }
     
-    // Set icon based on file type
-    const ext = name.toLowerCase().split('.').pop();
-    if (['pdf'].includes(ext)) iconDiv.textContent = '📄';
-    else if (['jpg', 'jpeg', 'png', 'gif', 'svg'].includes(ext)) iconDiv.textContent = '🖼️';
-    else if (['doc', 'docx'].includes(ext)) iconDiv.textContent = '📝';
-    else if (['xls', 'xlsx'].includes(ext)) iconDiv.textContent = '📊';
-    else if (['ppt', 'pptx'].includes(ext)) iconDiv.textContent = '📽️';
-    else if (['txt', 'md'].includes(ext)) iconDiv.textContent = '📄';
-    else iconDiv.textContent = '📁';
+    const fileInfoDiv = document.createElement('div');
+    fileInfoDiv.style.cssText = 'flex: 1;';
     
     const nameDiv = document.createElement('div');
     nameDiv.textContent = name;
-    nameDiv.style.cssText = 'font-weight: 500; color: #333;';
+    nameDiv.style.cssText = 'font-weight: 600; color: #333; font-size: 16px; margin-bottom: 4px;';
     nameDiv.title = f.key;
     
+    const sizeDiv = document.createElement('div');
+    if (size) {
+      sizeDiv.textContent = size;
+      sizeDiv.style.cssText = 'font-size: 12px; color: #666;';
+    }
+    
+    fileInfoDiv.appendChild(nameDiv);
+    if (size) fileInfoDiv.appendChild(sizeDiv);
+    
     contentDiv.appendChild(iconDiv);
-    contentDiv.appendChild(nameDiv);
+    contentDiv.appendChild(fileInfoDiv);
     
     const actionsDiv = document.createElement('div');
-    actionsDiv.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+    actionsDiv.style.cssText = 'display: flex; align-items: center; gap: 12px;';
     
-    // View button
+    // View button - bigger and no emoji
     const viewBtn = document.createElement('button');
-    viewBtn.innerHTML = '👁️ View';
+    viewBtn.textContent = 'View';
     viewBtn.style.cssText = `
       border: 1px solid #ddd;
       background: white;
       color: #333;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 12px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
       cursor: pointer;
       transition: all 0.2s ease;
+      min-width: 70px;
     `;
     viewBtn.addEventListener('mouseenter', () => {
       viewBtn.style.background = '#f8f9fa';
@@ -268,18 +309,20 @@ export async function renderFilesList(prefix) {
       viewBtn.onclick = () => window.open(viewerUrlFor(f.key, f.contentType || ''), '_blank');
     }
     
-    // Download button
+    // Download button - bigger and no emoji
     const dlBtn = document.createElement('button');
-    dlBtn.innerHTML = '⬇️ Download';
+    dlBtn.textContent = 'Download';
     dlBtn.style.cssText = `
       border: 1px solid #ddd;
       background: white;
       color: #333;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 12px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
       cursor: pointer;
       transition: all 0.2s ease;
+      min-width: 90px;
     `;
     dlBtn.addEventListener('mouseenter', () => {
       dlBtn.style.background = '#f8f9fa';
@@ -299,19 +342,21 @@ export async function renderFilesList(prefix) {
     actionsDiv.appendChild(viewBtn);
     actionsDiv.appendChild(dlBtn);
 
-    // Delete button (only for admin)
+    // Delete button (only for admin) - bigger and no emoji
     if (isAdmin()) {
       const del = document.createElement('button');
-      del.innerHTML = '🗑️ Delete';
+      del.textContent = 'Delete';
       del.style.cssText = `
         border: 1px solid #dc3545;
         background: #fff5f5;
         color: #dc3545;
-        padding: 6px 12px;
-        border-radius: 6px;
-        font-size: 12px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
         cursor: pointer;
         transition: all 0.2s ease;
+        min-width: 80px;
       `;
       del.addEventListener('mouseenter', () => {
         del.style.background = '#dc3545';
@@ -350,8 +395,26 @@ export async function renderFolderToolbar(prefix) {
   if (!isAdmin()) return; // only admins see upload button
 
   const btn = document.createElement('button');
-  btn.textContent = 'Upload';
-  btn.className = 'btn';
+  btn.textContent = 'Upload Files';
+  btn.style.cssText = `
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 16px 24px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 20px;
+  `;
+  btn.addEventListener('mouseenter', () => {
+    btn.style.background = '#2563eb';
+  });
+  btn.addEventListener('mouseleave', () => {
+    btn.style.background = '#3b82f6';
+  });
+  
   const input = document.createElement('input');
   input.type = 'file'; 
   input.multiple = true; 

@@ -56,15 +56,33 @@ export async function renderNotes(prefix) {
   if (!host) return;
 
   host.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <h3 style="margin:0">Mechanic Notes</h3>
-      <button id="mbf-create-note">Create note</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 style="margin:0; font-size: 18px; font-weight: 700;">Mechanic Notes</h3>
+      <button id="mbf-create-note" style="
+        background: #3b82f6;
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      ">Create Note</button>
     </div>
     <div id="mbf-notes-list" class="mbf-notes-list">Loading…</div>
-    <div id="mbf-note-view" style="display:none;margin-top:10px;border:1px solid #eee;border-radius:6px;padding:10px"></div>
+    <div id="mbf-note-view" style="display:none;margin-top:20px;border:1px solid #eee;border-radius:12px;padding:20px;background:#f8f9fa"></div>
   `;
 
-  host.querySelector('#mbf-create-note').onclick = () => {
+  const createBtn = host.querySelector('#mbf-create-note');
+  createBtn.addEventListener('mouseenter', () => {
+    createBtn.style.background = '#2563eb';
+  });
+  createBtn.addEventListener('mouseleave', () => {
+    createBtn.style.background = '#3b82f6';
+  });
+
+  createBtn.onclick = () => {
     openNoteModal(async ({ author, title, body }) => {
       if (!author || !title) { alert('Author and Title are required'); return; }
       const res = await createNote(prefix, author, title, body || '');
@@ -78,7 +96,11 @@ export async function renderNotes(prefix) {
     const viewEl = host.querySelector('#mbf-note-view');
     const { notes = [] } = await fetchNotes(prefix);
 
-    if (!notes.length) { listEl.textContent = 'No notes yet.'; viewEl.style.display = 'none'; return; }
+    if (!notes.length) { 
+      listEl.innerHTML = '<div style="text-align: center; padding: 32px; color: #666;">No notes yet. Click "Create Note" to add your first mechanic note.</div>'; 
+      viewEl.style.display = 'none'; 
+      return; 
+    }
     listEl.innerHTML = '';
 
     for (const n of notes) {
@@ -89,44 +111,52 @@ export async function renderNotes(prefix) {
         align-items: center;
         justify-content: space-between;
         border: 1px solid #ddd;
-        border-radius: 12px;
-        padding: 12px;
-        margin-bottom: 8px;
+        border-radius: 16px;
+        padding: 20px 24px;
+        margin-bottom: 12px;
         background: white;
         cursor: pointer;
         transition: all 0.2s ease;
+        min-height: 80px;
       `;
       
       row.addEventListener('mouseenter', () => {
-        row.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+        row.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
         row.style.borderColor = '#ccc';
+        row.style.transform = 'translateY(-1px)';
       });
       
       row.addEventListener('mouseleave', () => {
         row.style.boxShadow = 'none';
         row.style.borderColor = '#ddd';
+        row.style.transform = 'translateY(0)';
       });
       
       const contentDiv = document.createElement('div');
-      contentDiv.style.cssText = 'display: flex; align-items: center; gap: 12px; flex: 1;';
+      contentDiv.style.cssText = 'display: flex; align-items: center; gap: 16px; flex: 1;';
       
+      // Note icon (no emoji, use styled div)
       const iconDiv = document.createElement('div');
       iconDiv.style.cssText = `
-        width: 36px;
-        height: 36px;
-        background: #f8f9fa;
-        border-radius: 8px;
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+        border: 2px solid #cbd5e1;
+        border-radius: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 16px;
+        font-size: 14px;
+        font-weight: 700;
+        color: #475569;
       `;
-      iconDiv.textContent = '📄';
+      iconDiv.textContent = 'NOTE';
       
       const textDiv = document.createElement('div');
+      textDiv.style.cssText = 'flex: 1;';
       textDiv.innerHTML = `
-        <div style="font-weight: 600; color: #333; margin-bottom: 2px;">${n.title}</div>
-        <div style="font-size: 13px; color: #666; font-style: italic;">
+        <div style="font-weight: 700; color: #1f2937; font-size: 16px; margin-bottom: 6px;">${n.title}</div>
+        <div style="font-size: 14px; color: #6b7280;">
           ${n.author} — ${new Date(n.createdAt).toLocaleString()}
         </div>
       `;
@@ -135,20 +165,22 @@ export async function renderNotes(prefix) {
       contentDiv.appendChild(textDiv);
       
       const actionsDiv = document.createElement('div');
-      actionsDiv.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+      actionsDiv.style.cssText = 'display: flex; align-items: center; gap: 12px;';
       
-      // Download button
+      // Download button (bigger, no emoji)
       const downloadBtn = document.createElement('button');
-      downloadBtn.innerHTML = '⬇️ Download';
+      downloadBtn.textContent = 'Download';
       downloadBtn.style.cssText = `
         border: 1px solid #ddd;
         background: white;
         color: #333;
-        padding: 6px 12px;
-        border-radius: 6px;
-        font-size: 12px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
         cursor: pointer;
         transition: all 0.2s ease;
+        min-width: 90px;
       `;
       downloadBtn.addEventListener('mouseenter', () => {
         downloadBtn.style.background = '#f8f9fa';
@@ -172,19 +204,21 @@ export async function renderNotes(prefix) {
       
       actionsDiv.appendChild(downloadBtn);
       
-      // Delete button (only for admin)
+      // Delete button (only for admin) - bigger, no emoji
       if (isAdmin()) {
         const deleteBtn = document.createElement('button');
-        deleteBtn.innerHTML = '🗑️ Delete';
+        deleteBtn.textContent = 'Delete';
         deleteBtn.style.cssText = `
           border: 1px solid #dc3545;
           background: #fff5f5;
           color: #dc3545;
-          padding: 6px 12px;
-          border-radius: 6px;
-          font-size: 12px;
+          padding: 12px 16px;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 500;
           cursor: pointer;
           transition: all 0.2s ease;
+          min-width: 80px;
         `;
         deleteBtn.addEventListener('mouseenter', () => {
           deleteBtn.style.background = '#dc3545';
@@ -213,9 +247,13 @@ export async function renderNotes(prefix) {
         if (!r.ok) { alert('Cannot load note'); return; }
         const obj = await r.json();
         viewEl.style.display = 'block';
-        viewEl.innerHTML = `<h4 style="margin:.25rem 0">${obj.title}</h4>
-          <div style="opacity:.7;margin-bottom:.5rem">${obj.author} — ${new Date(obj.createdAt).toLocaleString()}</div>
-          <pre style="white-space:pre-wrap;margin:0">${obj.body || ''}</pre>`;
+        viewEl.innerHTML = `
+          <h4 style="margin: 0 0 12px 0; font-size: 18px; color: #1f2937;">${obj.title}</h4>
+          <div style="color: #6b7280; margin-bottom: 16px; font-size: 14px;">
+            <strong>Author:</strong> ${obj.author} | <strong>Created:</strong> ${new Date(obj.createdAt).toLocaleString()}
+          </div>
+          <pre style="white-space: pre-wrap; margin: 0; padding: 16px; background: white; border-radius: 8px; border: 1px solid #e5e7eb; font-family: inherit; line-height: 1.6;">${obj.body || ''}</pre>
+        `;
         viewEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       };
       
