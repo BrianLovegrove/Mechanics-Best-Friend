@@ -17,14 +17,64 @@ let countsPreloaded = false;
 async function preloadAllCounts() {
   if (countsPreloaded || !tree) return;
   
-  console.log('Preloading file and folder counts...');
+  console.log('Preloading real file and folder counts from Cloudflare...');
   globalCountsCache.clear();
   
-  // Helper function to count all descendants recursively
-  function countAllDescendants(node) {
+  // Helper function to fetch real file count for a folder path
+  async function fetchRealFileCount(folderPath) {
+    try {
+      await loadConfig();
+      const prefix = `${CONFIG.ROOT_PREFIX}/${folderPath}/`.replace(/\/+/g, '/');
+      const items = await listFilesFromWorker(prefix);
+      
+      // Count only actual files (not prefixes/subfolders)
+      const files = items.filter(item => item.kind === 'object');
+      return files.length;
+    } catch (error) {
+      console.warn(`Failed to get file count for ${folderPath}:`, error);
+      return 0; // Fallback to 0 if API fails
+    }
+  }
+  
+  // Helper function to fetch real note count for mechanic notes folders
+  async function fetchRealNoteCount(machinePrefix) {
+    try {
+      await loadConfig();
+      const response = await fetch(`${CONFIG.WORKER_BASE_URL}/notes/list?machinePrefix=${encodeURIComponent(machinePrefix)}`);
+      if (response.ok) {
+        const data = await response.json();
+        return (data.notes || []).length;
+      }
+      return 0;
+    } catch (error) {
+      console.warn(`Failed to get note count for ${machinePrefix}:`, error);
+      return 0; // Fallback to 0 if API fails
+    }
+  }
+  
+  // Helper function to count all descendants recursively with real file counts
+  async function countAllDescendantsWithRealCounts(node, basePath = []) {
     if (!node.children || node.children.length === 0) {
-      // Leaf node - this represents a folder that contains files, not subfolders
-      return { totalItems: 0, totalFolders: 0, totalLeafFolders: 1 };
+      // Leaf node - fetch real file count from API
+      const folderPath = [...basePath, node.name].map(name => 
+        name.toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '')
+      ).join('/');
+      
+      let fileCount = 0;
+      const isMechanicNotes = node.name.toLowerCase() === 'mechanic notes';
+      
+      if (isMechanicNotes) {
+        // For mechanic notes, get note count
+        const machinePrefix = basePath.map(name => 
+          name.toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '')
+        ).join('/');
+        fileCount = await fetchRealNoteCount(machinePrefix);
+      } else {
+        // For regular folders, get file count
+        fileCount = await fetchRealFileCount(folderPath);
+      }
+      
+      return { totalItems: 0, totalFolders: 0, totalLeafFolders: 1, totalFiles: fileCount };
     }
     
     // Check if this is a folder that only contains leaf folders (document categories)
@@ -32,75 +82,84 @@ async function preloadAllCounts() {
     
     if (hasOnlyLeafChildren) {
       // This folder contains only document categories (leaf folders)
-      // Show the count of immediate children (document categories)
+      // Fetch real file counts for all children
+      let totalFiles = 0;
       const leafCount = node.children.length;
-      return { totalItems: leafCount, totalFolders: leafCount, totalLeafFolders: leafCount };
+      
+      for (const child of node.children) {
+        const childCounts = await countAllDescendantsWithRealCounts(child, [...basePath, node.name]);
+        totalFiles += childCounts.totalFiles;
+      }
+      
+      return { totalItems: leafCount, totalFolders: leafCount, totalLeafFolders: leafCount, totalFiles };
     }
     
     // This is a higher-level folder - count all descendants recursively
     let totalItems = 0;
     let totalFolders = 0;
     let totalLeafFolders = 0;
+    let totalFiles = 0;
     
     // Count all children and their descendants
     for (const child of node.children) {
-      const childCounts = countAllDescendants(child);
+      const childCounts = await countAllDescendantsWithRealCounts(child, [...basePath, node.name]);
       totalItems += childCounts.totalItems;
       totalFolders += childCounts.totalFolders;
       totalLeafFolders += childCounts.totalLeafFolders;
+      totalFiles += childCounts.totalFiles;
     }
     
     // Add the immediate children to the count
     totalItems += node.children.length;
     totalFolders += node.children.length;
     
-    return { totalItems, totalFolders, totalLeafFolders };
+    return { totalItems, totalFolders, totalLeafFolders, totalFiles };
   }
   
-  // Populate tree counts with recursive totals
-  function populateTreeCounts(node, basePath = []) {
+  // Populate tree counts with real file counts from API
+  async function populateTreeCountsWithRealData(node, basePath = []) {
     const nodeKey = [...basePath, node.name].join('/');
     
-    // Calculate recursive counts
-    const recursiveCounts = countAllDescendants(node);
+    // Calculate recursive counts with real file data
+    const recursiveCounts = await countAllDescendantsWithRealCounts(node, basePath);
     const isLeaf = !node.children || node.children.length === 0;
+    const isMechanicNotes = node.name.toLowerCase() === 'mechanic notes';
     
     // For display purposes:
     // - If it's a leaf folder, show 0 items (it contains files, not folders)
     // - If it's a parent folder, show total recursive count
     const displayItemCount = isLeaf ? 0 : recursiveCounts.totalItems;
     
-    // For file count estimation:
-    // - Leaf folders: show 0 (will be updated with actual API calls later)
-    // - Parent folders: estimate based on number of leaf folders (assuming avg 3 files per leaf folder)
-    const estimatedFileCount = isLeaf ? 0 : Math.max(0, recursiveCounts.totalLeafFolders * 3);
+    // Use real file count from API
+    const realFileCount = isLeaf ? recursiveCounts.totalFiles : recursiveCounts.totalFiles;
     
-    // Set cache entry with recursive counts
+    // Set cache entry with real counts
     globalCountsCache.set(nodeKey, {
       folderCount: displayItemCount,
-      fileCount: estimatedFileCount,
+      fileCount: realFileCount,
       timestamp: Date.now(),
-      isLeaf: isLeaf
+      isLeaf: isLeaf,
+      isMechanicNotes: isMechanicNotes
     });
     
     // Recursively process children
     if (node.children) {
       for (const child of node.children) {
-        populateTreeCounts(child, [...basePath, node.name]);
+        await populateTreeCountsWithRealData(child, [...basePath, node.name]);
       }
     }
   }
   
   try {
-    // Populate counts for all nodes in the tree
+    // Populate counts for all nodes in the tree with real data
     if (tree.children) {
       for (const child of tree.children) {
-        populateTreeCounts(child, []);
+        await populateTreeCountsWithRealData(child, []);
       }
     }
     
     countsPreloaded = true;
-    console.log('Basic folder counts preloaded successfully');
+    console.log('Real file and folder counts preloaded successfully from Cloudflare');
   } catch (error) {
     console.error('Failed to preload counts:', error);
     countsPreloaded = true; // Continue anyway
@@ -116,18 +175,21 @@ function getCachedCounts(node, basePath = []) {
     return {
       folderCount: cached.folderCount,
       fileCount: cached.fileCount,
-      isLeaf: cached.isLeaf
+      isLeaf: cached.isLeaf,
+      isMechanicNotes: cached.isMechanicNotes || false
     };
   }
   
   // Fallback to basic counts if not cached
   const folderCount = node.children ? node.children.length : 0;
   const isLeaf = !node.children || node.children.length === 0;
+  const isMechanicNotes = node.name.toLowerCase() === 'mechanic notes';
   
   return {
     folderCount: folderCount,
     fileCount: 0,
-    isLeaf: isLeaf
+    isLeaf: isLeaf,
+    isMechanicNotes: isMechanicNotes
   };
 }
 
@@ -514,12 +576,17 @@ function render(){
       const folderCount = counts.folderCount;
       const fileCount = counts.fileCount;
       const isLeaf = counts.isLeaf;
+      const isMechanicNotes = counts.isMechanicNotes;
       
-      // Create compact, non-wrapping display
+      // Create compact, non-wrapping display with special handling for Mechanic Notes
       let countDisplay = '';
       if (isLeaf) {
-        // Leaf folders show file count only
-        countDisplay = `Files: ${fileCount}`;
+        // Leaf folders show file count only, with special text for Mechanic Notes
+        if (isMechanicNotes) {
+          countDisplay = `Notes: ${fileCount}`;
+        } else {
+          countDisplay = `Files: ${fileCount}`;
+        }
       } else {
         // Parent folders show both folder and file counts
         countDisplay = `Items: ${folderCount} | Files: ${fileCount}`;
