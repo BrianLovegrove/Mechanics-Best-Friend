@@ -341,16 +341,16 @@ function render(){
 
   if(n.children && n.children.length){
     const list=document.createElement('div'); list.className='list';
-    n.children.forEach((ch,i)=>{ 
+    
+    // Create all buttons first, then async load file counts
+    n.children.forEach(async (ch,i)=>{ 
       const b=document.createElement('button'); 
       b.className='item'; 
-      // Add item count if this item has children
-      if(ch.children && ch.children.length) {
-        b.innerHTML = `${ch.name} <span style="font-size:0.8em;color:#666;margin-left:8px;">| ${ch.children.length} items</span>`;
-      } else {
-        b.textContent = ch.name;
-      }
-      // Use addEventListener instead of onclick for better reliability
+      
+      // Initial display with just the name
+      b.innerHTML = `${ch.name} <span style="font-size:0.8em;color:#666;margin-left:8px;">| Loading...</span>`;
+      
+      // Add click handler
       b.addEventListener('click', function(e) {
         e.preventDefault();
         e.stopPropagation();
@@ -358,7 +358,68 @@ function render(){
         stack.push(i); 
         render(); 
       }); 
-      list.appendChild(b); 
+      
+      list.appendChild(b);
+      
+      // Async load counts and update display with timeout protection
+      try {
+        const itemCount = ch.children ? ch.children.length : 0;
+        let fileCount = 0;
+        
+        if (itemCount > 0) {
+          // Get current path for this child
+          const currentPath = [];
+          let currentNode = tree;
+          for (let stackIndex of stack) {
+            currentNode = currentNode.children[stackIndex];
+            currentPath.push(currentNode.name);
+          }
+          
+          // Use Promise.race to implement timeout
+          const countPromise = getFileCountForNode(ch, currentPath);
+          const timeoutPromise = new Promise((resolve) => 
+            setTimeout(() => resolve(0), 15000) // 15 second timeout
+          );
+          
+          fileCount = await Promise.race([countPromise, timeoutPromise]);
+          b.innerHTML = `${ch.name} <span style="font-size:0.8em;color:#666;margin-left:8px;">| Items ${itemCount} | Files ${fileCount}</span>`;
+        } else {
+          // This is a leaf folder - count files directly with timeout
+          const currentPath = [];
+          let currentNode = tree;
+          for (let stackIndex of stack) {
+            currentNode = currentNode.children[stackIndex];
+            currentPath.push(currentNode.name);
+          }
+          
+          const pathComponents = [...currentPath, ch.name];
+          const prefix = breadcrumbsToKey(pathComponents);
+          
+          try {
+            const itemsPromise = listFilesFromWorker(prefix);
+            const timeoutPromise = new Promise((resolve) => 
+              setTimeout(() => resolve([]), 10000) // 10 second timeout
+            );
+            
+            const items = await Promise.race([itemsPromise, timeoutPromise]);
+            const files = items.filter(item => item.kind === 'object');
+            fileCount = files.length;
+          } catch (error) {
+            console.warn(`Failed to count files directly for ${ch.name}:`, error);
+            fileCount = 0;
+          }
+          
+          b.innerHTML = `${ch.name} <span style="font-size:0.8em;color:#666;margin-left:8px;">| Files ${fileCount}</span>`;
+        }
+      } catch (error) {
+        console.warn(`Failed to load counts for ${ch.name}:`, error);
+        // Fallback to basic display when file counting fails
+        if (ch.children && ch.children.length) {
+          b.innerHTML = `${ch.name} <span style="font-size:0.8em;color:#666;margin-left:8px;">| Items ${ch.children.length}</span>`;
+        } else {
+          b.innerHTML = `${ch.name}`;
+        }
+      }
     });
     $c.appendChild(list);
   } else {
@@ -582,6 +643,80 @@ async function listFilesFromWorker(prefix, retryCount = 0) {
   }
 }
 
+// Enhanced file counting - recursively count files in all subfolders
+async function countFilesRecursively(node, basePath = []) {
+  let totalFiles = 0;
+  
+  // If this node has no children, it's a leaf folder - count files in it
+  if (!node.children || node.children.length === 0) {
+    try {
+      const pathComponents = [...basePath, node.name];
+      const prefix = breadcrumbsToKey(pathComponents);
+      const items = await listFilesFromWorker(prefix);
+      const files = items.filter(item => item.kind === 'object');
+      totalFiles += files.length;
+    } catch (error) {
+      console.warn(`Failed to count files for ${node.name}:`, error);
+      // Return 0 on error instead of throwing
+      return 0;
+    }
+  } else {
+    // Recursively count files in all children
+    for (const child of node.children) {
+      const childPath = [...basePath, node.name];
+      const childCount = await countFilesRecursively(child, childPath);
+      totalFiles += childCount;
+    }
+  }
+  
+  return totalFiles;
+}
+
+// Cache for file counts to avoid repeated API calls
+const fileCountCache = new Map();
+const cacheTimeout = 5 * 60 * 1000; // 5 minutes
+
+async function getFileCountForNode(node, basePath = []) {
+  const pathKey = [...basePath, node.name].join('/');
+  const cached = fileCountCache.get(pathKey);
+  
+  // Return cached value if it's fresh
+  if (cached && (Date.now() - cached.timestamp) < cacheTimeout) {
+    return cached.count;
+  }
+  
+  try {
+    // Calculate new count with timeout
+    const count = await Promise.race([
+      countFilesRecursively(node, basePath),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout')), 10000) // 10 second timeout
+      )
+    ]);
+    
+    // Cache the result
+    fileCountCache.set(pathKey, {
+      count: count,
+      timestamp: Date.now()
+    });
+    
+    return count;
+  } catch (error) {
+    console.warn(`Failed to get file count for ${pathKey}:`, error);
+    // Cache a 0 count to avoid repeated failed requests
+    fileCountCache.set(pathKey, {
+      count: 0,
+      timestamp: Date.now()
+    });
+    return 0;
+  }
+}
+
+// Clear file count cache - call this after file uploads
+function clearFileCountCache() {
+  fileCountCache.clear();
+}
+
 async function renderFilesList(prefix) {
   await loadConfig();
   const host = document.getElementById('files-list');
@@ -719,6 +854,7 @@ async function renderFolderToolbar(prefix) {
       if (!res.ok) { alert(data.error || 'Upload failed'); break; }
     }
     input.value = '';
+    clearFileCountCache(); // Clear cache so counts will be refreshed
     await renderFilesList(prefix);       // refresh list after upload
   };
 
@@ -2263,6 +2399,8 @@ async function uploadFiles(files, targetPath, statusDiv) {
 // Refresh current folder listing
 async function refreshListing() {
   try {
+    // Clear file count cache to force refresh of counts
+    clearFileCountCache();
     render(); // Re-render the current view
   } catch (error) {
     console.error('Failed to refresh listing:', error);
