@@ -24,7 +24,7 @@ async function preloadAllCounts() {
   function countAllDescendants(node) {
     if (!node.children || node.children.length === 0) {
       // Leaf node - this represents a folder that contains files, not subfolders
-      return { totalItems: 0, totalFolders: 0 };
+      return { totalItems: 0, totalFolders: 0, totalLeafFolders: 1 };
     }
     
     // Check if this is a folder that only contains leaf folders (document categories)
@@ -33,25 +33,28 @@ async function preloadAllCounts() {
     if (hasOnlyLeafChildren) {
       // This folder contains only document categories (leaf folders)
       // Show the count of immediate children (document categories)
-      return { totalItems: node.children.length, totalFolders: node.children.length };
+      const leafCount = node.children.length;
+      return { totalItems: leafCount, totalFolders: leafCount, totalLeafFolders: leafCount };
     }
     
     // This is a higher-level folder - count all descendants recursively
     let totalItems = 0;
     let totalFolders = 0;
+    let totalLeafFolders = 0;
     
     // Count all children and their descendants
     for (const child of node.children) {
       const childCounts = countAllDescendants(child);
       totalItems += childCounts.totalItems;
       totalFolders += childCounts.totalFolders;
+      totalLeafFolders += childCounts.totalLeafFolders;
     }
     
     // Add the immediate children to the count
     totalItems += node.children.length;
     totalFolders += node.children.length;
     
-    return { totalItems, totalFolders };
+    return { totalItems, totalFolders, totalLeafFolders };
   }
   
   // Populate tree counts with recursive totals
@@ -67,10 +70,15 @@ async function preloadAllCounts() {
     // - If it's a parent folder, show total recursive count
     const displayItemCount = isLeaf ? 0 : recursiveCounts.totalItems;
     
+    // For file count estimation:
+    // - Leaf folders: show 0 (will be updated with actual API calls later)
+    // - Parent folders: estimate based on number of leaf folders (assuming avg 3 files per leaf folder)
+    const estimatedFileCount = isLeaf ? 0 : Math.max(0, recursiveCounts.totalLeafFolders * 3);
+    
     // Set cache entry with recursive counts
     globalCountsCache.set(nodeKey, {
       folderCount: displayItemCount,
-      fileCount: 0, // Will be updated when folder is accessed or calculated recursively later
+      fileCount: estimatedFileCount,
       timestamp: Date.now(),
       isLeaf: isLeaf
     });
@@ -128,6 +136,12 @@ function clearGlobalCountsCache() {
   globalCountsCache.clear();
   countsPreloaded = false;
   console.log('Global counts cache cleared');
+}
+
+// Clear file count cache (legacy function for compatibility)
+function clearFileCountCache() {
+  // For now, just clear the global cache - can be enhanced later for file-specific caching
+  clearGlobalCountsCache();
 }
 
 const $overlay=document.getElementById('loginOverlay');
