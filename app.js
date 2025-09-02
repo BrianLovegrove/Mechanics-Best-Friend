@@ -277,8 +277,28 @@ async function checkAuth() {
   // Check if user is already authenticated via sessionStorage
   const authOk = sessionStorage.getItem('refresco_auth_ok');
   if (authOk === '1') {
-    currentUser = { username: 'MECH', role: 'mechanic' };
-    return true;
+    // Restore user info from sessionStorage
+    const userInfo = sessionStorage.getItem('refresco_user_info');
+    if (userInfo) {
+      try {
+        currentUser = JSON.parse(userInfo);
+        
+        // If this is an admin user, restore admin functionality
+        if (currentUser.role === 'admin') {
+          onAdminLoginSuccess();
+        }
+        
+        return true;
+      } catch (e) {
+        // Fallback to MECH if user info is corrupted
+        currentUser = { username: 'MECH', role: 'mechanic' };
+        return true;
+      }
+    } else {
+      // Fallback to MECH for legacy sessions
+      currentUser = { username: 'MECH', role: 'mechanic' };
+      return true;
+    }
   }
   return false;
 }
@@ -347,6 +367,16 @@ $loginBtn.onclick = async () => {
     if (username === 'MECH' && password === '1234') {
       currentUser = { username: 'MECH', role: 'mechanic' };
       sessionStorage.setItem('refresco_auth_ok', '1');
+      sessionStorage.setItem('refresco_user_info', JSON.stringify(currentUser));
+      
+      showLoadingAnimation();
+    } else if (username === 'ADMIN' && password === '1234') {
+      currentUser = { username: 'ADMIN', role: 'admin' };
+      sessionStorage.setItem('refresco_auth_ok', '1');
+      sessionStorage.setItem('refresco_user_info', JSON.stringify(currentUser));
+      
+      // Enable admin functionality
+      onAdminLoginSuccess();
       
       showLoadingAnimation();
     } else {
