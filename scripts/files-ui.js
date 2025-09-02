@@ -245,23 +245,45 @@ export async function renderFilesList(prefix) {
     contentDiv.appendChild(fileInfoDiv);
     
     const actionsDiv = document.createElement('div');
-    actionsDiv.style.cssText = 'display: flex; align-items: center; gap: 12px;';
+    // For admin users, stack download and delete buttons vertically to prevent overflow
+    if (isAdmin()) {
+      actionsDiv.style.cssText = 'display: flex; flex-direction: column; align-items: flex-end; gap: 6px; min-width: 100px;';
+    } else {
+      actionsDiv.style.cssText = 'display: flex; align-items: center; gap: 12px;';
+    }
     
     // View button - bigger and no emoji
     const viewBtn = document.createElement('button');
     viewBtn.textContent = 'View';
-    viewBtn.style.cssText = `
-      border: 1px solid #ddd;
-      background: white;
-      color: #333;
-      padding: 12px 16px;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      min-width: 70px;
-    `;
+    // Adjust button size for admin users to fit in vertical layout
+    if (isAdmin()) {
+      viewBtn.style.cssText = `
+        border: 1px solid #ddd;
+        background: white;
+        color: #333;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        min-width: 65px;
+        width: 100%;
+      `;
+    } else {
+      viewBtn.style.cssText = `
+        border: 1px solid #ddd;
+        background: white;
+        color: #333;
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        min-width: 70px;
+      `;
+    }
     viewBtn.addEventListener('mouseenter', () => {
       viewBtn.style.background = '#f8f9fa';
     });
@@ -279,24 +301,44 @@ export async function renderFilesList(prefix) {
     
     // Download button - bigger and with icon
     const dlBtn = document.createElement('button');
-    dlBtn.style.cssText = `
-      border: 1px solid #ddd;
-      background: white;
-      color: #333;
-      padding: 12px 16px;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      min-width: 90px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    `;
+    // Adjust button size for admin users to fit in vertical layout
+    if (isAdmin()) {
+      dlBtn.style.cssText = `
+        border: 1px solid #ddd;
+        background: white;
+        color: #333;
+        padding: 8px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        min-width: 80px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        width: 100%;
+      `;
+    } else {
+      dlBtn.style.cssText = `
+        border: 1px solid #ddd;
+        background: white;
+        color: #333;
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        min-width: 90px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      `;
+    }
     
     // Add download icon
-    const downloadIcon = createIconElement(DOWNLOAD_ICON, 'Download', 16);
+    const downloadIcon = createIconElement(DOWNLOAD_ICON, 'Download', isAdmin() ? 14 : 16);
     dlBtn.appendChild(downloadIcon);
     
     const downloadText = document.createElement('span');
@@ -320,7 +362,7 @@ export async function renderFilesList(prefix) {
     actionsDiv.appendChild(viewBtn);
     actionsDiv.appendChild(dlBtn);
 
-    // Delete button (only for admin) - bigger and no emoji
+    // Delete button (only for admin) - smaller and fits in vertical layout
     if (isAdmin()) {
       const del = document.createElement('button');
       del.textContent = 'Delete';
@@ -328,13 +370,14 @@ export async function renderFilesList(prefix) {
         border: 1px solid #dc3545;
         background: #fff5f5;
         color: #dc3545;
-        padding: 12px 16px;
-        border-radius: 8px;
-        font-size: 14px;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 12px;
         font-weight: 500;
         cursor: pointer;
         transition: all 0.2s ease;
-        min-width: 80px;
+        min-width: 65px;
+        width: 100%;
       `;
       del.addEventListener('mouseenter', () => {
         del.style.background = '#dc3545';
@@ -395,7 +438,7 @@ export async function renderFolderToolbar(prefix) {
   
   // Add upload icon
   const uploadIcon = createIconElement(UPLOAD_ICON, 'Upload', 20);
-  uploadIcon.style.filter = 'brightness(0) invert(1)'; // Make icon white
+  // Remove the white overlay filter to show transparent background
   btn.appendChild(uploadIcon);
   
   const uploadText = document.createElement('span');
