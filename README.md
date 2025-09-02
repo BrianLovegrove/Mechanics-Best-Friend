@@ -1,279 +1,128 @@
-# Mechanic's Best Friend - Fully Automatic Setup
+# Mechanic's Best Friend
+
+A comprehensive document management system designed specifically for industrial factory equipment maintenance and operations. This application provides a hierarchical navigation system for accessing technical documentation, schematics, procedures, and maintenance notes across multiple production lines.
+
+## Application Overview
+
+Mechanic's Best Friend serves as a centralized repository for all equipment documentation within an industrial facility. The system organizes documents by production lines, equipment types, and document categories, providing maintenance teams with quick access to critical information during troubleshooting and routine maintenance operations.
+
+## Key Features
+
+### Document Organization
+- **Hierarchical Navigation**: Browse documentation through an intuitive tree structure organized by production lines and equipment
+- **Category-Based Filing**: Documents are organized into standardized categories including Electrical Schematics, Machine Manuals, Troubleshooting Guides, PM Procedures, Recipes, Adjustment Guides, and Mechanic Notes
+- **Multi-Level Access**: Navigate from high-level production line views down to specific equipment documentation
+
+### File Management
+- **Cloud Storage Integration**: Files are stored and managed through Cloudflare R2 storage with secure access controls
+- **Real-Time File Counting**: View the number of folders and files at each navigation level, including totals across all subfolders
+- **Upload Capabilities**: Authorized users can upload new documentation directly to the appropriate folders
+- **Progressive Loading**: File lists and counts are dynamically loaded and updated when new content is added
+
+### Technical Infrastructure
+- **Cloudflare Integration**: The system connects to Cloudflare Workers for backend processing and R2 for file storage
+- **Progressive Web App**: Can be installed as a desktop or mobile application for offline access
+- **Role-Based Access**: Different user roles provide appropriate access levels for viewing and uploading documents
+- **Session Management**: Secure authentication with persistent sessions for seamless access
+
+## Navigation Structure
+
+The application organizes content across several main categories:
+
+### Production Lines
+- **Line 2**: Complete documentation for production line 2 equipment including depalletizer, fillers, seamers, pasteurizer, and packaging equipment
+- **Line 3**: Documentation for production line 3 with similar equipment categories plus line-specific machinery
+- **Line 4**: Full documentation set for production line 4 equipment and processes
+
+### Supporting Systems
+- **Other Systems**: Documentation for facility-wide systems including steam generators, batching systems, CIP skids, chillers, air handlers, and utility equipment
+- **Equipment**: General equipment documentation including VFDs, valves, pumps, and miscellaneous production support equipment
+
+### Document Categories
+Each equipment item contains organized folders for:
+- Electrical Schematics
+- Machine Diagrams and CAD Drawings  
+- Machine Manuals
+- Troubleshooting Procedures
+- Preventive Maintenance (PM) Procedures
+- Recipes and Process Parameters
+- Adjustment Guides
+- Mechanic Notes
+
+## How to Use the Application
+
+### Initial Access
+1. Navigate to the application URL in a web browser
+2. Complete the one-time initialization process to establish the connection to cloud services
+3. Authenticate using your assigned credentials
+4. The main navigation interface will display all available production lines and systems
+
+### Browsing Documentation
+1. **Start at the Home Screen**: View all major production lines and systems with folder and file counts
+2. **Select a Production Line**: Click on any line (e.g., Line 2) to view all equipment within that line
+3. **Choose Equipment**: Navigate to specific equipment (e.g., Depalletizer) to see available documentation categories
+4. **Access Documents**: Select a document category to view and download available files
+5. **Navigation Controls**: Use the breadcrumb navigation or Back button to return to previous levels
+
+### Understanding File Counts
+- **Items Count**: Shows the number of subfolders within the current folder
+- **Files Count**: Displays the total number of files across all subfolders, providing a complete count of available documentation
+- **Real-Time Updates**: Counts automatically refresh when new files are uploaded or when navigating between folders
+
+### File Access and Downloads
+- View file listings with detailed information including file names, sizes, and upload dates
+- Download files directly through the browser interface
+- Open supported file types (images, PDFs, documents) in an integrated viewer
+- Access mechanic notes through a specialized reader interface
+
+## System Requirements and Setup
+
+### Browser Compatibility
+- Modern web browsers with JavaScript enabled
+- Chrome, Firefox, Safari, or Edge (latest versions recommended)
+- Mobile browsers supported for field access
+
+### Network Requirements
+- Internet connection required for initial setup and file access
+- HTTPS connection automatically established for secure data transfer
+- Cloudflare CDN provides optimized global access
+
+### Installation Options
+- **Direct Browser Access**: No installation required - access directly through web browser
+- **Progressive Web App**: Install to desktop or mobile device for app-like experience
+- **Offline Capabilities**: Limited offline access through service worker caching
+
+## Getting Started
+
+1. **Access the Application**: Open the application URL in your preferred web browser
+2. **Initialize System**: Click the initialization button when prompted to establish secure connections
+3. **Wait for Setup**: The system will automatically configure connections to cloud services and verify access
+4. **Login**: Enter your authentication credentials when the login screen appears
+5. **Begin Navigation**: Use the main interface to browse through production lines and equipment documentation
 
-A document management system for Refresco-Tempe factory equipment with **ZERO manual setup required**.
+## Connectivity and Performance
 
-## 🚀 Instant Start (No Setup Required!)
+The application establishes connections to Cloudflare services during initialization:
+- **Cloudflare Workers**: Handle backend processing, authentication, and file operations
+- **Cloudflare R2 Storage**: Provides secure, scalable file storage and retrieval
+- **Content Delivery Network**: Ensures fast access to files regardless of geographic location
+- **Automatic Failover**: Built-in redundancy ensures reliable access to documentation
 
-### Option 1: One-Click Start Scripts
+File counts and listings are dynamically loaded from the cloud storage system, ensuring that displayed information always reflects the current state of the documentation repository. When new files are uploaded, the system automatically updates counts and file listings across all relevant navigation levels.
 
-**Windows Users:**
-```
-Double-click: start.bat
-```
+## Security and Access Control
 
-**Mac/Linux Users:**
-```
-Double-click: start.sh (or run: ./start.sh)
-```
+- **Encrypted Connections**: All data transfers use industry-standard HTTPS encryption
+- **Role-Based Permissions**: Access levels are enforced both in the application interface and at the storage level
+- **Session Security**: Authentication sessions are managed securely with automatic timeout features
+- **Audit Logging**: File access and upload activities are logged for security and compliance purposes
 
-These scripts automatically:
-- ✅ Check for Node.js (guides you to install if missing)
-- ✅ Install all dependencies automatically
-- ✅ Create environment configuration
-- ✅ Start the server instantly
-- ✅ Open your browser to http://localhost:3000
+## Support and Troubleshooting
 
-### Option 2: Quick Command Line
+For technical support or questions about document access:
+- Verify network connectivity and browser compatibility
+- Clear browser cache if experiencing loading issues
+- Contact system administrators for access credential issues
+- Report missing documentation or broken file links through proper channels
 
-```bash
-npm start
-```
-
-If Node.js is installed, this automatically configures everything and starts the app.
-
-### Option 3: Auto-Setup in Browser
-
-1. Open `index.html` in any web browser
-2. Click "🚀 Auto-Setup Server" when prompted
-3. Everything configures automatically!
-
-## 📱 Instant Login
-
-**No registration needed - use these credentials immediately:**
-
-- **ADMIN** / **1234** - Full access + file upload
-- **MECH** / **1234** - View and navigate all documents
-
-## ✨ What's Automatic
-
-- 🔧 **Environment Setup** - All config files created automatically
-- 🔐 **User Accounts** - Pre-configured with secure passwords
-- 📁 **File Structure** - Navigation tree loaded automatically  
-- 🌐 **Server Start** - One-click startup with status monitoring
-- 📊 **Error Handling** - Automatic fallback modes if server unavailable
-- 💾 **Session Management** - Persistent login across browser sessions
-
-## 🏭 Features
-
-## 🏭 Features
-
-- **🔄 Zero-Setup Operation** - Works immediately without any configuration
-- **🔐 Automatic Authentication** - Pre-configured users with secure access
-- **📂 Smart File Upload** - ADMIN users can upload files directly to GitHub
-- **🧭 Hierarchical Navigation** - Browse equipment documentation by production line
-- **🔗 GitHub Integration** - Files uploaded with automatic versioning and commit tracking
-- **💾 Session Persistence** - 7-day automatic login with secure session management
-- **📱 Progressive Web App** - Install as mobile/desktop app with offline capabilities
-- **🛡️ Fallback Mode** - Works even without server connection
-
-## 👥 User Roles
-
-### ADMIN (username: ADMIN, password: 1234)
-- ✅ Full navigation access to all equipment folders
-- ✅ Upload files to any folder in the system
-- ✅ Drag-and-drop file upload interface
-- ✅ Progress tracking and GitHub commit links
-- ✅ Automatic filename collision handling (v2, v3, etc.)
-
-### MECH (username: MECH, password: 1234)
-- ✅ Full navigation access to all equipment folders
-- ✅ View and download existing files
-- ✅ Complete documentation browsing
-- ❌ No upload capabilities (UI hidden, server blocks with 403)
-
-## 🎯 Zero-Setup Quick Start
-
-### Fastest Method (Windows)
-1. Download the project
-2. Double-click `start.bat`
-3. Wait for "Server running" message
-4. Browser opens automatically to http://localhost:3000
-5. Login with MECH/1234 or ADMIN/1234
-
-### Fastest Method (Mac/Linux)
-1. Download the project
-2. Double-click `start.sh` (or run `./start.sh`)
-3. Wait for "Server running" message  
-4. Browser opens automatically to http://localhost:3000
-5. Login with MECH/1234 or ADMIN/1234
-
-### No-Install Browser Method
-1. Download the project
-2. Open `index.html` in any web browser
-3. Click "🚀 Auto-Setup Server" in the popup
-4. Login with MECH/1234 or ADMIN/1234
-
-*Note: If you don't have Node.js, the start scripts will guide you to install it automatically.*
-
-## 📁 File Upload Process (Automatic)
-
-1. **Login as ADMIN** (ADMIN/1234) 
-2. **Navigate** to any equipment folder (e.g., Line 2 → Depalletizer → Electrical Schematics)
-3. **Upload files** instantly with:
-   - Click "Choose Files" button, OR
-   - Drag and drop files onto the upload zone
-4. **Monitor progress** with real-time progress bar
-5. **View results** with direct GitHub commit links
-
-### 🔐 Upload Methods (Automatic Fallback)
-
-The system automatically uses the best available upload method:
-
-1. **SSH Git Upload** (Primary) - Direct Git commits with SSH deploy keys
-2. **GitHub API** (Fallback) - Uses GitHub tokens when Git SSH unavailable
-3. **Local Storage** (Final Fallback) - Local file storage when no remote methods available
-
-*Everything is pre-configured - no manual configuration needed!*
-
-### ⚙️ Advanced Git SSH Configuration (Optional)
-
-For organizations wanting direct Git commits, configure these environment variables:
-
-```bash
-# Git SSH Configuration
-GIT_REPO=git@github.com:OWNER/REPO.git
-GIT_BRANCH=main
-GIT_AUTHOR_NAME=MBF Upload Bot
-GIT_AUTHOR_EMAIL=uploads@mechanicsbestfriend.app
-GIT_SSH_PRIVATE_KEY_PATH=/path/to/ssh/key
-```
-
-**Features:**
-- ✅ Direct Git commits with proper authorship
-- ✅ Automatic branch protection handling (creates upload branches)
-- ✅ File versioning and conflict resolution
-- ✅ Comprehensive audit logging
-- ✅ Concurrency control for safe uploads
-- ✅ 100MB file size limits (GitHub standard)
-
-## 🗂️ File Organization
-
-Files are automatically organized in the `/library/` structure:
-```
-/library/
-├── line_2/
-│   ├── depalletizer/
-│   │   ├── electrical_schematics/
-│   │   ├── machine_manual/
-│   │   └── troubleshooting/
-│   └── empty_can_line/
-├── line_3/
-└── line_4/
-```
-
-## 🔒 Security Features
-
-- **Pre-hashed Passwords** - Industry-standard bcrypt encryption
-- **Session Management** - Secure 7-day sessions with httpOnly cookies
-- **Role-based Access** - ADMIN/MECH permissions automatically enforced
-- **Path Validation** - Automatic prevention of directory traversal attacks
-- **CSRF Protection** - Built-in request validation
-
-## 🛠️ Error Handling
-
-- **Automatic Fallback** - Works offline if server unavailable
-- **Connection Recovery** - Automatic retry for network issues
-- **User Guidance** - Clear error messages with next steps
-- **Graceful Degradation** - Read-only mode when upload unavailable
-
-## 💻 Technical Stack
-
-- **Frontend** - Vanilla JavaScript (no frameworks needed)
-- **Backend** - Node.js + Express (auto-configured)
-- **Authentication** - Express-session + bcrypt (pre-setup)
-- **File Upload** - Multer + GitHub API (automatic integration)
-- **PWA** - Service Worker + Manifest (offline ready)
-
-## 🆘 Support
-
-### Common Issues (Auto-Resolved)
-
-**"Connection Error"** → Auto-setup popup appears, click "Auto-Setup Server"
-
-**"Node.js not found"** → Start scripts guide you to https://nodejs.org/
-
-**"Port 3000 in use"** → App automatically tries different ports
-
-**"GitHub upload failed"** → Files saved locally, uploadable when token configured
-
-### Manual Troubleshooting (if needed)
-
-**Reset Everything:**
-```bash
-rm .env users.json
-npm start
-```
-
-**Force Clean Install:**
-```bash
-rm -rf node_modules
-npm install
-npm start
-```
-
-**Enable GitHub Uploads:**
-1. Get GitHub token at https://github.com/settings/tokens
-2. Edit `.env` file: `GITHUB_TOKEN=your_token_here`
-3. Restart with `npm start`
-
----
-
-## 📞 Contact
-
-- **Repository**: https://github.com/BrianLovegrove/Mechanics-Best-Friend
-- **Issues**: Use GitHub Issues for bug reports
-- **Email**: Contact repository owner for support
-
----
-
-*🔧 Built for mechanics, by mechanics - because your time should be spent fixing equipment, not fighting with software setup!*
-   - Click "Choose Files" button, OR
-   - Drag and drop files onto the upload zone
-4. **Monitor progress** with the built-in progress bar
-5. **View results** with direct GitHub commit links
-
-## File Organization
-
-Files are uploaded to the `/library/` path structure:
-```
-/library/
-├── line_2/
-│   ├── depalletizer/
-│   │   ├── electrical_schematics/
-│   │   ├── machine_manual/
-│   │   └── troubleshooting/
-│   └── empty_can_line/
-├── line_3/
-└── line_4/
-```
-
-## Security Features
-
-- **Password Hashing**: bcrypt with salt rounds
-- **Session Management**: Express sessions with httpOnly cookies
-- **Path Validation**: Prevents directory traversal attacks
-- **Role-based Authorization**: Server-side enforcement
-- **File Size Limits**: 50MB per file, 10 files per upload
-
-## Error Handling
-
-- **File too large**: Clear error message with size limit
-- **Connection issues**: Network error handling with retry suggestions
-- **Authentication failures**: Clear feedback for invalid credentials
-- **GitHub API errors**: Detailed error messages with troubleshooting hints
-
-## Technical Stack
-
-- **Backend**: Node.js, Express.js, bcrypt, multer
-- **GitHub Integration**: @octokit/rest
-- **Frontend**: Vanilla JavaScript (no frameworks)
-- **Session Management**: express-session
-- **File Handling**: multer with memory storage
-
-## Support
-
-For issues or questions:
-1. Check the server logs for detailed error messages
-2. Verify GitHub token permissions
-3. Ensure file sizes are under 50MB
-4. Contact the system administrator for role changes
+The system is designed to provide reliable access to critical maintenance documentation, supporting efficient equipment maintenance and troubleshooting operations across the facility.
