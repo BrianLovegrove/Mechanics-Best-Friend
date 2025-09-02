@@ -2,7 +2,7 @@
 import { loadConfig, CONFIG } from './config.js';
 import { isAdmin, getAdminKey } from './admin.js';
 import { encodeKey, r2PublicUrl, isMechanicNotesCrumbs, api } from './utils.js';
-import { iconFor, createIconElement, humanSize, UPLOAD_ICON, DOWNLOAD_ICON } from './icons.js';
+import { iconFor, createIconElement, humanSize, UPLOAD_ICON, DOWNLOAD_ICON, iconForNote } from './icons.js';
 
 
 
@@ -219,7 +219,7 @@ export async function renderFilesList(prefix) {
     const iconDiv = document.createElement('div');
     iconDiv.style.cssText = 'display: flex; align-items: center; justify-content: center;';
     
-    const iconImg = createIconElement(iconFor(name), name, 32);
+    const iconImg = createIconElement(isNoteFile ? iconForNote() : iconFor(name), name, 32);
     iconDiv.appendChild(iconImg);
     
     const fileInfoDiv = document.createElement('div');
