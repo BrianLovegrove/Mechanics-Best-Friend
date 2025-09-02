@@ -878,24 +878,6 @@ function exportNoteTxt(note) {
 async function listFilesFromWorker(prefix, retryCount = 0) {
   await loadConfig();
   
-  // FOR TESTING: Simulate some files for specific folders to verify counting works
-  if (prefix.includes('electrical_schematics')) {
-    console.log(`SIMULATING 3 files for prefix: ${prefix}`);
-    return [
-      { kind: 'object', key: `${prefix}schematic1.pdf`, size: 1024 },
-      { kind: 'object', key: `${prefix}schematic2.pdf`, size: 2048 },
-      { kind: 'object', key: `${prefix}schematic3.dwg`, size: 512 }
-    ];
-  }
-  
-  if (prefix.includes('machine_manual')) {
-    console.log(`SIMULATING 2 files for prefix: ${prefix}`);
-    return [
-      { kind: 'object', key: `${prefix}manual.pdf`, size: 5120 },
-      { kind: 'object', key: `${prefix}quick_guide.pdf`, size: 1024 }
-    ];
-  }
-  
   try {
     // Add cache-busting parameter to ensure fresh data on each request
     const cacheBuster = `v=${Date.now()}&retry=${retryCount}`;
