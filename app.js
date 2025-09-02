@@ -524,9 +524,17 @@ async function initApp(){
     if(!res.ok) throw new Error('tree.json missing');
     tree=await res.json(); 
     
-    // Preload all file and folder counts before rendering
-    await preloadAllCounts();
+    // Start preloading file and folder counts in the background (non-blocking)
+    preloadAllCounts().then(() => {
+      // Re-render once counts are loaded to update the display with real counts
+      if (tree && stack.length === 0) {
+        render();
+      }
+    }).catch(err => {
+      console.warn('Failed to preload counts, using fallback counts:', err);
+    });
     
+    // Render immediately with fallback counts
     render();
   }catch(e){ console.error(e); $c.innerHTML='<p class="empty">Failed to load folder tree (data/tree.json).</p>'; }
 }
