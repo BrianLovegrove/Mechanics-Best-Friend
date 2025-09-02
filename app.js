@@ -319,6 +319,9 @@ function pathBreadcrumbs(){ const names=[]; let n=tree; stack.forEach(i=>{ n=n.c
 function slugify(label){ return label.toLowerCase().replace(/&/g,' and ').replace(/[^a-z0-9]+/g,'_').replace(/_+/g,'_').replace(/^_+|_+$/g,''); }
 
 function render(){
+  // Reset scroll position to top when navigating to new folder
+  window.scrollTo(0, 0);
+  
   renderBack(); renderCrumbs();
   const n=current(); $c.innerHTML='';
   
@@ -534,12 +537,12 @@ function exportNoteTxt(note) {
   URL.revokeObjectURL(a.href);
 }
 
-async function listFilesFromWorker(prefix) {
+async function listFilesFromWorker(prefix, retryCount = 0) {
   await loadConfig();
   
   try {
     // Add cache-busting parameter to ensure fresh data on each request
-    const cacheBuster = `v=${Date.now()}`;
+    const cacheBuster = `v=${Date.now()}&retry=${retryCount}`;
     const url = `${CONFIG.WORKER_BASE_URL}/files?prefix=${encodeURIComponent(prefix)}&${cacheBuster}`;
     
     const r = await fetch(url, {
@@ -553,6 +556,13 @@ async function listFilesFromWorker(prefix) {
     
     if (!r.ok) {
       console.warn(`Failed to fetch files for prefix ${prefix}: ${r.status} ${r.statusText}`);
+      
+      // Retry once if the first attempt fails
+      if (retryCount < 1) {
+        console.log(`Retrying file fetch for prefix: ${prefix}`);
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+        return listFilesFromWorker(prefix, retryCount + 1);
+      }
       return [];
     }
     
@@ -561,6 +571,13 @@ async function listFilesFromWorker(prefix) {
     return data;
   } catch (error) {
     console.error(`Error fetching files for prefix ${prefix}:`, error);
+    
+    // Retry once if network error occurs
+    if (retryCount < 1) {
+      console.log(`Retrying file fetch after error for prefix: ${prefix}`);
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+      return listFilesFromWorker(prefix, retryCount + 1);
+    }
     return [];
   }
 }

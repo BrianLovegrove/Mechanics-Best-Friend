@@ -203,31 +203,57 @@ main{padding:16px;}
   }
   
   .mbf-row {
-    grid-template-columns: 1fr;
-    gap: 12px;
-    padding: 12px 8px;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    padding: 8px;
+    align-items: center;
   }
   
-  /* Stack file info and buttons vertically on mobile */
+  /* File info takes most space */
   .mbf-row .file-info {
     order: 1;
+    overflow: hidden;
   }
   
+  /* Compact button layout on the right */
   .mbf-row .file-actions {
     order: 2;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    width: 100%;
+    gap: 4px;
+    flex-shrink: 0;
+    width: 80px;
   }
   
+  /* Smaller, contained buttons for mobile */
   .mbf-row button {
     width: 100% !important;
-    max-width: none !important;
+    max-width: 80px !important;
     margin: 0 !important;
-    padding: 12px !important;
-    font-size: 16px !important;
-    min-height: 44px;
+    padding: 6px 4px !important;
+    font-size: 11px !important;
+    min-height: 32px !important;
+    border-radius: 4px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    line-height: 1.2 !important;
+  }
+  
+  /* Ensure file names don't overflow */
+  .mbf-row .file-name {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+  }
+  
+  /* Add buffer space at bottom for better mobile scrolling */
+  .container {
+    padding-bottom: 60px;
+  }
+  
+  .mbf-files, .mbf-notes-list {
+    margin-bottom: 20px;
   }
 }
 
@@ -272,27 +298,49 @@ main{padding:16px;}
   }
   
   .mbf-note-row {
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    align-items: flex-start;
     padding: 8px;
     gap: 12px;
+    position: relative;
   }
   
-  /* Ensure buttons scale properly on mobile */
-  .mbf-note-row button {
-    width: 100% !important;
-    max-width: none !important;
-    margin: 4px 0 !important;
-    padding: 12px !important;
-    font-size: 16px !important;
-    min-height: 44px; /* Minimum touch target size */
-  }
-  
-  /* Make note content readable on mobile */
+  /* Note content takes most space and is clickable */
   .mbf-note-row .note-content {
+    flex: 1;
     word-wrap: break-word;
     overflow-wrap: break-word;
-    max-width: 100%;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+  }
+  
+  .mbf-note-row .note-content:hover {
+    background-color: #f5f5f5;
+  }
+  
+  /* Action buttons container on the right */
+  .mbf-note-row .actions-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex-shrink: 0;
+    width: 80px;
+  }
+  
+  /* Smaller buttons for mobile */
+  .mbf-note-row button {
+    width: 100% !important;
+    max-width: 80px !important;
+    margin: 0 !important;
+    padding: 8px 4px !important;
+    font-size: 12px !important;
+    min-height: 36px !important;
+    border-radius: 4px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
   }
   
   /* Adjust button containers */

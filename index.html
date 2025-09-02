@@ -82,11 +82,21 @@
         header {
           padding: 12px;
         }
+        
+        #headerTitleImage {
+          max-width: 90% !important;
+          max-height: 60px !important;
+        }
       }
       
       @media (max-width: 480px) {
         header {
           padding: 8px;
+        }
+        
+        #headerTitleImage {
+          max-width: 85% !important;
+          max-height: 50px !important;
         }
       }
       
@@ -358,7 +368,7 @@
         <img 
           id="headerTitleImage"
           alt="Mechanic's Best Friend" 
-          style="max-width: 1000px; height: auto; display: block;"
+          style="max-width: 100%; max-height: 80px; height: auto; display: block; object-fit: contain; object-position: center;"
         />
       </header>
       <div class="container" id="appMain" style="display:none">
