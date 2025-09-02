@@ -2,7 +2,7 @@
 import { loadConfig, CONFIG } from './config.js';
 import { isAdmin, getAdminKey } from './admin.js';
 import { r2PublicUrl, api } from './utils.js';
-import { createIconElement, DOWNLOAD_ICON } from './icons.js';
+import { createIconElement, DOWNLOAD_ICON, iconForNote } from './icons.js';
 
 async function fetchNotes(prefix) {
   const r = await fetch(await api(`/notes/list?machinePrefix=${encodeURIComponent(prefix)}`));
@@ -140,7 +140,7 @@ export async function renderNotes(prefix) {
       const iconDiv = document.createElement('div');
       iconDiv.style.cssText = 'display: flex; align-items: center; justify-content: center;';
       
-      const noteIcon = createIconElement('/assets/icons/txtfileicon.png', 'Note', 40);
+      const noteIcon = createIconElement(iconForNote(), 'Note', 40);
       iconDiv.appendChild(noteIcon);
       
       const textDiv = document.createElement('div');
