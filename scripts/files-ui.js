@@ -188,7 +188,7 @@ export async function renderFilesList(prefix) {
     row.className = 'mbf-row';
     row.style.cssText = `
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
       border: 1px solid #ddd;
       border-radius: 16px;
@@ -215,11 +215,11 @@ export async function renderFilesList(prefix) {
     const isNoteFile = f.key.toLowerCase().endsWith('.json') && f.key.includes('/mechanic_notes/');
 
     const contentDiv = document.createElement('div');
-    contentDiv.style.cssText = 'display: flex; align-items: center; gap: 16px; flex: 1;';
+    contentDiv.style.cssText = 'display: flex; align-items: flex-start; gap: 16px; flex: 1; max-width: calc(100% - 120px);';
     
     // File icon using real icons (no emojis)
     const iconDiv = document.createElement('div');
-    iconDiv.style.cssText = 'display: flex; align-items: center; justify-content: center;';
+    iconDiv.style.cssText = 'display: flex; align-items: center; justify-content: center; flex-shrink: 0;';
     
     const iconImg = createIconElement(isNoteFile ? iconForNote() : iconFor(name), name, 32);
     iconDiv.appendChild(iconImg);
@@ -229,7 +229,7 @@ export async function renderFilesList(prefix) {
     
     const nameDiv = document.createElement('div');
     nameDiv.textContent = name;
-    nameDiv.style.cssText = 'font-weight: 600; color: #333; font-size: 16px; margin-bottom: 4px;';
+    nameDiv.style.cssText = 'font-weight: 600; color: #333; font-size: 16px; margin-bottom: 4px; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; max-width: 100%;';
     nameDiv.title = f.key;
     
     const sizeDiv = document.createElement('div');
@@ -247,9 +247,9 @@ export async function renderFilesList(prefix) {
     const actionsDiv = document.createElement('div');
     // For admin users, stack download and delete buttons vertically to prevent overflow
     if (isAdmin()) {
-      actionsDiv.style.cssText = 'display: flex; flex-direction: column; align-items: flex-end; gap: 6px; min-width: 100px;';
+      actionsDiv.style.cssText = 'display: flex; flex-direction: column; align-items: flex-end; gap: 6px; min-width: 100px; flex-shrink: 0;';
     } else {
-      actionsDiv.style.cssText = 'display: flex; align-items: center; gap: 12px;';
+      actionsDiv.style.cssText = 'display: flex; align-items: flex-start; gap: 12px; flex-shrink: 0;';
     }
     
     // View button - bigger and no emoji

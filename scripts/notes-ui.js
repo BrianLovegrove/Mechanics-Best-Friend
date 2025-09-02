@@ -109,7 +109,7 @@ export async function renderNotes(prefix) {
       row.className = 'mbf-note-row';
       row.style.cssText = `
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: space-between;
         border: 1px solid #ddd;
         border-radius: 16px;
@@ -134,11 +134,11 @@ export async function renderNotes(prefix) {
       });
       
       const contentDiv = document.createElement('div');
-      contentDiv.style.cssText = 'display: flex; align-items: center; gap: 16px; flex: 1;';
+      contentDiv.style.cssText = 'display: flex; align-items: flex-start; gap: 16px; flex: 1; max-width: calc(100% - 120px);';
       
       // Note icon using real icon (no emoji)
       const iconDiv = document.createElement('div');
-      iconDiv.style.cssText = 'display: flex; align-items: center; justify-content: center;';
+      iconDiv.style.cssText = 'display: flex; align-items: center; justify-content: center; flex-shrink: 0;';
       
       const noteIcon = createIconElement(iconForNote(), 'Note', 40);
       iconDiv.appendChild(noteIcon);
@@ -146,7 +146,7 @@ export async function renderNotes(prefix) {
       const textDiv = document.createElement('div');
       textDiv.style.cssText = 'flex: 1;';
       textDiv.innerHTML = `
-        <div style="font-weight: 700; color: #1f2937; font-size: 16px; margin-bottom: 6px;">${n.title}</div>
+        <div style="font-weight: 700; color: #1f2937; font-size: 16px; margin-bottom: 6px; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; max-width: 100%;">${n.title}</div>
         <div style="font-size: 14px; color: #6b7280;">
           ${n.author} — ${new Date(n.createdAt).toLocaleString()}
         </div>
@@ -156,7 +156,7 @@ export async function renderNotes(prefix) {
       contentDiv.appendChild(textDiv);
       
       const actionsDiv = document.createElement('div');
-      actionsDiv.style.cssText = 'display: flex; align-items: center; gap: 12px;';
+      actionsDiv.style.cssText = 'display: flex; align-items: flex-start; gap: 12px; flex-shrink: 0;';
       
       // Download button (bigger, with icon)
       const downloadBtn = document.createElement('button');
