@@ -1,0 +1,344 @@
+name: Export Copilot PR Reports (PDF & DOCX)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python deps
+        run: |
+          pip install --upgrade pip
+          pip install requests
+
+      - name: Install Pandoc & LaTeX (for PDF)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc
+          sudo apt-get install -y texlive-latex-recommended texlive-fonts-recommended texlive-latex-extra
+
+      - name: Create report
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python - <<'PYCODE'
+          import os, re, json, pathlib, requests, datetime, hashlib, mimetypes
+
+          OWNER="BrianLovegrove"
+          REPO="Mechanics-Best-Friend"
+          MAX_PRS=300          # safety upper bound
+          OUT=pathlib.Path("export-output")
+          ASSETS=OUT/"assets"
+          OUT.mkdir(exist_ok=True)
+            # Single assets directory (subfolder per PR)
+          ASSETS.mkdir(exist_ok=True)
+
+          TOKEN=os.environ["GITHUB_TOKEN"]
+          GQL="https://api.github.com/graphql"
+          S=requests.Session()
+          S.headers.update({"Authorization": f"Bearer {TOKEN}", "Accept": "application/vnd.github+json"})
+
+          # We will fetch closed PRs (first 100 per page) until we hit MAX_PRS or run out
+          PR_QUERY=f"""
+          query($c:String){{
+            repository(owner:"{OWNER}", name:"{REPO}") {{
+              pullRequests(first:100, after:$c, states:CLOSED, orderBy:{{field:UPDATED_AT, direction:DESC}}) {{
+                pageInfo {{ hasNextPage endCursor }}
+                nodes {{
+                  number
+                  title
+                  url
+                  merged
+                  mergedAt
+                  closedAt
+                  updatedAt
+                  createdAt
+                }}
+              }}
+            }}
+          }}
+          """
+
+          # For each PR: gather issue comments + reviews (review bodies)
+          CMT_REVIEW_QUERY=f"""
+          query($n:Int!, $cc:String, $rc:String){{
+            repository(owner:"{OWNER}", name:"{REPO}") {{
+              pullRequest(number:$n) {{
+                comments(first:100, after:$cc) {{
+                  pageInfo {{ hasNextPage endCursor }}
+                  nodes {{
+                    author {{ login }}
+                    body
+                    createdAt
+                    updatedAt
+                    url
+                  }}
+                }}
+                reviews(first:100, after:$rc) {{
+                  pageInfo {{ hasNextPage endCursor }}
+                  nodes {{
+                    author {{ login }}
+                    body
+                    createdAt
+                    updatedAt
+                    url
+                  }}
+                }}
+              }}
+            }}
+          }}
+          """
+
+          PROMO_PHRASES = [
+            "copilot instructions",
+            ".github/copilot-instructions.md",
+            "i can generate a .github/copilot-instructions.md",
+            "open a pre-filled issue",
+            "work faster and produce higher quality prs"
+          ]
+
+          IMG_RE = re.compile(r'!\[([^\]]*)\]\((https?://[^\s)]+)\)', re.IGNORECASE)
+
+          def gql(query, variables):
+              r=S.post(GQL, json={"query":query, "variables":variables})
+              r.raise_for_status()
+              data=r.json()
+              if "errors" in data:
+                  raise SystemExit(data["errors"])
+              return data["data"]
+
+          def all_closed_prs():
+              cursor=None
+              collected=0
+              while True:
+                  data=gql(PR_QUERY, {"c":cursor})
+                  conn=data["repository"]["pullRequests"]
+                  for pr in conn["nodes"]:
+                      yield pr
+                      collected+=1
+                      if collected >= MAX_PRS:
+                          return
+                  if not conn["pageInfo"]["hasNextPage"]:
+                      break
+                  cursor=conn["pageInfo"]["endCursor"]
+
+          def fetch_all_comments_and_reviews(pr_number):
+              issue_comments=[]
+              reviews=[]
+              c_cursor=None
+              r_cursor=None
+              # We paginate comments and reviews independently
+              while True:
+                  data=gql(CMT_REVIEW_QUERY, {"n":pr_number, "cc":c_cursor, "rc":r_cursor})
+                  pr=data["repository"]["pullRequest"]
+                  if pr is None:
+                      break
+                  cblock=pr["comments"]
+                  rblock=pr["reviews"]
+
+                  issue_comments.extend(cblock["nodes"])
+                  reviews.extend(rblock["nodes"])
+
+                  c_has=cblock["pageInfo"]["hasNextPage"]
+                  r_has=rblock["pageInfo"]["hasNextPage"]
+                  c_cursor = cblock["pageInfo"]["endCursor"] if c_has else None
+                  r_cursor = rblock["pageInfo"]["endCursor"] if r_has else None
+                  # stop when both done
+                  if not c_has and not r_has:
+                      break
+              return issue_comments, reviews
+
+          def is_promo(body_lower):
+              return any(p in body_lower for p in PROMO_PHRASES)
+
+          def select_longest_copilot(issue_comments, reviews):
+              # unify all with a tag for debug
+              entries=[]
+              for c in issue_comments:
+                  login=(c.get("author") or {}).get("login","")
+                  if "copilot" in login.lower():
+                      body=c.get("body") or ""
+                      entries.append({
+                        "type":"issue_comment",
+                        "body":body,
+                        "url":c.get("url"),
+                        "updatedAt":c.get("updatedAt") or c.get("createdAt") or "",
+                        "length":len(body)
+                      })
+              for r in reviews:
+                  login=(r.get("author") or {}).get("login","")
+                  if "copilot" in login.lower():
+                      body=r.get("body") or ""
+                      entries.append({
+                        "type":"review",
+                        "body":body,
+                        "url":r.get("url"),
+                        "updatedAt":r.get("updatedAt") or r.get("createdAt") or "",
+                        "length":len(body)
+                      })
+              if not entries:
+                  return None, "no_copilot"
+              # Prefer non-promo longest; if none -> promo longest
+              non_promo=[e for e in entries if e["body"].strip() and not is_promo(e["body"].lower())]
+              if non_promo:
+                  candidates=non_promo
+                  reason_base="longest_non_promo"
+              else:
+                  candidates=[e for e in entries if e["body"].strip()]
+                  if not candidates:
+                      return None, "only_empty_bodies"
+                  reason_base="longest_any (only promo/empty found)"
+              # Sort by length desc, then updatedAt desc
+              candidates.sort(key=lambda e:(e["length"], e["updatedAt"]), reverse=True)
+              chosen=candidates[0]
+              return chosen, f"{reason_base} length={chosen['length']} type={chosen['type']}"
+
+          def guess_ext(content_type, url):
+              if content_type:
+                  ext=mimetypes.guess_extension(content_type.split(";")[0].strip()) or ""
+                  if ext in ("",".jpe"):
+                      if "png" in content_type: return ".png"
+                      if "jpeg" in content_type or "jpg" in content_type: return ".jpg"
+                      if "gif" in content_type: return ".gif"
+                      if "webp" in content_type: return ".webp"
+                  if ext:
+                      return ext
+              base=url.split("?")[0].rsplit("/",1)[-1]
+              if "." in base:
+                  suf=base.rsplit(".",1)[-1].lower()
+                  if 1 <= len(suf) <= 5:
+                      return "."+suf
+              return ".png"
+
+          def rewrite_images(pr_number, body):
+              matches=list(IMG_RE.finditer(body))
+              if not matches:
+                  return body
+              pr_dir=ASSETS/f"pr-{pr_number}"
+              pr_dir.mkdir(parents=True, exist_ok=True)
+              new_body=body
+              for i,m in enumerate(matches, start=1):
+                  alt,url=m.group(1),m.group(2)
+                  try:
+                      r=S.get(url, timeout=30)
+                      r.raise_for_status()
+                      ext=guess_ext(r.headers.get("Content-Type",""), url)
+                      h=hashlib.sha1(url.encode()).hexdigest()[:8]
+                      fname=f"img{i}-{h}{ext}"
+                      (pr_dir/fname).write_bytes(r.content)
+                      repl=f"![{alt}](assets/pr-{pr_number}/{fname})"
+                      new_body=new_body.replace(m.group(0), repl, 1)
+                  except Exception as e:
+                      print(f"[WARN] PR#{pr_number} image download failed: {e}")
+              return new_body
+
+          def iso(ts):
+              if not ts: return "N/A"
+              try:
+                  return datetime.datetime.fromisoformat(ts.replace("Z","+00:00")).strftime("%Y-%m-%d %H:%M:%S %Z")
+              except Exception:
+                  return ts
+
+          all_prs=list(all_closed_prs())
+
+          # Filter to PR numbers 1..60 (closed) per your request
+          filtered=[pr for pr in all_prs if pr["number"] <= 60]
+
+          def sort_key(pr):
+              return pr.get("closedAt") or pr.get("mergedAt") or pr.get("updatedAt") or pr.get("createdAt")
+          prs_sorted=sorted(filtered, key=sort_key, reverse=True)
+
+          sections=[]
+          processed=0
+          skipped=0
+
+          for pr in prs_sorted:
+              number=pr["number"]
+              issue_comments, reviews = fetch_all_comments_and_reviews(number)
+              chosen, reason = select_longest_copilot(issue_comments, reviews)
+              if not chosen:
+                  skipped+=1
+                  print(f"[SKIP] PR#{number} {pr['title']} -> {reason}")
+                  continue
+              print(f"[OK]   PR#{number} {pr['title']} -> {reason} | URL: {chosen['url']}")
+              body=chosen["body"]
+              if not body.strip():
+                  skipped+=1
+                  print(f"[SKIP] PR#{number} empty body after selection")
+                  continue
+              body = rewrite_images(number, body)
+
+              sec=[
+                  f"# PR #{number}: {pr['title']}",
+                  f"Closed: {iso(pr.get('closedAt'))}",
+                  f"Merged: {'Yes' if pr['merged'] else 'No'} (MergedAt: {iso(pr.get('mergedAt'))})",
+                  f"PR URL: {pr['url']}",
+                  f"Copilot Source ({chosen['type']}): {chosen['url']}",
+                  "",
+                  body.strip(),
+                  "",
+                  "\\newpage",
+                  ""
+              ]
+              sections.append("\n".join(sec))
+              processed+=1
+
+          header=[
+              "---",
+              "title: Copilot PR Final Reports",
+              f"date: {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}",
+              "---",
+              "",
+              f"Repository: {OWNER}/{REPO}",
+              "Scope: Closed PRs #1 through #60 (newest → oldest)",
+              f"Total PRs with Copilot report: {processed}",
+              f"Skipped (no Copilot or empty): {skipped}",
+              "",
+              "---",
+              ""
+          ]
+          final_md="\n".join(header+sections)
+          md_path=OUT/"Copilot-Closed-PR-Reports.md"
+          md_path.write_text(final_md, encoding="utf-8")
+
+          # CSS for HTML
+          css=(OUT/"report.css")
+          css.write_text("""
+          body { font-family: Arial, sans-serif; line-height:1.4; max-width:960px; margin:0 auto; padding:1.2rem; }
+          h1 { border-bottom:2px solid #444; padding-bottom:.3rem; margin-top:2rem; }
+          img { max-width:100%; height:auto; border:1px solid #ccc; padding:3px; background:#fafafa; margin:10px 0; }
+          code, pre { background:#f6f6f6; }
+          """, encoding="utf-8")
+
+          print("Generating HTML (embedded)...")
+          os.chdir(OUT)
+          os.system("pandoc Copilot-Closed-PR-Reports.md --embed-resources --standalone --css=report.css -o Copilot-Closed-PR-Reports.html")
+
+          print("Generating PDF...")
+          os.system("pandoc Copilot-Closed-PR-Reports.md -o Copilot-Closed-PR-Reports.pdf --pdf-engine=xelatex --resource-path='.'")
+
+          print("Generating DOCX...")
+          os.system("pandoc Copilot-Closed-PR-Reports.md -o Copilot-Closed-PR-Reports.docx")
+
+          print(f"DONE. Processed={processed} Skipped={skipped}")
+          PYCODE
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: copilot-pr-reports
+          path: export-output/
+          if-no-files-found: error
+          retention-days: 14
