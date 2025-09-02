@@ -666,8 +666,36 @@ async function renderFolderToolbar(prefix) {
   if (!isAdmin()) return; // only admins see upload button
 
   const btn = document.createElement('button');
-  btn.textContent = 'Upload';
-  btn.className = 'btn';
+  btn.style.cssText = `
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 16px 24px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  `;
+  
+  // Add upload icon
+  const uploadIcon = window.createIconElement(window.UPLOAD_ICON, 'Upload', 20);
+  uploadIcon.style.filter = 'brightness(0) invert(1)'; // Make icon white
+  btn.appendChild(uploadIcon);
+  
+  const uploadText = document.createElement('span');
+  uploadText.textContent = 'Upload Files';
+  btn.appendChild(uploadText);
+  btn.addEventListener('mouseenter', () => {
+    btn.style.background = '#2563eb';
+  });
+  btn.addEventListener('mouseleave', () => {
+    btn.style.background = '#3b82f6';
+  });
   const input = document.createElement('input');
   input.type = 'file'; 
   input.multiple = true; 
@@ -2022,9 +2050,10 @@ function createUploadSection(targetPath) {
   // Upload button that triggers hidden input
   const uploadButton = document.createElement('button');
   uploadButton.className = 'btn';
-  uploadButton.textContent = 'Upload';
   uploadButton.style.cssText = `
-    display: inline-block;
+    display: flex;
+    align-items: center;
+    gap: 8px;
     padding: 12px 24px;
     margin: 8px;
     border: 1px solid #000;
@@ -2035,6 +2064,15 @@ function createUploadSection(targetPath) {
     cursor: pointer;
     transition: all 0.2s ease;
   `;
+  
+  // Add upload icon
+  const uploadIcon = window.createIconElement(window.UPLOAD_ICON, 'Upload', 16);
+  uploadButton.appendChild(uploadIcon);
+  
+  const uploadText = document.createElement('span');
+  uploadText.textContent = 'Upload';
+  uploadButton.appendChild(uploadText);
+  
   uploadButton.onmouseover = () => {
     uploadButton.style.background = '#000';
     uploadButton.style.color = '#fff';

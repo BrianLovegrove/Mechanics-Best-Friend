@@ -84,3 +84,7 @@ export function humanSize(b) {
   }
   return `${n.toFixed(n < 10 && i ? 1 : 0)} ${u[i]}`;
 }
+
+// For backward compatibility with app.js, expose key functions to global scope
+window.UPLOAD_ICON = UPLOAD_ICON;
+window.createIconElement = createIconElement;
