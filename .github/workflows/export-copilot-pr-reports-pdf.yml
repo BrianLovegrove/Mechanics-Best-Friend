@@ -1,0 +1,219 @@
+name: Export Copilot PR Reports (PDF & DOCX)
+
+on:
+  workflow_dispatch:   # Run manually from the Actions tab
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Pandoc & LaTeX (for PDF)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc
+          sudo apt-get install -y texlive-latex-recommended texlive-fonts-recommended texlive-latex-extra
+
+      - name: Create report
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python - <<'PYCODE'
+import os, re, json, pathlib, requests, datetime, time, hashlib, mimetypes
+OWNER="BrianLovegrove"
+REPO="Mechanics-Best-Friend"
+OUT=pathlib.Path("export-output")
+ASSETS=OUT/"assets"
+OUT.mkdir(exist_ok=True)
+ASSETS.mkdir(exist_ok=True)
+GQL="https://api.github.com/graphql"
+TOKEN=os.environ["GITHUB_TOKEN"]
+S= requests.Session()
+S.headers.update({"Authorization": f"Bearer {TOKEN}", "Accept": "application/vnd.github+json"})
+
+PR_QUERY=f"""
+query($c:String){{
+ repository(owner:"{OWNER}",name:"{REPO}"){{
+  pullRequests(first:100,after:$c,states:CLOSED,orderBy:{{field:UPDATED_AT,direction:DESC}}){{
+   pageInfo{{hasNextPage endCursor}}
+   nodes{{ number title url merged mergedAt closedAt createdAt }}
+ }} }}
+}}
+"""
+
+CMT_QUERY=f"""
+query($n:Int!,$c:String){{
+ repository(owner:"{OWNER}",name:"{REPO}"){{
+  pullRequest(number:$n){{
+    comments(first:100,after:$c){{
+      pageInfo{{hasNextPage endCursor}}
+      nodes{{ author{{login}} body createdAt updatedAt url }}
+    }}
+  }}
+ }}
+}}
+"""
+
+def gql(q,v):
+    r=S.post(GQL,json={"query":q,"variables":v})
+    r.raise_for_status()
+    data=r.json()
+    if "errors" in data: raise SystemExit(data["errors"])
+    return data["data"]
+
+def all_closed_prs():
+    cur=None
+    while True:
+        d=gql(PR_QUERY,{"c":cur})
+        prc=d["repository"]["pullRequests"]
+        for pr in prc["nodes"]:
+            yield pr
+        if not prc["pageInfo"]["hasNextPage"]: break
+        cur=prc["pageInfo"]["endCursor"]
+
+def pr_comments(num):
+    cur=None
+    while True:
+        d=gql(CMT_QUERY,{"n":num,"c":cur})
+        pr=d["repository"]["pullRequest"]
+        if pr is None: return
+        c=pr["comments"]
+        for n in c["nodes"]: yield n
+        if not c["pageInfo"]["hasNextPage"]: break
+        cur=c["pageInfo"]["endCursor"]
+
+IMG_RE=re.compile(r'!\[([^\]]*)\]\((https?://[^\s)]+)\)')
+def guess_ext(ct,url):
+    if ct:
+        import mimetypes
+        ext=mimetypes.guess_extension(ct.split(";")[0]) or ""
+        if ext in ("",".jpe"):
+            if "png" in ct: return ".png"
+            if "jpeg" in ct or "jpg" in ct: return ".jpg"
+            if "gif" in ct: return ".gif"
+            if "webp" in ct: return ".webp"
+        if ext: return ext
+    base=url.split("?")[0].rsplit("/",1)[-1]
+    if "." in base and len(base.rsplit(".",1)[-1])<=5:
+        return "."+base.rsplit(".",1)[-1].lower()
+    return ".png"
+
+def dl_and_rewrite(prn, body):
+    matches=list(IMG_RE.finditer(body))
+    if not matches: return body
+    pr_dir=ASSETS/f"pr-{prn}"
+    pr_dir.mkdir(parents=True,exist_ok=True)
+    new=body
+    for i,m in enumerate(matches,1):
+        alt,url=m.group(1),m.group(2)
+        try:
+            r=S.get(url,timeout=30)
+            r.raise_for_status()
+            ext=guess_ext(r.headers.get("Content-Type",""),url)
+            h=hashlib.sha1(url.encode()).hexdigest()[:8]
+            fname=f"img{i}-{h}{ext}"
+            (pr_dir/fname).write_bytes(r.content)
+            repl=f"![{alt}](assets/pr-{prn}/{fname})"
+            new=new.replace(m.group(0),repl,1)
+        except Exception as e:
+            print(f"Image fail PR#{prn}: {e}")
+    return new
+
+def iso(s):
+    if not s: return "N/A"
+    from datetime import datetime
+    try:
+        dt=datetime.fromisoformat(s.replace("Z","+00:00"))
+        return dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+    except: return s
+
+prs=list(all_closed_prs())
+def sort_key(p): return p.get("closedAt") or p.get("mergedAt") or p.get("updatedAt") or p.get("createdAt")
+prs_sorted=sorted(prs,key=sort_key,reverse=True)
+
+sections=[]
+processed=0
+skipped=0
+for pr in prs_sorted:
+    num=pr["number"]
+    comments=list(pr_comments(num))
+    cop=[c for c in comments if "copilot" in (c.get("author",{}).get("login","").lower())]
+    if not cop:
+        skipped+=1
+        continue
+    cop.sort(key=lambda c:c["updatedAt"])
+    final=cop[-1]
+    body=final.get("body") or ""
+    body=dl_and_rewrite(num, body)
+    # Page break after each PR in PDF: \newpage
+    sec=[
+        f"# PR #{num}: {pr['title']}",
+        f"Closed: {iso(pr.get('closedAt'))}",
+        f"Merged: {'Yes' if pr['merged'] else 'No'} (MergedAt: {iso(pr.get('mergedAt'))})",
+        f"PR URL: {pr['url']}",
+        f"Copilot Comment URL: {final['url']}",
+        "",
+        body.strip(),
+        "",
+        "\\newpage",
+        ""
+    ]
+    sections.append("\n".join(sec))
+    processed+=1
+
+md_header=[
+"---",
+f"title: Copilot PR Final Reports",
+f"date: {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}",
+"---",
+"",
+f"Repository: {OWNER}/{REPO}",
+f"Total PRs with Copilot final report: {processed}",
+f"Skipped (no Copilot comment): {skipped}",
+"",
+"---",
+"",
+]
+full_md="\n".join(md_header+sections)
+md_path=OUT/"Copilot-Closed-PR-Reports.md"
+md_path.write_text(full_md,encoding="utf-8")
+
+# Simple CSS
+css=(OUT/"report.css")
+css.write_text("""
+body { font-family: Arial, sans-serif; line-height:1.35; max-width:960px; margin:0 auto; padding:1.2rem; }
+h1 { border-bottom:2px solid #444; padding-bottom:.4rem; margin-top:2.2rem; }
+img { max-width:100%; height:auto; border:1px solid #ccc; padding:3px; background:#fafafa; }
+code, pre { background:#f4f4f4; }
+""", encoding="utf-8")
+
+print("Generating HTML (embedded)...")
+os.chdir(OUT)
+os.system("pandoc Copilot-Closed-PR-Reports.md --embed-resources --standalone --css=report.css -o Copilot-Closed-PR-Reports.html")
+
+print("Generating PDF...")
+os.system("pandoc Copilot-Closed-PR-Reports.md -o Copilot-Closed-PR-Reports.pdf --pdf-engine=xelatex --resource-path='.'")
+
+print("Generating DOCX...")
+os.system("pandoc Copilot-Closed-PR-Reports.md -o Copilot-Closed-PR-Reports.docx")
+
+print("All formats created.")
+PYCODE
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: copilot-pr-reports
+          path: export-output/
+          if-no-files-found: error
+          retention-days: 14
