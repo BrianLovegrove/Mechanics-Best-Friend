@@ -215,6 +215,8 @@ PORT=3000`;
         const user = fallbackAuth.users[username];
         // Store user temporarily in memory only - no persistence
         window.currentSessionUser = user;
+        // Also set currentUser for compatibility with the main app
+        window.currentUser = user;
         
         return new Response(JSON.stringify({
           success: true,
@@ -246,6 +248,8 @@ PORT=3000`;
     // Check for temporary session user (no persistence)
     if (window.currentSessionUser) {
       const user = window.currentSessionUser;
+      // Also set currentUser for compatibility with the main app
+      window.currentUser = user;
       
       // Ensure app is properly initialized after successful auth
       setTimeout(() => {

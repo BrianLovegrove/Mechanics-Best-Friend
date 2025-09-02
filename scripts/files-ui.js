@@ -168,20 +168,22 @@ export async function renderFilesList(prefix) {
   if (!host) return;
 
   host.innerHTML = '<div class="mbf-empty">Loading…</div>';
-  const items = await listFiles(prefix);
-  const files = items.filter(x => x.kind === 'object');
-  const folders = items.filter(x => x.kind === 'prefix'); // if you want to show subfolders too
+  
+  try {
+    const items = await listFiles(prefix);
+    const files = items.filter(x => x.kind === 'object');
+    const folders = items.filter(x => x.kind === 'prefix'); // if you want to show subfolders too
 
-  if (!files.length && !folders.length) {
-    host.innerHTML = '<div class="mbf-empty">No files yet in this folder.</div>';
-    return;
-  }
+    if (!files.length && !folders.length) {
+      host.innerHTML = '<div class="mbf-empty">No files yet in this folder.</div>';
+      return;
+    }
 
-  host.innerHTML = '';
-  // (Optional) render folders here first…
+    host.innerHTML = '';
+    // (Optional) render folders here first…
 
-  // Files
-  for (const f of files) {
+    // Files
+    for (const f of files) {
     const row = document.createElement('div');
     row.className = 'mbf-row';
     row.style.cssText = `
@@ -358,6 +360,10 @@ export async function renderFilesList(prefix) {
     row.appendChild(contentDiv);
     row.appendChild(actionsDiv);
     host.appendChild(row);
+  }
+  } catch (error) {
+    console.error('Error rendering files list:', error);
+    host.innerHTML = '<div class="mbf-empty">No files yet in this folder.</div>';
   }
 }
 
