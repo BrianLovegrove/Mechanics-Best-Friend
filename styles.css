@@ -33,7 +33,7 @@ header{
   display:flex;
   align-items:center;
   justify-content:center;
-  padding:0;
+  padding: 8px 0;
   background: var(--bg);
   color: var(--text);
   z-index:10;
@@ -59,10 +59,11 @@ header{
 @media (min-width: 769px) {
   header {
     min-height: 140px;
+    padding: 12px 0;
   }
   
   #headerTitleImage {
-    max-height: 140px;
+    max-height: 120px;
   }
 }
 
@@ -70,20 +71,22 @@ header{
 @media (max-width: 768px) {
   header {
     min-height: 100px;
+    padding: 8px 0;
   }
   
   #headerTitleImage {
-    max-height: 83px;
+    max-height: 75px;
   }
 }
 
 @media (max-width: 480px) {
   header {
     min-height: 90px;
+    padding: 6px 0;
   }
   
   #headerTitleImage {
-    max-height: 75px;
+    max-height: 70px;
   }
 }
 
