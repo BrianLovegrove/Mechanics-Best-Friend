@@ -35,6 +35,17 @@ export async function initFolderPage(currentBreadcrumbs) {
     }
   } else {
     // NORMAL VIEW: Show file UI, hide notes
+    // Ensure file UI elements are visible (in case they were hidden from previous notes view)
+    const toolbarEl = document.getElementById('folder-toolbar');
+    const filesEl = document.getElementById('files-list');
+    
+    if (toolbarEl) {
+      toolbarEl.style.display = '';
+    }
+    if (filesEl) {
+      filesEl.style.display = '';
+    }
+    
     await renderFolderToolbar(folderPrefix);
     await renderFilesList(folderPrefix);
     
