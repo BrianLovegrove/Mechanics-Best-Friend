@@ -785,6 +785,65 @@
       ]
     },
     {
+      "name": "Automation Hardware Library",
+      "children": [
+        {
+          "name": "AB/Rockwell",
+          "children": [
+            {
+              "name": "AB/Rockwell Document Library",
+              "children": [
+                {"name": "Electrical Schematics"},
+                {"name": "Machine Diagrams / CAD Drawings"},
+                {"name": "Machine Manual"},
+                {"name": "Troubleshooting"},
+                {"name": "PM Procedures"},
+                {"name": "Recipes"},
+                {"name": "Adjustment Guide"},
+                {"name": "Mechanic Notes"}
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Siemens",
+          "children": [
+            {
+              "name": "Siemens Document Library",
+              "children": [
+                {"name": "Electrical Schematics"},
+                {"name": "Machine Diagrams / CAD Drawings"},
+                {"name": "Machine Manual"},
+                {"name": "Troubleshooting"},
+                {"name": "PM Procedures"},
+                {"name": "Recipes"},
+                {"name": "Adjustment Guide"},
+                {"name": "Mechanic Notes"}
+              ]
+            }
+          ]
+        },
+        {
+          "name": "B&R Automation",
+          "children": [
+            {
+              "name": "B&R Automation Document Library",
+              "children": [
+                {"name": "Electrical Schematics"},
+                {"name": "Machine Diagrams / CAD Drawings"},
+                {"name": "Machine Manual"},
+                {"name": "Troubleshooting"},
+                {"name": "PM Procedures"},
+                {"name": "Recipes"},
+                {"name": "Adjustment Guide"},
+                {"name": "Mechanic Notes"}
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Other Systems",
       "children": [
         {
