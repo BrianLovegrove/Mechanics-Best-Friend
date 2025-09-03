@@ -804,6 +804,29 @@
           "children": [
             {"name": "B&R Automation Document Library"}
           ]
+        },
+        {
+          "name": "VFD Document Library",
+          "children": [
+            {
+              "name": "Powerflex 40",
+              "children": [
+                {"name": "Manual"},
+                {"name": "Programming Guide"},
+                {"name": "Troubleshooting"},
+                {"name": "Fault Codes"}
+              ]
+            },
+            {
+              "name": "Powerflex 525",
+              "children": [
+                {"name": "Manual"},
+                {"name": "Programming Guide"},
+                {"name": "Troubleshooting"},
+                {"name": "Fault Codes"}
+              ]
+            }
+          ]
         }
       ]
     },
@@ -962,29 +985,6 @@
     {
       "name": "Equipment",
       "children": [
-        {
-          "name": "VFD",
-          "children": [
-            {
-              "name": "Powerflex 40",
-              "children": [
-                {"name": "Manual"},
-                {"name": "Programming Guide"},
-                {"name": "Troubleshooting"},
-                {"name": "Fault Codes"}
-              ]
-            },
-            {
-              "name": "Powerflex 525",
-              "children": [
-                {"name": "Manual"},
-                {"name": "Programming Guide"},
-                {"name": "Troubleshooting"},
-                {"name": "Fault Codes"}
-              ]
-            }
-          ]
-        },
         {
           "name": "Pneumatic Valves",
           "children": [
