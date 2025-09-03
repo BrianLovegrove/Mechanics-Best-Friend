@@ -162,10 +162,45 @@ async function listFiles(prefix) {
   return r.json();
 }
 
+// Store current files for search filtering
+let currentFiles = [];
+let currentPrefix = '';
+
+// Filter files list based on search term
+function filterFilesList(searchTerm) {
+  const host = document.getElementById('files-list');
+  if (!host || !currentFiles.length) return;
+
+  const filteredFiles = searchTerm ? 
+    currentFiles.filter(f => {
+      const fileName = f.key.split('/').pop().toLowerCase();
+      return fileName.includes(searchTerm);
+    }) : 
+    currentFiles;
+
+  // Clear and re-render filtered files
+  host.innerHTML = '';
+  
+  if (!filteredFiles.length) {
+    if (searchTerm) {
+      host.innerHTML = '<div class="mbf-empty">No files found matching your search.</div>';
+    } else {
+      host.innerHTML = '<div class="mbf-empty">No files yet in this folder.</div>';
+    }
+    return;
+  }
+
+  // Render filtered files using the same logic as renderFilesList
+  renderFilteredFiles(filteredFiles, currentPrefix);
+}
+
 export async function renderFilesList(prefix) {
   await loadConfig();
   const host = document.getElementById('files-list');
   if (!host) return;
+
+  // Store current state for search functionality
+  currentPrefix = prefix;
 
   host.innerHTML = '<div class="mbf-empty">Loading…</div>';
   
@@ -173,6 +208,9 @@ export async function renderFilesList(prefix) {
     const items = await listFiles(prefix);
     const files = items.filter(x => x.kind === 'object');
     const folders = items.filter(x => x.kind === 'prefix'); // if you want to show subfolders too
+
+    // Store files for search functionality
+    currentFiles = files;
 
     if (!files.length && !folders.length) {
       host.innerHTML = '<div class="mbf-empty">No files yet in this folder.</div>';
@@ -182,8 +220,22 @@ export async function renderFilesList(prefix) {
     host.innerHTML = '';
     // (Optional) render folders here first…
 
-    // Files
-    for (const f of files) {
+    // Render all files
+    renderFilteredFiles(files, prefix);
+
+  } catch (err) {
+    console.error('Error loading files:', err);
+    host.innerHTML = '<div class="mbf-empty">Error loading files. Please try again.</div>';
+  }
+}
+
+// Render files with the same styling as before
+function renderFilteredFiles(files, prefix) {
+  const host = document.getElementById('files-list');
+  if (!host) return;
+
+  // Files
+  for (const f of files) {
     const row = document.createElement('div');
     row.className = 'mbf-row';
     row.style.cssText = `
@@ -395,7 +447,7 @@ export async function renderFilesList(prefix) {
         });
         const j = await r.json();
         if (!r.ok) { alert(j.error || 'Delete failed'); return; }
-        await renderFilesList(prefix);
+        await renderFilesList(currentPrefix); // Use currentPrefix instead
       };
       actionsDiv.appendChild(del);
     }
@@ -404,18 +456,71 @@ export async function renderFilesList(prefix) {
     row.appendChild(actionsDiv);
     host.appendChild(row);
   }
-  } catch (error) {
-    console.error('Error rendering files list:', error);
-    host.innerHTML = '<div class="mbf-empty">No files yet in this folder.</div>';
-  }
 }
 
-// Admin-only Upload functionality
+// Admin-only Upload functionality + Search bar for all users
 export async function renderFolderToolbar(prefix) {
   await loadConfig();
   const el = document.getElementById('folder-toolbar');
   if (!el) return;
   el.innerHTML = '';
+
+  // Search bar for all users
+  const searchContainer = document.createElement('div');
+  searchContainer.style.cssText = `
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  `;
+
+  const searchInput = document.createElement('input');
+  searchInput.type = 'text';
+  searchInput.placeholder = 'Search files...';
+  searchInput.id = 'file-search-input';
+  searchInput.style.cssText = `
+    flex: 1;
+    padding: 14px 16px;
+    border: 2px solid #ddd;
+    border-radius: 12px;
+    font-size: 16px;
+    background: white;
+    transition: all 0.2s ease;
+    outline: none;
+  `;
+
+  // Search input focus styling
+  searchInput.addEventListener('focus', () => {
+    searchInput.style.borderColor = '#3b82f6';
+    searchInput.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
+  });
+
+  searchInput.addEventListener('blur', () => {
+    searchInput.style.borderColor = '#ddd';
+    searchInput.style.boxShadow = 'none';
+  });
+
+  // Real-time search functionality
+  let searchTimeout;
+  searchInput.addEventListener('input', () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      const searchTerm = searchInput.value.toLowerCase().trim();
+      filterFilesList(searchTerm);
+    }, 300); // Debounce search for better performance
+  });
+
+  const searchLabel = document.createElement('div');
+  searchLabel.textContent = '🔍';
+  searchLabel.style.cssText = `
+    font-size: 20px;
+    color: #666;
+    flex-shrink: 0;
+  `;
+
+  searchContainer.appendChild(searchLabel);
+  searchContainer.appendChild(searchInput);
+  el.appendChild(searchContainer);
 
   if (!isAdmin()) return; // only admins see upload button
 
