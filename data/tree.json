@@ -825,6 +825,15 @@
                 {"name": "Troubleshooting"},
                 {"name": "Fault Codes"}
               ]
+            },
+            {
+              "name": "All Other VFD Models",
+              "children": [
+                {"name": "Manual"},
+                {"name": "Programming Guide"},
+                {"name": "Troubleshooting"},
+                {"name": "Fault Codes"}
+              ]
             }
           ]
         }
