@@ -1834,66 +1834,157 @@ function renderGenericDocument(url, name, loadingDiv, ext) {
   $c.appendChild(genericInfo);
 }
 
-// CAD document viewer for .dwg and other CAD files
+// CAD document viewer for .dwg and other CAD files - now shows as a modal popup
 function renderCADDocument(url, name, loadingDiv, ext) {
   if (loadingDiv && loadingDiv.parentNode) {
     loadingDiv.remove();
   }
   
-  const cadInfo = document.createElement('div');
-  cadInfo.style.cssText = `
-    background: linear-gradient(135deg, rgba(33, 150, 243, 0.125), rgba(33, 150, 243, 0.063));
-    border: 2px solid #2196f3;
-    border-radius: 12px;
+  // Create modal overlay
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+  `;
+  
+  // Create modal content container
+  const content = document.createElement('div');
+  content.style.cssText = `
+    background: white;
+    border: 2px solid black;
+    border-radius: 8px;
     padding: 30px;
-    margin: 16px 0;
+    max-width: 90%;
+    max-height: 90%;
+    width: 600px;
     text-align: center;
+    position: relative;
   `;
   
-  cadInfo.innerHTML = `
-    <div style="font-size: 64px; margin-bottom: 20px;">📐</div>
-    <h3 style="margin: 0 0 12px 0; color: #1976d2; font-size: 24px;">CAD Drawing File</h3>
-    <p style="margin: 0 0 8px 0; font-size: 16px; color: #333; font-weight: 500;">${name}</p>
-    <p style="margin: 0 0 24px 0; color: #666; line-height: 1.5;">
-      This is an AutoCAD drawing file (.dwg). To view and edit this file, you'll need CAD software such as:
-      <br><strong>AutoCAD, DraftSight, LibreCAD, or FreeCAD</strong>
-    </p>
-    <div style="margin: 20px 0;">
-      <a href="${url}" download="${name}" style="
-        display: inline-block;
-        padding: 14px 28px;
-        background: #2196f3;
-        color: white;
-        text-decoration: none;
-        border-radius: 6px;
-        font-weight: 600;
-        font-size: 16px;
-        margin: 0 8px 8px 0;
-        transition: background 0.2s ease;
-      " onmouseover="this.style.background='#1976d2'" onmouseout="this.style.background='#2196f3'">
-        📥 Download CAD File
-      </a>
-      <a href="https://sharecad.org/cadframe/load?url=${encodeURIComponent(url)}" target="_blank" style="
-        display: inline-block;
-        padding: 14px 28px;
-        background: #ff9800;
-        color: white;
-        text-decoration: none;
-        border-radius: 6px;
-        font-weight: 600;
-        font-size: 16px;
-        margin: 0 8px 8px 0;
-        transition: background 0.2s ease;
-      " onmouseover="this.style.background='#f57c00'" onmouseout="this.style.background='#ff9800'">
-        👁️ Try Online Viewer
-      </a>
-    </div>
-    <small style="color: #999; font-size: 14px;">
-      💡 Online viewer may not support all DWG features. Download recommended for full functionality.
-    </small>
+  // Create close button (red X)
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '×';
+  closeBtn.style.cssText = `
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    background: none;
+    border: none;
+    font-size: 24px;
+    font-weight: bold;
+    color: red;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    line-height: 30px;
+  `;
+  closeBtn.onclick = () => modal.remove();
+  
+  // Create title
+  const title = document.createElement('h3');
+  title.textContent = 'CAD Drawing File';
+  title.style.cssText = 'margin: 0 0 20px 0; color: black; font-size: 24px;';
+  
+  // Create monkey image
+  const monkeyImg = document.createElement('img');
+  monkeyImg.src = 'assets/icons/monkeycad.png';
+  monkeyImg.style.cssText = `
+    width: 120px;
+    height: auto;
+    margin: 0 0 20px 0;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
   `;
   
-  $c.appendChild(cadInfo);
+  // Create file name display
+  const fileName = document.createElement('p');
+  fileName.textContent = name;
+  fileName.style.cssText = 'margin: 0 0 8px 0; font-size: 16px; color: #333; font-weight: 500;';
+  
+  // Create description text
+  const description = document.createElement('p');
+  description.textContent = 'This is an AutoCAD drawing file (.dwg). You can view with our online viewer or download and view in a CAD application.';
+  description.style.cssText = 'margin: 0 0 30px 0; color: #666; line-height: 1.5;';
+  
+  // Create buttons container
+  const buttonsDiv = document.createElement('div');
+  buttonsDiv.style.cssText = 'margin: 20px 0;';
+  
+  // Create download button (first button, with download icon)
+  const downloadBtn = document.createElement('a');
+  downloadBtn.href = url;
+  downloadBtn.download = name;
+  downloadBtn.style.cssText = `
+    display: inline-block;
+    padding: 14px 28px;
+    background: white;
+    color: black;
+    text-decoration: none;
+    border: 1px solid black;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 16px;
+    margin: 0 8px 8px 0;
+    transition: background 0.2s ease;
+  `;
+  downloadBtn.onmouseover = () => downloadBtn.style.background = '#f0f0f0';
+  downloadBtn.onmouseout = () => downloadBtn.style.background = 'white';
+  
+  // Add download icon and text
+  const downloadIcon = document.createElement('img');
+  downloadIcon.src = 'assets/icons/download.png';
+  downloadIcon.style.cssText = 'width: 16px; height: 16px; margin-right: 8px; vertical-align: middle;';
+  downloadBtn.appendChild(downloadIcon);
+  downloadBtn.appendChild(document.createTextNode('Download CAD File'));
+  
+  // Create online viewer button (second button)
+  const viewerBtn = document.createElement('a');
+  viewerBtn.href = `https://sharecad.org/cadframe/load?url=${encodeURIComponent(url)}`;
+  viewerBtn.target = '_blank';
+  viewerBtn.style.cssText = `
+    display: inline-block;
+    padding: 14px 28px;
+    background: white;
+    color: black;
+    text-decoration: none;
+    border: 1px solid black;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 16px;
+    margin: 0 8px 8px 0;
+    transition: background 0.2s ease;
+  `;
+  viewerBtn.textContent = 'Launch CAD Viewer';
+  viewerBtn.onmouseover = () => viewerBtn.style.background = '#f0f0f0';
+  viewerBtn.onmouseout = () => viewerBtn.style.background = 'white';
+  
+  // Assemble the modal content
+  content.appendChild(closeBtn);
+  content.appendChild(title);
+  content.appendChild(monkeyImg);
+  content.appendChild(fileName);
+  content.appendChild(description);
+  buttonsDiv.appendChild(downloadBtn);
+  buttonsDiv.appendChild(viewerBtn);
+  content.appendChild(buttonsDiv);
+  
+  modal.appendChild(content);
+  document.body.appendChild(modal);
+  
+  // Close on background click
+  modal.onclick = (e) => {
+    if (e.target === modal) modal.remove();
+  };
 }
 
 // Function to try viewing files in browser using multiple methods

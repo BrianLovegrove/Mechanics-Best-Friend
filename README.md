@@ -18,6 +18,8 @@ Mechanic's Best Friend serves as a centralized repository for all equipment docu
 - **Real-Time File Counting**: View the number of folders and files at each navigation level, including totals across all subfolders
 - **Upload Capabilities**: Authorized users can upload new documentation directly to the appropriate folders
 - **Progressive Loading**: File lists and counts are dynamically loaded and updated when new content is added
+- **Interactive File Viewers**: Built-in viewers for CAD drawings, documents, images, and specialized content types
+- **Modal Interfaces**: User-friendly popup windows for viewing CAD files and technical drawings
 
 ### Technical Infrastructure
 - **Cloudflare Integration**: The system connects to Cloudflare Workers for backend processing and R2 for file storage
@@ -73,7 +75,18 @@ Each equipment item contains organized folders for:
 - View file listings with detailed information including file names, sizes, and upload dates
 - Download files directly through the browser interface
 - Open supported file types (images, PDFs, documents) in an integrated viewer
-- Access mechanic notes through a specialized reader interface
+- **CAD File Viewer**: Interactive modal popup for CAD drawings (.dwg, .dxf, .dwf files) with online viewing and download options
+- **Mechanic Notes**: Specialized reader interface for viewing and managing maintenance notes
+- **Document Viewers**: Built-in viewers for various file types including Office documents, images, and technical drawings
+
+### CAD File Viewing
+When accessing CAD drawing files (AutoCAD .dwg, .dxf, .dwf formats), the system displays a specialized modal popup featuring:
+- **Centered Modal Interface**: Clean, professional popup window that focuses attention on the CAD file
+- **Download with Icon**: Primary download button with intuitive download icon for offline access
+- **Online CAD Viewer**: Launch external online viewer for immediate CAD file viewing without downloads
+- **File Information**: Clear display of file name and format information
+- **Easy Navigation**: Red close button and background click to exit the viewer and return to file listings
+- **Responsive Design**: Modal adapts to different screen sizes for desktop and mobile access
 
 ## System Requirements and Setup
 
