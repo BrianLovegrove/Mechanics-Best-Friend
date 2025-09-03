@@ -687,6 +687,11 @@ function viewerUrlFor(key, contentType = '') {
     return `/assets/pdfjs/web/viewer.html?file=${encodeURIComponent(url)}`;
   }
   
+  // CAD files (dwg, dxf, dwf) - return direct URL for download or online viewer
+  if (lower.endsWith('.dwg') || lower.endsWith('.dxf') || lower.endsWith('.dwf')) {
+    return url; // Direct URL for download - CAD viewer integration handled in openFile
+  }
+  
   // Images / text / others → open directly
   return url;
 }
@@ -1384,6 +1389,8 @@ function renderCustomFileViewer(url, name, ext) {
     renderLegacyDocument(url, name, loadingDiv, 'Excel');
   } else if (ext === 'pdf') {
     renderPDFDocument(url, name, loadingDiv);
+  } else if (['dwg', 'dxf', 'dwf'].includes(ext)) {
+    renderCADDocument(url, name, loadingDiv, ext);
   } else {
     // Fallback for other file types
     renderGenericDocument(url, name, loadingDiv, ext);
@@ -1827,6 +1834,68 @@ function renderGenericDocument(url, name, loadingDiv, ext) {
   $c.appendChild(genericInfo);
 }
 
+// CAD document viewer for .dwg and other CAD files
+function renderCADDocument(url, name, loadingDiv, ext) {
+  if (loadingDiv.parentNode) {
+    loadingDiv.remove();
+  }
+  
+  const cadInfo = document.createElement('div');
+  cadInfo.style.cssText = `
+    background: linear-gradient(135deg, rgba(33, 150, 243, 0.125), rgba(33, 150, 243, 0.063));
+    border: 2px solid #2196f3;
+    border-radius: 12px;
+    padding: 30px;
+    margin: 16px 0;
+    text-align: center;
+  `;
+  
+  cadInfo.innerHTML = `
+    <div style="font-size: 64px; margin-bottom: 20px;">📐</div>
+    <h3 style="margin: 0 0 12px 0; color: #1976d2; font-size: 24px;">CAD Drawing File</h3>
+    <p style="margin: 0 0 8px 0; font-size: 16px; color: #333; font-weight: 500;">${name}</p>
+    <p style="margin: 0 0 24px 0; color: #666; line-height: 1.5;">
+      This is an AutoCAD drawing file (.dwg). To view and edit this file, you'll need CAD software such as:
+      <br><strong>AutoCAD, DraftSight, LibreCAD, or FreeCAD</strong>
+    </p>
+    <div style="margin: 20px 0;">
+      <a href="${url}" download="${name}" style="
+        display: inline-block;
+        padding: 14px 28px;
+        background: #2196f3;
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 16px;
+        margin: 0 8px 8px 0;
+        transition: background 0.2s ease;
+      " onmouseover="this.style.background='#1976d2'" onmouseout="this.style.background='#2196f3'">
+        📥 Download CAD File
+      </a>
+      <a href="https://sharecad.org/cadframe/load?url=${encodeURIComponent(url)}" target="_blank" style="
+        display: inline-block;
+        padding: 14px 28px;
+        background: #ff9800;
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 16px;
+        margin: 0 8px 8px 0;
+        transition: background 0.2s ease;
+      " onmouseover="this.style.background='#f57c00'" onmouseout="this.style.background='#ff9800'">
+        👁️ Try Online Viewer
+      </a>
+    </div>
+    <small style="color: #999; font-size: 14px;">
+      💡 Online viewer may not support all DWG features. Download recommended for full functionality.
+    </small>
+  `;
+  
+  $c.appendChild(cadInfo);
+}
+
 // Function to try viewing files in browser using multiple methods
 function tryViewInBrowser(url, name) {
   const viewerWindow = window.open('', '_blank');
@@ -1994,6 +2063,34 @@ function openFile(url, name, isLocalStorage = false){
           downloadBtn.onmouseover = () => downloadBtn.style.background = '#005a87';
           downloadBtn.onmouseout = () => downloadBtn.style.background = '#007cba';
           $c.appendChild(downloadBtn);
+        } else if(['dwg', 'dxf', 'dwf'].includes(ext)){
+          // For locally stored CAD files, provide download with information
+          const cadWarning = document.createElement('div');
+          cadWarning.style.cssText = 'padding: 16px; background: #e3f2fd; border: 1px solid #2196f3; border-radius: 4px; color: #1976d2; margin: 16px 0;';
+          cadWarning.innerHTML = `
+            <strong>📐 CAD Drawing File</strong><br>
+            This AutoCAD drawing file is stored locally. To view and edit this file, download it and open with CAD software such as AutoCAD, DraftSight, LibreCAD, or FreeCAD.
+          `;
+          $c.appendChild(cadWarning);
+          
+          const downloadBtn = document.createElement('a');
+          downloadBtn.href = file.data;
+          downloadBtn.download = name;
+          downloadBtn.textContent = `📥 Download ${name}`;
+          downloadBtn.style.cssText = `
+            display: inline-block;
+            padding: 12px 24px;
+            background: #2196f3;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: 600;
+            margin: 8px 0;
+            transition: background 0.2s ease;
+          `;
+          downloadBtn.onmouseover = () => downloadBtn.style.background = '#1976d2';
+          downloadBtn.onmouseout = () => downloadBtn.style.background = '#2196f3';
+          $c.appendChild(downloadBtn);
         } else {
           // Check for unsupported file types (PLC programs, etc.)
           if(['plc','rslogix','l5x','l5k','acd','rss','s7p','awl','scl','fbd','ladder'].includes(ext) || 
@@ -2092,6 +2189,9 @@ function openFile(url, name, isLocalStorage = false){
       // Use custom file viewer for all other Office documents (including local server files)
       renderCustomFileViewer(url, name, ext);
     }
+  } else if (['dwg', 'dxf', 'dwf'].includes(ext)) {
+    // CAD files - use dedicated CAD viewer
+    renderCADDocument(url, name, null, ext);
   } else {
     // Check for unsupported file types (PLC programs, etc.)
     if(['plc','rslogix','l5x','l5k','acd','rss','s7p','awl','scl','fbd','ladder'].includes(ext) || 
