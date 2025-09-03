@@ -24,6 +24,11 @@ function viewerUrlFor(key, contentType = '') {
     return url; // Open the R2 URL directly
   }
   
+  // CAD files (dwg, dxf, dwf) - return direct URL for download
+  if (lower.endsWith('.dwg') || lower.endsWith('.dxf') || lower.endsWith('.dwf')) {
+    return url; // Direct URL for CAD files
+  }
+  
   // Images / text / others → open directly
   return url;
 }
