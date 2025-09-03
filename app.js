@@ -17,7 +17,7 @@ let countsPreloaded = false;
 async function preloadAllCounts() {
   if (countsPreloaded || !tree) return;
   
-  console.log('Preloading real file and folder counts from Cloudflare...');
+  console.log('Using static file counts from tree.json...');
   globalCountsCache.clear();
   
   // Helper function to fetch real file count for a folder path
@@ -182,14 +182,14 @@ async function preloadAllCounts() {
     }
     
     countsPreloaded = true;
-    console.log('Real file and folder counts preloaded successfully from Cloudflare');
+    console.log('Static file counts loaded successfully from tree.json');
   } catch (error) {
     console.error('Failed to preload counts:', error);
     countsPreloaded = true; // Continue anyway
   }
 }
 
-// Get cached counts for a node
+// Get cached counts for a node - Updated to use static file counts from tree.json
 function getCachedCounts(node, basePath = []) {
   const nodeKey = [...basePath, node.name].join('/');
   const cached = globalCountsCache.get(nodeKey);
@@ -203,14 +203,15 @@ function getCachedCounts(node, basePath = []) {
     };
   }
   
-  // Fallback to basic counts if not cached
+  // Use static file count from tree.json if available
   const folderCount = node.children ? node.children.length : 0;
   const isLeaf = !node.children || node.children.length === 0;
   const isMechanicNotes = node.name.toLowerCase() === 'mechanic notes';
+  const staticFileCount = node.fileCount || 0;  // Use fileCount from tree.json
   
   return {
     folderCount: folderCount,
-    fileCount: 0,
+    fileCount: staticFileCount,
     isLeaf: isLeaf,
     isMechanicNotes: isMechanicNotes
   };
