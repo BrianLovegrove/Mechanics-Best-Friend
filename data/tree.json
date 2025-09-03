@@ -785,6 +785,29 @@
       ]
     },
     {
+      "name": "Automation Hardware Library",
+      "children": [
+        {
+          "name": "AB/Rockwell",
+          "children": [
+            {"name": "AB/Rockwell Document Library"}
+          ]
+        },
+        {
+          "name": "Siemens",
+          "children": [
+            {"name": "Siemens Document Library"}
+          ]
+        },
+        {
+          "name": "B&R Automation",
+          "children": [
+            {"name": "B&R Automation Document Library"}
+          ]
+        }
+      ]
+    },
+    {
       "name": "Other Systems",
       "children": [
         {
