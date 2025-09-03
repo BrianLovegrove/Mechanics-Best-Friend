@@ -175,15 +175,99 @@ export async function renderFilesList(prefix) {
     const folders = items.filter(x => x.kind === 'prefix'); // if you want to show subfolders too
 
     if (!files.length && !folders.length) {
-      host.innerHTML = '<div class="mbf-empty">No files yet in this folder.</div>';
+      host.innerHTML = '';
+      
+      // Add search bar above file list (always show, even if no files initially)
+      const searchContainer = document.createElement('div');
+      searchContainer.style.cssText = `
+        margin-bottom: 20px;
+        padding: 0;
+      `;
+      
+      const searchInput = document.createElement('input');
+      searchInput.type = 'text';
+      searchInput.placeholder = 'Search files by name or keywords...';
+      searchInput.style.cssText = `
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e1e5e9;
+        border-radius: 8px;
+        font-size: 16px;
+        background: white;
+        box-sizing: border-box;
+        transition: border-color 0.2s ease;
+      `;
+      
+      searchInput.addEventListener('focus', () => {
+        searchInput.style.borderColor = '#3b82f6';
+      });
+      
+      searchInput.addEventListener('blur', () => {
+        searchInput.style.borderColor = '#e1e5e9';
+      });
+      
+      searchContainer.appendChild(searchInput);
+      host.appendChild(searchContainer);
+      
+      // Container for file list
+      const fileListContainer = document.createElement('div');
+      fileListContainer.id = 'file-list-container';
+      fileListContainer.innerHTML = '<div class="mbf-empty">No files yet in this folder.</div>';
+      host.appendChild(fileListContainer);
+      
       return;
     }
 
     host.innerHTML = '';
-    // (Optional) render folders here first…
-
-    // Files
-    for (const f of files) {
+    
+    // Add search bar above file list
+    const searchContainer = document.createElement('div');
+    searchContainer.style.cssText = `
+      margin-bottom: 20px;
+      padding: 0;
+    `;
+    
+    const searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.placeholder = 'Search files by name or keywords...';
+    searchInput.style.cssText = `
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e1e5e9;
+      border-radius: 8px;
+      font-size: 16px;
+      background: white;
+      box-sizing: border-box;
+      transition: border-color 0.2s ease;
+    `;
+    
+    searchInput.addEventListener('focus', () => {
+      searchInput.style.borderColor = '#3b82f6';
+    });
+    
+    searchInput.addEventListener('blur', () => {
+      searchInput.style.borderColor = '#e1e5e9';
+    });
+    
+    searchContainer.appendChild(searchInput);
+    host.appendChild(searchContainer);
+    
+    // Container for file list
+    const fileListContainer = document.createElement('div');
+    fileListContainer.id = 'file-list-container';
+    host.appendChild(fileListContainer);
+    
+    // Function to render files with optional filter
+    const renderFiles = (filesToRender = files) => {
+      fileListContainer.innerHTML = '';
+      
+      if (!filesToRender.length) {
+        fileListContainer.innerHTML = '<div class="mbf-empty">No files match your search.</div>';
+        return;
+      }
+      
+      // Files
+      for (const f of filesToRender) {
     const row = document.createElement('div');
     row.className = 'mbf-row';
     row.style.cssText = `
@@ -402,11 +486,72 @@ export async function renderFilesList(prefix) {
     
     row.appendChild(contentDiv);
     row.appendChild(actionsDiv);
-    host.appendChild(row);
+    fileListContainer.appendChild(row);
   }
+  };
+  
+  // Initial render with all files
+  renderFiles();
+  
+  // Add search functionality
+  searchInput.addEventListener('input', (e) => {
+    const searchTerm = e.target.value.toLowerCase().trim();
+    
+    if (!searchTerm) {
+      // Show all files if search is empty
+      renderFiles(files);
+      return;
+    }
+    
+    // Filter files based on search term
+    const filteredFiles = files.filter(f => {
+      const fileName = f.key.split('/').pop().toLowerCase();
+      return fileName.includes(searchTerm);
+    });
+    
+    renderFiles(filteredFiles);
+  });
+    
   } catch (error) {
     console.error('Error rendering files list:', error);
-    host.innerHTML = '<div class="mbf-empty">No files yet in this folder.</div>';
+    
+    // Even on error, show search bar for better UX
+    host.innerHTML = '';
+    
+    const searchContainer = document.createElement('div');
+    searchContainer.style.cssText = `
+      margin-bottom: 20px;
+      padding: 0;
+    `;
+    
+    const searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.placeholder = 'Search files by name or keywords...';
+    searchInput.style.cssText = `
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e1e5e9;
+      border-radius: 8px;
+      font-size: 16px;
+      background: white;
+      box-sizing: border-box;
+      transition: border-color 0.2s ease;
+    `;
+    
+    searchInput.addEventListener('focus', () => {
+      searchInput.style.borderColor = '#3b82f6';
+    });
+    
+    searchInput.addEventListener('blur', () => {
+      searchInput.style.borderColor = '#e1e5e9';
+    });
+    
+    searchContainer.appendChild(searchInput);
+    host.appendChild(searchContainer);
+    
+    const fileListContainer = document.createElement('div');
+    fileListContainer.innerHTML = '<div class="mbf-empty">No files yet in this folder.</div>';
+    host.appendChild(fileListContainer);
   }
 }
 
