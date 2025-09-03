@@ -384,8 +384,26 @@ export async function renderFilesList(prefix) {
       // Special handling for mechanic notes - open in internal reader
       viewBtn.onclick = () => handleNoteView(f.key);
     } else {
-      // Regular file viewing
-      viewBtn.onclick = () => window.open(viewerUrlFor(f.key, f.contentType || ''), '_blank');
+      // Check if this is a CAD file that should use the internal CAD viewer
+      const fileName = f.key.split('/').pop() || '';
+      const fileExt = (fileName.split('.').pop() || '').toLowerCase();
+      const isCADFile = ['dwg', 'dxf', 'dwf'].includes(fileExt);
+      
+      if (isCADFile) {
+        // Use internal CAD viewer via openFile function
+        viewBtn.onclick = () => {
+          const fileUrl = r2PublicUrl(f.key);
+          if (typeof openFile === 'function') {
+            openFile(fileUrl, fileName, false);
+          } else {
+            // Fallback to direct URL if openFile is not available
+            window.open(viewerUrlFor(f.key, f.contentType || ''), '_blank');
+          }
+        };
+      } else {
+        // Regular file viewing
+        viewBtn.onclick = () => window.open(viewerUrlFor(f.key, f.contentType || ''), '_blank');
+      }
     }
     
     // Download button - bigger and with icon

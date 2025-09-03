@@ -1836,7 +1836,7 @@ function renderGenericDocument(url, name, loadingDiv, ext) {
 
 // CAD document viewer for .dwg and other CAD files
 function renderCADDocument(url, name, loadingDiv, ext) {
-  if (loadingDiv.parentNode) {
+  if (loadingDiv && loadingDiv.parentNode) {
     loadingDiv.remove();
   }
   
