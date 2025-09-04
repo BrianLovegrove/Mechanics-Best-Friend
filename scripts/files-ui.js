@@ -167,83 +167,28 @@ async function listFiles(prefix) {
   return r.json();
 }
 
-// Calculate total files and size
-function calculateTotals(files) {
-  const count = files.length;
-  let totalBytes = 0;
-  
-  for (const file of files) {
-    if (file.size && typeof file.size === 'number') {
-      totalBytes += file.size;
-    }
-  }
-  
-  // Convert bytes to human readable format
-  const formatSize = (bytes) => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-  };
-  
-  return {
-    count,
-    size: formatSize(totalBytes)
-  };
-}
-
-// Render the total files info badge
-function renderTotalFilesInfo(files, isNotesPage = false) {
-  const infoEl = document.getElementById('total-files-info');
-  if (!infoEl) return;
-  
-  infoEl.style.display = 'flex';
-  
-  const totals = calculateTotals(files);
-  const label = isNotesPage ? 'Total Notes In This Folder' : 'Total Files In This Folder';
-  
-  infoEl.innerHTML = `${label}: ${totals.count}, ${totals.size}`;
-}
-
-// Show loading state for total files info
-function showTotalFilesLoading(isNotesPage = false) {
-  const infoEl = document.getElementById('total-files-info');
-  if (!infoEl) return;
-  
-  infoEl.style.display = 'flex';
-  const label = isNotesPage ? 'Total Notes In This Folder' : 'Total Files In This Folder';
-  
-  infoEl.innerHTML = `
-    <span>${label}: —, —</span>
-    <div class="loading-spinner"></div>
-  `;
-}
-
 export async function renderFilesList(prefix) {
   await loadConfig();
-  
-  // Show loading state for total files info
-  showTotalFilesLoading();
-  
-  // Get the containers from new layout
-  const searchContainer = document.getElementById('search-container');
-  const filesHost = document.getElementById('files-list');
-  
-  if (!filesHost) return;
+  const host = document.getElementById('files-list');
+  if (!host) return;
 
-  filesHost.innerHTML = '<div class="mbf-empty">Loading…</div>';
+  host.innerHTML = '<div class="mbf-empty">Loading…</div>';
   
   try {
     const items = await listFiles(prefix);
     const files = items.filter(x => x.kind === 'object');
-    
-    // Update total files info
-    renderTotalFilesInfo(files);
+    const folders = items.filter(x => x.kind === 'prefix'); // if you want to show subfolders too
 
-    // Setup search container
-    if (searchContainer) {
-      searchContainer.innerHTML = '';
+    if (!files.length && !folders.length) {
+      host.innerHTML = '';
+      
+      // Add search bar above file list (always show, even if no files initially)
+      const searchContainer = document.createElement('div');
+      searchContainer.style.cssText = `
+        margin-bottom: 20px;
+        padding: 0;
+      `;
+      
       const searchInput = document.createElement('input');
       searchInput.type = 'text';
       searchInput.placeholder = 'Search files by name or keywords...';
@@ -267,12 +212,18 @@ export async function renderFilesList(prefix) {
       });
       
       searchContainer.appendChild(searchInput);
-    }
-
-    if (!files.length) {
-      filesHost.innerHTML = '<div class="mbf-empty">No files yet in this folder.</div>';
+      host.appendChild(searchContainer);
+      
+      // Container for file list
+      const fileListContainer = document.createElement('div');
+      fileListContainer.id = 'file-list-container';
+      fileListContainer.innerHTML = '<div class="mbf-empty">No files yet in this folder.</div>';
+      host.appendChild(fileListContainer);
+      
       return;
     }
+
+    host.innerHTML = '';
     
     // Add search bar above file list
     const searchContainer = document.createElement('div');
@@ -304,9 +255,12 @@ export async function renderFilesList(prefix) {
     });
     
     searchContainer.appendChild(searchInput);
-    // Note: searchContainer is managed separately in new layout
+    host.appendChild(searchContainer);
     
-    // Note: fileListContainer is now filesHost in new layout
+    // Container for file list
+    const fileListContainer = document.createElement('div');
+    fileListContainer.id = 'file-list-container';
+    host.appendChild(fileListContainer);
     
     // Function to render files with optional filter
     const renderFiles = (filesToRender = files) => {
@@ -583,13 +537,44 @@ export async function renderFilesList(prefix) {
     
   } catch (error) {
     console.error('Error rendering files list:', error);
-    filesHost.innerHTML = '<div class="mbf-empty">Error loading files. Please try again.</div>';
     
-    // Show error in total files info
-    const infoEl = document.getElementById('total-files-info');
-    if (infoEl) {
-      infoEl.innerHTML = 'Load error';
-    }
+    // Even on error, show search bar for better UX
+    host.innerHTML = '';
+    
+    const searchContainer = document.createElement('div');
+    searchContainer.style.cssText = `
+      margin-bottom: 20px;
+      padding: 0;
+    `;
+    
+    const searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.placeholder = 'Search files by name or keywords...';
+    searchInput.style.cssText = `
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e1e5e9;
+      border-radius: 8px;
+      font-size: 16px;
+      background: white;
+      box-sizing: border-box;
+      transition: border-color 0.2s ease;
+    `;
+    
+    searchInput.addEventListener('focus', () => {
+      searchInput.style.borderColor = '#3b82f6';
+    });
+    
+    searchInput.addEventListener('blur', () => {
+      searchInput.style.borderColor = '#e1e5e9';
+    });
+    
+    searchContainer.appendChild(searchInput);
+    host.appendChild(searchContainer);
+    
+    const fileListContainer = document.createElement('div');
+    fileListContainer.innerHTML = '<div class="mbf-empty">No files yet in this folder.</div>';
+    host.appendChild(fileListContainer);
   }
 }
 
@@ -607,26 +592,26 @@ export async function renderFolderToolbar(prefix) {
     background: #3b82f6;
     color: white;
     border: none;
-    padding: 12px 18px;
-    border-radius: 4px;
-    font-size: 14px;
+    padding: 16px 24px;
+    border-radius: 12px;
+    font-size: 16px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
+    margin-bottom: 20px;
     display: flex;
     align-items: center;
     gap: 8px;
-    box-shadow: var(--shadow);
   `;
   
   // Add upload icon
-  const uploadIcon = createIconElement(UPLOAD_ICON, 'Upload', 16);
+  const uploadIcon = createIconElement(UPLOAD_ICON, 'Upload', 20);
+  // Remove the white overlay filter to show transparent background
   btn.appendChild(uploadIcon);
   
   const uploadText = document.createElement('span');
   uploadText.textContent = 'Upload Files';
   btn.appendChild(uploadText);
-  
   btn.addEventListener('mouseenter', () => {
     btn.style.background = '#2563eb';
   });

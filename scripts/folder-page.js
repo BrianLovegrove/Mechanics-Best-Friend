@@ -10,15 +10,10 @@ export async function initFolderPage(currentBreadcrumbs) {
   // Prefix for the CURRENT folder (always ends with "/")
   const folderPrefix = prefixFromBreadcrumbs(currentBreadcrumbs);
 
-  // Get the new layout elements
-  const searchContainer = document.getElementById('search-container');
-  const fileListScroll = document.getElementById('file-list-scroll');
-  const totalFilesInfo = document.getElementById('total-files-info');
-  const notesHost = document.getElementById('notes-panel');
-
   // Check if this is a Mechanic Notes folder - implement notes-only view
+  const notesHost = document.getElementById('notes-panel');
   if (isMechanicNotesCrumbs(currentBreadcrumbs)) {
-    // NOTES-ONLY VIEW: Hide file UI, show notes with new layout
+    // NOTES-ONLY VIEW: Hide all file UI components
     const toolbarEl = document.getElementById('folder-toolbar');
     const filesEl = document.getElementById('files-list');
     
@@ -30,33 +25,25 @@ export async function initFolderPage(currentBreadcrumbs) {
       filesEl.style.display = 'none';
       filesEl.innerHTML = '';
     }
-    if (searchContainer) {
-      searchContainer.style.display = 'none';
-    }
-    if (fileListScroll) {
-      fileListScroll.style.display = 'none';
-    }
-    
-    // Show notes panel with updated total info for notes
+
+    // Show notes panel only
     if (notesHost) {
       notesHost.style.display = '';
       // parent machine prefix (drop the last "Mechanic Notes" crumb)
       const machinePrefix = prefixFromBreadcrumbs(currentBreadcrumbs.slice(0, -1));
       await renderNotes(machinePrefix);
     }
-    
-    // Update total info badge to show notes
-    if (totalFilesInfo) {
-      totalFilesInfo.style.display = 'flex';
-      // This will be updated by renderNotes
-    }
   } else {
-    // NORMAL VIEW: Show file UI with new layout, hide notes
-    if (searchContainer) {
-      searchContainer.style.display = 'block';
+    // NORMAL VIEW: Show file UI, hide notes
+    // Ensure file UI elements are visible (in case they were hidden from previous notes view)
+    const toolbarEl = document.getElementById('folder-toolbar');
+    const filesEl = document.getElementById('files-list');
+    
+    if (toolbarEl) {
+      toolbarEl.style.display = '';
     }
-    if (fileListScroll) {
-      fileListScroll.style.display = 'block';
+    if (filesEl) {
+      filesEl.style.display = '';
     }
     
     await renderFolderToolbar(folderPrefix);
