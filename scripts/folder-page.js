@@ -40,10 +40,10 @@ export async function initFolderPage(currentBreadcrumbs) {
     const filesEl = document.getElementById('files-list');
     
     if (toolbarEl) {
-      toolbarEl.style.display = '';
+      toolbarEl.style.display = 'flex';
     }
     if (filesEl) {
-      filesEl.style.display = '';
+      filesEl.style.display = 'block';
     }
     
     await renderFolderToolbar(folderPrefix);

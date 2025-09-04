@@ -572,13 +572,22 @@ function render(){
   renderBack(); renderCrumbs();
   const n=current(); $c.innerHTML='';
   
-  // Clear the new UI components initially
+  // Clear and hide the new UI components initially
   const toolbarEl = document.getElementById('folder-toolbar');
   const filesEl = document.getElementById('files-list');
   const notesEl = document.getElementById('notes-panel');
-  if (toolbarEl) toolbarEl.innerHTML = '';
-  if (filesEl) filesEl.innerHTML = '';
-  if (notesEl) notesEl.innerHTML = '';
+  if (toolbarEl) {
+    toolbarEl.innerHTML = '';
+    toolbarEl.style.display = 'none';
+  }
+  if (filesEl) {
+    filesEl.innerHTML = '';
+    filesEl.style.display = 'none';
+  }
+  if (notesEl) {
+    notesEl.innerHTML = '';
+    notesEl.style.display = 'none';
+  }
 
   // Admin settings panel (only at root level for admin users)
   if (currentUser && currentUser.role === 'admin' && stack.length === 0) {
@@ -612,11 +621,15 @@ function render(){
       // Create compact, non-wrapping display with special handling for Mechanic Notes
       let countDisplay = '';
       if (isLeaf) {
-        // Leaf folders show file count only, with special text for Mechanic Notes
+        // Leaf folders show file count only if there are files, with special text for Mechanic Notes
         if (isMechanicNotes) {
-          countDisplay = `Notes: ${fileCount}`;
+          if (fileCount > 0) {
+            countDisplay = `Notes: ${fileCount}`;
+          }
         } else {
-          countDisplay = `Files: ${fileCount}`;
+          if (fileCount > 0) {
+            countDisplay = `Files: ${fileCount}`;
+          }
         }
       } else {
         // Parent folders show subfolder count only
