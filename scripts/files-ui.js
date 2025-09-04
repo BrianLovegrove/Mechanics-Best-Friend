@@ -229,7 +229,11 @@ export async function renderFilesList(prefix) {
     const searchContainer = document.createElement('div');
     searchContainer.style.cssText = `
       margin-bottom: 20px;
-      padding: 0;
+      padding: 10px 0;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: white;
     `;
     
     const searchInput = document.createElement('input');
@@ -592,16 +596,18 @@ export async function renderFolderToolbar(prefix) {
     background: #3b82f6;
     color: white;
     border: none;
-    padding: 16px 24px;
-    border-radius: 12px;
+    padding: 12px 18px;
+    border-radius: 4px;
     font-size: 16px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
-    margin-bottom: 20px;
+    margin-bottom: 0;
     display: flex;
     align-items: center;
     gap: 8px;
+    height: auto;
+    max-width: 200px;
   `;
   
   // Add upload icon
