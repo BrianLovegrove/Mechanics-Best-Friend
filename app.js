@@ -619,8 +619,8 @@ function render(){
           countDisplay = `Files: ${fileCount}`;
         }
       } else {
-        // Parent folders show both folder and file counts
-        countDisplay = `Items: ${folderCount} | Files: ${fileCount}`;
+        // Parent folders show subfolder count only
+        countDisplay = `Subfolders: ${folderCount}`;
       }
       
       // Use improved styling to prevent line wrapping and make it more compact
@@ -2863,31 +2863,31 @@ function showCreateNoteModal() {
   const modalContent = document.createElement('div');
   modalContent.style.cssText = `
     background: white;
-    padding: 20px;
-    border-radius: 8px;
-    width: 90%;
-    max-width: 500px;
-    max-height: 80vh;
+    padding: 30px;
+    border-radius: 12px;
+    width: 95%;
+    max-width: 800px;
+    max-height: 85vh;
     overflow-y: auto;
   `;
 
   modalContent.innerHTML = `
-    <h3 style="margin-top: 0;">Create Mechanic Note</h3>
-    <div style="margin: 16px 0;">
-      <label style="display: block; margin-bottom: 4px; font-weight: 600;">Author:</label>
-      <input type="text" id="noteAuthor" value="${currentUser?.username || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+    <h3 style="margin-top: 0; font-size: 24px;">Create Mechanic Note</h3>
+    <div style="margin: 20px 0;">
+      <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 16px;">Author:</label>
+      <input type="text" id="noteAuthor" value="${currentUser?.username || ''}" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px;">
     </div>
-    <div style="margin: 16px 0;">
-      <label style="display: block; margin-bottom: 4px; font-weight: 600;">Title:</label>
-      <input type="text" id="noteTitle" placeholder="Brief description of the note" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+    <div style="margin: 20px 0;">
+      <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 16px;">Title:</label>
+      <input type="text" id="noteTitle" placeholder="Brief description of the note" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px;">
     </div>
-    <div style="margin: 16px 0;">
-      <label style="display: block; margin-bottom: 4px; font-weight: 600;">Note:</label>
-      <textarea id="noteBody" placeholder="Detailed notes about maintenance, issues, procedures, etc." style="width: 100%; height: 120px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"></textarea>
+    <div style="margin: 20px 0;">
+      <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 16px;">Note:</label>
+      <textarea id="noteBody" placeholder="Detailed notes about maintenance, issues, procedures, etc." style="width: 100%; height: 200px; padding: 12px; border: 1px solid #ddd; border-radius: 6px; resize: vertical; font-size: 16px; line-height: 1.5;"></textarea>
     </div>
-    <div style="text-align: right; margin-top: 20px;">
-      <button onclick="this.parentElement.parentElement.parentElement.remove()" style="padding: 8px 16px; margin-right: 8px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">Cancel</button>
-      <button onclick="submitMechanicNote(this)" style="padding: 8px 16px; border: 1px solid #007bff; background: #007bff; color: white; border-radius: 4px; cursor: pointer;">Create Note</button>
+    <div style="text-align: right; margin-top: 24px;">
+      <button onclick="this.parentElement.parentElement.parentElement.remove()" style="padding: 12px 20px; margin-right: 12px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-size: 16px;">Cancel</button>
+      <button onclick="submitMechanicNote(this)" style="padding: 12px 20px; border: 1px solid #007bff; background: #007bff; color: white; border-radius: 6px; cursor: pointer; font-size: 16px;">Create Note</button>
     </div>
   `;
 

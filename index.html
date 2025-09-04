@@ -396,8 +396,10 @@
       </header>
       <div class="container" id="appMain" style="display:none">
         <div id="breadcrumbs"></div>
-        <button id="backBtn" class="item" style="display:none;width:auto;max-width:200px">Back</button>
-        <div id="folder-toolbar" class="mbf-toolbar"></div>
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 18px;">
+          <button id="backBtn" class="item" style="display:none;width:auto;max-width:200px;margin-bottom:0;">Back</button>
+          <div id="folder-toolbar" class="mbf-toolbar" style="margin-bottom:0;"></div>
+        </div>
         <div id="files-list" class="mbf-files"></div>
         <div id="content"></div>
         <div id="notes-panel" class="mbf-notes"></div>
