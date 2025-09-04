@@ -17,7 +17,7 @@ let countsPreloaded = false;
 async function preloadAllCounts() {
   if (countsPreloaded || !tree) return;
   
-  console.log('Preloading real file and folder counts from Cloudflare...');
+  console.log('Using static file counts from tree.json...');
   globalCountsCache.clear();
   
   // Helper function to fetch real file count for a folder path
@@ -182,35 +182,25 @@ async function preloadAllCounts() {
     }
     
     countsPreloaded = true;
-    console.log('Real file and folder counts preloaded successfully from Cloudflare');
+    console.log('Static file counts loaded successfully from tree.json');
   } catch (error) {
     console.error('Failed to preload counts:', error);
     countsPreloaded = true; // Continue anyway
   }
 }
 
-// Get cached counts for a node
+// Get cached counts for a node - Updated to use static file counts from tree.json
 function getCachedCounts(node, basePath = []) {
-  const nodeKey = [...basePath, node.name].join('/');
-  const cached = globalCountsCache.get(nodeKey);
-  
-  if (cached) {
-    return {
-      folderCount: cached.folderCount,
-      fileCount: cached.fileCount,
-      isLeaf: cached.isLeaf,
-      isMechanicNotes: cached.isMechanicNotes || false
-    };
-  }
-  
-  // Fallback to basic counts if not cached
+  // Always use static file count from tree.json if available
   const folderCount = node.children ? node.children.length : 0;
   const isLeaf = !node.children || node.children.length === 0;
   const isMechanicNotes = node.name.toLowerCase() === 'mechanic notes';
+  const staticFileCount = node.fileCount || 0;  // Use fileCount from tree.json
   
+  // Prioritize static file counts over cached values
   return {
     folderCount: folderCount,
-    fileCount: 0,
+    fileCount: staticFileCount,
     isLeaf: isLeaf,
     isMechanicNotes: isMechanicNotes
   };
@@ -609,25 +599,24 @@ function render(){
       const isLeaf = counts.isLeaf;
       const isMechanicNotes = counts.isMechanicNotes;
       
-      // Create compact, non-wrapping display with special handling for Mechanic Notes
+      // Create display format: "Folder Name (X)" as per requirements
       let countDisplay = '';
       if (isLeaf) {
-        // Leaf folders show file count only, with special text for Mechanic Notes
+        // Leaf folders show file count in parentheses, with special text for Mechanic Notes
         if (isMechanicNotes) {
-          countDisplay = `Notes: ${fileCount}`;
+          countDisplay = fileCount > 0 ? `(${fileCount})` : '';
         } else {
-          countDisplay = `Files: ${fileCount}`;
+          countDisplay = fileCount > 0 ? `(${fileCount})` : '';
         }
       } else {
-        // Parent folders show both folder and file counts
-        countDisplay = `Items: ${folderCount} | Files: ${fileCount}`;
+        // Parent folders show total file count in parentheses
+        countDisplay = fileCount > 0 ? `(${fileCount})` : '';
       }
       
-      // Use improved styling to prevent line wrapping and make it more compact
+      // Use improved styling with new format
       b.innerHTML = `
         <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-          <span style="flex: 1; text-align: left; min-width: 0; overflow: hidden; text-overflow: ellipsis;">${ch.name}</span>
-          <span style="font-size: 0.7em; color: #666; white-space: nowrap; margin-left: 8px; flex-shrink: 0;">${countDisplay}</span>
+          <span style="flex: 1; text-align: left; min-width: 0; overflow: hidden; text-overflow: ellipsis;">${ch.name} ${countDisplay}</span>
         </div>
       `;
       
