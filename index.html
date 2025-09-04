@@ -395,11 +395,31 @@
         />
       </header>
       <div class="container" id="appMain" style="display:none">
-        <div id="breadcrumbs"></div>
-        <button id="backBtn" class="item" style="display:none;width:auto;max-width:200px">Back</button>
-        <div id="folder-toolbar" class="mbf-toolbar"></div>
-        <div id="files-list" class="mbf-files"></div>
+        <!-- Centered breadcrumbs under header -->
+        <div id="breadcrumbs-center"></div>
+        
+        <!-- Top button row: Back, Upload, Total Files Info -->
+        <div id="top-buttons-row" style="display:none;">
+          <button id="backBtn" class="item" style="display:none;width:auto;max-width:200px">Back</button>
+          <div id="folder-toolbar" class="mbf-toolbar"></div>
+          <div id="total-files-info" class="total-files-badge" style="display:none;"></div>
+        </div>
+        
+        <!-- Sticky search and scrollable file list area -->
+        <div id="file-viewer-section" style="display:none;">
+          <div id="search-container" class="sticky-search"></div>
+          <div id="file-list-scroll" class="file-list-container">
+            <div id="files-list" class="mbf-files"></div>
+          </div>
+        </div>
+        
+        <!-- Legacy breadcrumbs (hidden by default, used for non-file pages) -->
+        <div id="breadcrumbs" style="display:none;"></div>
+        
+        <!-- Main content area for folder grids -->
         <div id="content"></div>
+        
+        <!-- Notes panel -->
         <div id="notes-panel" class="mbf-notes"></div>
       </div>
 <!-- Auto-setup for streamlined user experience -->
