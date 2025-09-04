@@ -606,8 +606,9 @@ export async function renderFolderToolbar(prefix) {
     display: flex;
     align-items: center;
     gap: 8px;
-    height: auto;
+    height: 44px;
     max-width: 200px;
+    box-sizing: border-box;
   `;
   
   // Add upload icon

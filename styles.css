@@ -226,7 +226,7 @@ main{padding:16px;}
 .mbf-files{
   border:1px solid #eee;
   border-radius:6px;
-  max-height:calc(100vh - 250px);
+  height:calc(100vh - 250px);
   min-height:400px;
   overflow:auto;
 }
