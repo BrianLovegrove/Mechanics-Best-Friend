@@ -134,6 +134,158 @@ h1{margin:0;font-size:20px;font-weight:600;color:var(--text);}
   text-decoration: underline;
 }
 
+/* Centered breadcrumbs under header */
+#breadcrumbs-center{
+  text-align: center;
+  padding: 18px 0;
+  color: var(--nav-text);
+  font-size: 16px;
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+
+#breadcrumbs-center a{
+  color: var(--nav-text);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+#breadcrumbs-center a:hover{
+  text-decoration: underline;
+}
+
+/* Top buttons row layout */
+#top-buttons-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+/* Total Files Info Badge */
+.total-files-badge {
+  border: 1px solid var(--primary);
+  background: var(--surface);
+  color: var(--text);
+  padding: 12px 18px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: var(--shadow);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Sticky search container */
+.sticky-search {
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 5;
+  padding: 12px 0;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* File list container with viewport calculation */
+.file-list-container {
+  max-height: calc(100vh - 400px);
+  overflow-y: auto;
+  min-height: 300px;
+}
+
+/* File viewer section */
+#file-viewer-section {
+  margin-top: 0;
+}
+
+/* Loading spinner for total files badge */
+.loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e1e5e9;
+  border-top: 2px solid var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  #top-buttons-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  
+  .total-files-badge {
+    justify-content: center;
+    text-align: center;
+  }
+  
+  .file-list-container {
+    max-height: calc(100vh - 450px);
+  }
+}
+
+@media (max-width: 480px) {
+  #breadcrumbs-center {
+    font-size: 14px;
+    padding: 12px 0;
+  }
+  
+  .file-list-container {
+    max-height: calc(100vh - 480px);
+  }
+}
+
+/* Compact file row styles */
+.mbf-row-compact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  background: white;
+  transition: all 0.2s ease;
+  min-height: 60px;
+}
+
+.mbf-row-compact:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border-color: #ccc;
+}
+
+.mbf-row-compact .file-icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.mbf-row-compact .file-actions {
+  display: flex;
+  gap: 6px;
+  flex-direction: row;
+  align-items: center;
+}
+
+.mbf-row-compact .action-btn-compact {
+  padding: 6px 10px;
+  font-size: 12px;
+  min-width: 60px;
+  height: 28px;
+  border-radius: 4px;
+}
+
 main{padding:16px;}
 
 .list{
