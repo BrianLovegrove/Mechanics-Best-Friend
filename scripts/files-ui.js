@@ -304,12 +304,9 @@ export async function renderFilesList(prefix) {
     });
     
     searchContainer.appendChild(searchInput);
-    host.appendChild(searchContainer);
+    // Note: searchContainer is managed separately in new layout
     
-    // Container for file list
-    const fileListContainer = document.createElement('div');
-    fileListContainer.id = 'file-list-container';
-    host.appendChild(fileListContainer);
+    // Note: fileListContainer is now filesHost in new layout
     
     // Function to render files with optional filter
     const renderFiles = (filesToRender = files) => {
@@ -586,44 +583,13 @@ export async function renderFilesList(prefix) {
     
   } catch (error) {
     console.error('Error rendering files list:', error);
+    filesHost.innerHTML = '<div class="mbf-empty">Error loading files. Please try again.</div>';
     
-    // Even on error, show search bar for better UX
-    host.innerHTML = '';
-    
-    const searchContainer = document.createElement('div');
-    searchContainer.style.cssText = `
-      margin-bottom: 20px;
-      padding: 0;
-    `;
-    
-    const searchInput = document.createElement('input');
-    searchInput.type = 'text';
-    searchInput.placeholder = 'Search files by name or keywords...';
-    searchInput.style.cssText = `
-      width: 100%;
-      padding: 12px 16px;
-      border: 2px solid #e1e5e9;
-      border-radius: 8px;
-      font-size: 16px;
-      background: white;
-      box-sizing: border-box;
-      transition: border-color 0.2s ease;
-    `;
-    
-    searchInput.addEventListener('focus', () => {
-      searchInput.style.borderColor = '#3b82f6';
-    });
-    
-    searchInput.addEventListener('blur', () => {
-      searchInput.style.borderColor = '#e1e5e9';
-    });
-    
-    searchContainer.appendChild(searchInput);
-    host.appendChild(searchContainer);
-    
-    const fileListContainer = document.createElement('div');
-    fileListContainer.innerHTML = '<div class="mbf-empty">No files yet in this folder.</div>';
-    host.appendChild(fileListContainer);
+    // Show error in total files info
+    const infoEl = document.getElementById('total-files-info');
+    if (infoEl) {
+      infoEl.innerHTML = 'Load error';
+    }
   }
 }
 
