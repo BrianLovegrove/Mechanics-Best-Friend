@@ -569,43 +569,16 @@ function render(){
   // Reset scroll position to top when navigating to new folder
   window.scrollTo(0, 0);
   
-  const n=current(); 
-  const isFilePage = !n.children || n.children.length === 0;
+  renderBack(); renderCrumbs();
+  const n=current(); $c.innerHTML='';
   
-  // Clear content and components
-  $c.innerHTML='';
+  // Clear the new UI components initially
   const toolbarEl = document.getElementById('folder-toolbar');
   const filesEl = document.getElementById('files-list');
   const notesEl = document.getElementById('notes-panel');
   if (toolbarEl) toolbarEl.innerHTML = '';
   if (filesEl) filesEl.innerHTML = '';
   if (notesEl) notesEl.innerHTML = '';
-  
-  // Show/hide appropriate UI elements based on page type
-  const legacyBreadcrumbs = document.getElementById('breadcrumbs');
-  const centeredBreadcrumbs = document.getElementById('breadcrumbs-center');
-  const topButtonsRow = document.getElementById('top-buttons-row');
-  const fileViewerSection = document.getElementById('file-viewer-section');
-  
-  if (isFilePage) {
-    // File page layout: use centered breadcrumbs and new layout
-    if (legacyBreadcrumbs) legacyBreadcrumbs.style.display = 'none';
-    if (centeredBreadcrumbs) centeredBreadcrumbs.style.display = 'block';
-    if (topButtonsRow) topButtonsRow.style.display = 'flex';
-    if (fileViewerSection) fileViewerSection.style.display = 'block';
-    
-    renderCenteredCrumbs();
-    renderBack();
-  } else {
-    // Folder grid layout: use legacy breadcrumbs
-    if (legacyBreadcrumbs) legacyBreadcrumbs.style.display = 'block';
-    if (centeredBreadcrumbs) centeredBreadcrumbs.style.display = 'none';
-    if (topButtonsRow) topButtonsRow.style.display = 'none';
-    if (fileViewerSection) fileViewerSection.style.display = 'none';
-    
-    renderBack(); 
-    renderCrumbs();
-  }
 
   // Admin settings panel (only at root level for admin users)
   if (currentUser && currentUser.role === 'admin' && stack.length === 0) {
@@ -624,7 +597,7 @@ function render(){
       currentPath.push(currentNode.name);
     }
     
-    // Create all buttons with updated count displays
+    // Create all buttons with immediate counts from cache
     n.children.forEach((ch,i)=>{ 
       const b=document.createElement('button'); 
       b.className='item'; 
@@ -636,7 +609,7 @@ function render(){
       const isLeaf = counts.isLeaf;
       const isMechanicNotes = counts.isMechanicNotes;
       
-      // Create count display according to new specifications
+      // Create compact, non-wrapping display with special handling for Mechanic Notes
       let countDisplay = '';
       if (isLeaf) {
         // Leaf folders show file count only, with special text for Mechanic Notes
@@ -646,8 +619,8 @@ function render(){
           countDisplay = `Files: ${fileCount}`;
         }
       } else {
-        // Parent folders show "# Of Subfolders: N" instead of Items/Files
-        countDisplay = `# Of Subfolders: ${folderCount}`;
+        // Parent folders show both folder and file counts
+        countDisplay = `Items: ${folderCount} | Files: ${fileCount}`;
       }
       
       // Use improved styling to prevent line wrapping and make it more compact
@@ -1162,17 +1135,6 @@ function renderCrumbs(){ const parts=['<a href="#" data-i="-1">Home</a>']; let n
   stack.forEach((idx,d)=>{ n=n.children[idx]; if(d<stack.length-1) parts.push(`<a href="#" data-i="${d}">${n.name}</a>`); else parts.push(`<span>${n.name}</span>`); });
   $bc.innerHTML=parts.join(' / ');
   $bc.querySelectorAll('a[data-i]').forEach(a=>{ a.onclick=e=>{ e.preventDefault(); const i=parseInt(a.getAttribute('data-i'),10); if(i===-1) stack.length=0; else stack.length=i+1; render(); }; });
-}
-
-// Render centered breadcrumbs for file pages
-function renderCenteredCrumbs() {
-  const centeredBc = document.getElementById('breadcrumbs-center');
-  if (!centeredBc) return;
-  
-  const parts=['<a href="#" data-i="-1">Home</a>']; let n=tree;
-  stack.forEach((idx,d)=>{ n=n.children[idx]; if(d<stack.length-1) parts.push(`<a href="#" data-i="${d}">${n.name}</a>`); else parts.push(`<span>${n.name}</span>`); });
-  centeredBc.innerHTML=parts.join(' / ');
-  centeredBc.querySelectorAll('a[data-i]').forEach(a=>{ a.onclick=e=>{ e.preventDefault(); const i=parseInt(a.getAttribute('data-i'),10); if(i===-1) stack.length=0; else stack.length=i+1; render(); }; });
 }
 function renderBack(){ if(stack.length===0){ $back.style.display='none'; return; } $back.style.display='inline-block'; $back.onclick=()=>{ stack.pop(); render(); }; }
 
